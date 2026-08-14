@@ -5,9 +5,10 @@ Interactive ABC music notation inside AI conversations. ABCoda is a small TypeSc
 ## MVP capabilities
 
 - responsive multi-voice notation from ABC;
-- combined play/pause, loop, and live tempo control;
+- combined play/pause, return-to-beginning, loop, and live tempo control;
 - General MIDI instrument selection and mute per ABC voice;
 - playback cursor synchronized with the engraved score;
+- click-to-seek by measure with a continuously moving playback cursor;
 - ChatGPT host tokens, light/dark theme changes, and mobile layout;
 - stateless MCP server: no auth, database, user data, or music backend.
 

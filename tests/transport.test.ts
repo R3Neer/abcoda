@@ -5,6 +5,8 @@ function setup(options: { tempo?: number; loop?: boolean } = {}) {
   const backend: PlaybackBackend = {
     play: vi.fn(),
     pause: vi.fn(),
+    restart: vi.fn(),
+    setProgress: vi.fn(),
     toggleLoop: vi.fn(),
     setWarp: vi.fn().mockResolvedValue(undefined),
   };
@@ -21,7 +23,7 @@ function setup(options: { tempo?: number; loop?: boolean } = {}) {
 describe("transport button sequences", () => {
   it("ignores the playback toggle until audio is ready", () => {
     const { backend, controller } = setup();
-    controller.togglePlayback();
+    void controller.togglePlayback();
     expect(backend.play).not.toHaveBeenCalled();
     expect(backend.pause).not.toHaveBeenCalled();
   });
@@ -31,15 +33,15 @@ describe("transport button sequences", () => {
     controller.beginConfiguration();
     await controller.completeConfiguration(backend);
 
-    controller.togglePlayback();
+    await controller.togglePlayback();
     expect(backend.play).toHaveBeenCalledTimes(1);
     expect(controller.snapshot().playing).toBe(true);
 
-    controller.togglePlayback();
+    await controller.togglePlayback();
     expect(backend.pause).toHaveBeenCalledTimes(1);
     expect(controller.snapshot().playing).toBe(false);
 
-    controller.togglePlayback();
+    await controller.togglePlayback();
     expect(backend.play).toHaveBeenCalledTimes(2);
     expect(controller.snapshot().playing).toBe(true);
   });
@@ -51,6 +53,43 @@ describe("transport button sequences", () => {
     controller.playbackFinished();
     controller.play();
     expect(backend.play).toHaveBeenCalledTimes(2);
+  });
+
+  it("returns to the beginning without changing play/pause state", async () => {
+    const { backend, controller } = setup();
+    await controller.completeConfiguration(backend);
+    await controller.togglePlayback();
+    controller.rewind();
+    expect(backend.restart).toHaveBeenCalledOnce();
+    expect(controller.snapshot().playing).toBe(true);
+  });
+
+  it("seeks while paused or playing and clamps invalid progress", async () => {
+    const { backend, controller } = setup();
+    await controller.completeConfiguration(backend);
+    controller.seek(.42);
+    await controller.togglePlayback();
+    controller.seek(2);
+    controller.seek(-1);
+    expect(backend.setProgress).toHaveBeenNthCalledWith(1, .42);
+    expect(backend.setProgress).toHaveBeenNthCalledWith(2, 1);
+    expect(backend.setProgress).toHaveBeenNthCalledWith(3, 0);
+    expect(controller.snapshot().playing).toBe(true);
+  });
+
+  it("debounces a second click while abcjs is still changing state", async () => {
+    let release!: () => void;
+    const pending = new Promise<void>((resolve) => { release = resolve; });
+    const { backend, controller } = setup();
+    vi.mocked(backend.play).mockReturnValue(pending);
+    await controller.completeConfiguration(backend);
+    const first = controller.togglePlayback();
+    const second = controller.togglePlayback();
+    expect(backend.play).toHaveBeenCalledOnce();
+    expect(controller.snapshot()).toMatchObject({ busy: true, playing: true });
+    release();
+    await Promise.all([first, second]);
+    expect(controller.snapshot()).toMatchObject({ busy: false, playing: true });
   });
 });
 

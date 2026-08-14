@@ -1,6 +1,8 @@
 export interface PlaybackBackend {
-  play(): void;
-  pause(): void;
+  play(): Promise<void> | void;
+  pause(): Promise<void> | void;
+  restart(): void;
+  setProgress(percent: number): void;
   toggleLoop(): void;
   setWarp(percent: number): Promise<void> | void;
 }
@@ -37,7 +39,6 @@ export class TransportController {
   }
 
   reset(baseTempo: number, tempo: number, loop: boolean): void {
-    this.backend?.pause();
     this.backend = undefined;
     this.backendLoop = false;
     this.baseTempo = baseTempo;
@@ -46,7 +47,6 @@ export class TransportController {
   }
 
   beginConfiguration(): void {
-    this.backend?.pause();
     this.state.playing = false;
     this.state.ready = false;
     this.state.busy = true;
@@ -86,9 +86,32 @@ export class TransportController {
     }
   }
 
-  togglePlayback(): void {
-    if (this.state.playing) this.pause();
-    else this.play();
+  async togglePlayback(): Promise<void> {
+    if (!this.backend || !this.state.ready || this.state.busy) return;
+    const wasPlaying = this.state.playing;
+    this.state.busy = true;
+    this.state.playing = !wasPlaying;
+    this.emit();
+    try {
+      if (wasPlaying) await this.backend.pause();
+      else await this.backend.play();
+    } catch (error) {
+      this.state.playing = wasPlaying;
+      throw error;
+    } finally {
+      this.state.busy = false;
+      this.emit();
+    }
+  }
+
+  rewind(): void {
+    if (!this.backend || !this.state.ready || this.state.busy) return;
+    this.backend.restart();
+  }
+
+  seek(progress: number): void {
+    if (!this.backend || !this.state.ready || this.state.busy) return;
+    this.backend.setProgress(Math.max(0, Math.min(1, progress)));
   }
 
   pause(): void {

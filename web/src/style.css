@@ -76,7 +76,17 @@ h1 { margin: 1px 0 0; font-size: var(--font-heading-sm-size, 19px); line-height:
   border-radius: var(--abcoda-radius-md);
 }
 .score svg { display: block; width: 100% !important; height: auto; max-width: 100%; overflow: visible; }
-.score .abcoda-playing { fill: var(--abcoda-accent) !important; stroke: var(--abcoda-accent) !important; filter: drop-shadow(0 0 1px color-mix(in srgb, var(--abcoda-accent) 45%, transparent)); }
+.score.is-seekable svg { cursor: pointer; }
+.score .abcoda-cursor {
+  opacity: 0;
+  pointer-events: none;
+  stroke: var(--abcoda-accent);
+  stroke-linecap: round;
+  stroke-width: 1.8;
+  vector-effect: non-scaling-stroke;
+  filter: drop-shadow(0 0 1px color-mix(in srgb, var(--abcoda-accent) 45%, transparent));
+}
+.score .abcoda-cursor.is-visible { opacity: 1; }
 .score.colored-voices .abcjs-v0 { color: #3478c9; fill: #3478c9; stroke: #3478c9; }
 .score.colored-voices .abcjs-v1 { color: #c55a3b; fill: #c55a3b; stroke: #c55a3b; }
 .score.colored-voices .abcjs-v2 { color: #6b8f32; fill: #6b8f32; stroke: #6b8f32; }
@@ -88,6 +98,7 @@ h1 { margin: 1px 0 0; font-size: var(--font-heading-sm-size, 19px); line-height:
 .transport-buttons button:not(.primary) { color: var(--abcoda-muted); }
 .transport-buttons button[aria-pressed="true"]:not(.primary) { color: var(--abcoda-accent); background: color-mix(in srgb, var(--abcoda-accent) 12%, transparent); }
 .control-icon { display: inline-grid; min-width: 14px; place-items: center; font-size: 12px; line-height: 1; }
+.rewind-icon { font-size: 10px; letter-spacing: -2px; }
 .is-configuring .transport { opacity: .72; }
 
 .tempo-control { display: grid; grid-template-columns: auto minmax(80px, 1fr) 66px; align-items: center; gap: 9px; min-width: 0; color: var(--abcoda-muted); font-size: var(--font-text-sm-size, 13px); }
@@ -110,7 +121,7 @@ h1 { margin: 1px 0 0; font-size: var(--font-heading-sm-size, 19px); line-height:
 
 @media (max-width: 640px) {
   .transport { grid-template-columns: 1fr; gap: 8px; }
-  .transport-buttons { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .transport-buttons { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .transport-buttons button { min-width: 0; padding-inline: 8px; }
   .tempo-control { padding: 0 4px 4px; }
 }

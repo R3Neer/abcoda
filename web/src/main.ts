@@ -15,8 +15,17 @@ import {
   type RenderScoreOutput,
 } from "../../shared/score";
 import { abcTitle, extractVoiceIds } from "../../shared/voices";
+import {
+  eventProgress,
+  firstEventInMeasure,
+  measureAtPoint,
+  nextCursorEvent,
+  totalMeasureFromClasses,
+  visibleTimingEvents,
+  type VisibleTimingEvent,
+} from "./cursor";
 import { applyInstruments } from "./music";
-import { TransportController, type TransportState } from "./transport";
+import { TransportController, type PlaybackBackend, type TransportState } from "./transport";
 import "./style.css";
 
 const sample: RenderScoreOutput = {
@@ -45,16 +54,110 @@ const tempoOutput = byId<HTMLOutputElement>("tempo-output");
 const playbackButton = byId<HTMLButtonElement>("playback-toggle");
 const playbackIcon = byId<HTMLElement>("playback-icon");
 const playbackLabel = byId<HTMLElement>("playback-label");
+const rewindButton = byId<HTMLButtonElement>("rewind");
 const loopButton = byId<HTMLButtonElement>("loop");
 
 let payload: RenderScoreOutput | undefined;
 let visualTune: ABCJS.TuneObject | undefined;
 let synth: ABCJS.SynthObjectController | undefined;
+let playbackBackend: PlaybackBackend | undefined;
 let instruments: Record<string, InstrumentName> = {};
 let mutedVoices = new Set<string>();
 let requestedConfiguration = 0;
 let appliedConfiguration = 0;
 let configurationRunning = false;
+
+class ScoreCursor {
+  private line: SVGLineElement | undefined;
+  private events: VisibleTimingEvent[] = [];
+  private current: VisibleTimingEvent | undefined;
+  private frame = 0;
+  private playing = false;
+  private x = 0;
+
+  setEvents(events: VisibleTimingEvent[]): void {
+    const previousProgress = this.current && this.events.length > 0
+      ? eventProgress(this.current, this.events)
+      : 0;
+    this.events = events;
+    this.ensureLine();
+    this.current = events.find((event) => eventProgress(event, events) >= previousProgress) ?? events[0];
+    if (this.current) this.place(this.current.left, this.current);
+  }
+
+  setPlaying(playing: boolean): void {
+    if (this.playing === playing) return;
+    this.playing = playing;
+    if (!playing) cancelAnimationFrame(this.frame);
+    else if (this.current) this.animateFrom(this.current);
+  }
+
+  onEvent(event: ABCJS.NoteTimingEvent): void {
+    const current = this.events.find((candidate) =>
+      candidate.milliseconds === event.milliseconds &&
+      candidate.line === event.line &&
+      candidate.left === event.left,
+    );
+    if (!current) return;
+    this.current = current;
+    this.place(current.left, current);
+    if (this.playing) this.animateFrom(current);
+  }
+
+  seek(event: VisibleTimingEvent): void {
+    cancelAnimationFrame(this.frame);
+    this.current = event;
+    this.place(event.left, event);
+    if (this.playing) this.animateFrom(event);
+  }
+
+  rewind(): void {
+    const first = this.events[0];
+    if (first) this.seek(first);
+  }
+
+  private ensureLine(): void {
+    const svg = scoreElement.querySelector("svg");
+    if (!svg) return;
+    if (this.line?.ownerSVGElement === svg) return;
+    this.line?.remove();
+    this.line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    this.line.classList.add("abcoda-cursor");
+    this.line.setAttribute("aria-hidden", "true");
+    svg.append(this.line);
+  }
+
+  private place(x: number, event: VisibleTimingEvent): void {
+    this.ensureLine();
+    this.x = x;
+    this.line?.setAttribute("x1", String(x));
+    this.line?.setAttribute("x2", String(x));
+    this.line?.setAttribute("y1", String(event.top - 2));
+    this.line?.setAttribute("y2", String(event.top + event.height + 2));
+    this.line?.classList.add("is-visible");
+  }
+
+  private animateFrom(current: VisibleTimingEvent): void {
+    cancelAnimationFrame(this.frame);
+    const next = nextCursorEvent(this.events, current);
+    if (!next || next.line !== current.line || next.top !== current.top) return;
+    const fullDistance = next.left - current.left;
+    const remainingDistance = next.left - this.x;
+    if (fullDistance <= 0 || remainingDistance <= 0) return;
+    const duration = (next.milliseconds - current.milliseconds) * (remainingDistance / fullDistance);
+    const startX = this.x;
+    const started = performance.now();
+    const tick = (now: number) => {
+      if (!this.playing || this.current !== current) return;
+      const progress = Math.min(1, (now - started) / Math.max(1, duration));
+      this.place(startX + remainingDistance * progress, current);
+      if (progress < 1) this.frame = requestAnimationFrame(tick);
+    };
+    this.frame = requestAnimationFrame(tick);
+  }
+}
+
+const scoreCursor = new ScoreCursor();
 
 type ChatGptBridge = {
   toolInput?: unknown;
@@ -82,6 +185,7 @@ function applyHostContext(context: Pick<McpUiHostContext, "theme" | "styles">): 
 
 function updateTransport(state: TransportState): void {
   playbackButton.disabled = !state.ready || state.busy;
+  rewindButton.disabled = !state.ready || state.busy;
   loopButton.disabled = state.busy;
   playbackButton.setAttribute("aria-pressed", String(state.playing));
   playbackButton.setAttribute("aria-label", state.playing ? "Pause" : "Play");
@@ -92,24 +196,28 @@ function updateTransport(state: TransportState): void {
   tempo.value = String(state.tempo);
   tempoOutput.value = `${state.tempo} BPM`;
   byId<HTMLElement>("app").classList.toggle("is-configuring", state.busy);
+  scoreElement.classList.toggle("is-seekable", state.ready && !state.busy);
+  scoreCursor.setPlaying(state.playing);
 }
 
 const transport = new TransportController(96, 96, false, updateTransport);
 
-function clearPlayingCursor(): void {
-  scoreElement.querySelectorAll(".abcoda-playing").forEach((node) => node.classList.remove("abcoda-playing"));
+function refreshCursorEvents(): void {
+  if (!visualTune) return;
+  const makeTimings = visualTune.setTiming as unknown as (
+    bpm?: number,
+    measuresOfDelay?: number,
+  ) => ABCJS.NoteTimingEvent[];
+  scoreCursor.setEvents(visibleTimingEvents(makeTimings(transport.snapshot().tempo, 0)));
 }
 
 const cursorControl: ABCJS.CursorControl = {
   onStart: () => transport.playbackStarted(),
   onFinished: () => {
     transport.playbackFinished();
-    clearPlayingCursor();
+    scoreCursor.rewind();
   },
-  onEvent: (event) => {
-    clearPlayingCursor();
-    event.elements?.flat().forEach((element) => element.classList.add("abcoda-playing"));
-  },
+  onEvent: (event) => scoreCursor.onEvent(event),
 };
 
 function requestAudioConfiguration(): void {
@@ -121,7 +229,6 @@ async function runConfigurationQueue(): Promise<void> {
   configurationRunning = true;
   let completed = false;
   transport.beginConfiguration();
-  clearPlayingCursor();
 
   try {
     if (!ABCJS.synth.supportsAudio()) {
@@ -131,6 +238,16 @@ async function runConfigurationQueue(): Promise<void> {
     }
 
     synth ??= new ABCJS.synth.SynthController();
+    playbackBackend ??= {
+      // SynthController.play() is itself a play/pause toggle. Calling its pause()
+      // method does not reset abcjs's internal isStarted flag, so resume would fail.
+      play: () => synth?.play() as unknown as Promise<void> | undefined,
+      pause: () => synth?.play() as unknown as Promise<void> | undefined,
+      restart: () => synth?.restart(),
+      setProgress: (progress) => synth?.setProgress(progress),
+      toggleLoop: () => synth?.toggleLoop(),
+      setWarp: (percent) => synth?.setWarp(percent),
+    };
     synth.load("#abcjs-audio", cursorControl, {
       displayLoop: false,
       displayPlay: false,
@@ -158,7 +275,8 @@ async function runConfigurationQueue(): Promise<void> {
       if (result.status === "no-audio-context") showNotice("Tap Play to enable audio.");
     }
 
-    await transport.completeConfiguration(synth);
+    await transport.completeConfiguration(playbackBackend);
+    refreshCursorEvents();
     completed = true;
   } catch (error) {
     transport.failConfiguration();
@@ -240,10 +358,53 @@ async function render(output: RenderScoreOutput): Promise<void> {
 }
 
 playbackButton.addEventListener("click", () => {
-  try { transport.togglePlayback(); } catch { showNotice("Playback could not start.", true); }
+  void transport.togglePlayback().catch(() => showNotice("Playback could not start.", true));
 });
 loopButton.addEventListener("click", () => transport.toggleLoop());
-tempo.addEventListener("input", () => void transport.setTempo(Number(tempo.value)));
+rewindButton.addEventListener("click", () => {
+  transport.rewind();
+  scoreCursor.rewind();
+});
+tempo.addEventListener("input", async () => {
+  await transport.setTempo(Number(tempo.value));
+  refreshCursorEvents();
+});
+
+function seekToMeasure(measureNumber: number): void {
+  let timings = (visualTune as ABCJS.TuneObject & { noteTimings?: ABCJS.NoteTimingEvent[] } | undefined)?.noteTimings ?? [];
+  let cursorEvents = visibleTimingEvents(timings);
+  if (cursorEvents.length === 0) {
+    if (!visualTune) return;
+    const makeTimings = visualTune.setTiming as unknown as (bpm?: number, delay?: number) => ABCJS.NoteTimingEvent[];
+    timings = makeTimings(transport.snapshot().tempo, 0);
+    cursorEvents = visibleTimingEvents(timings);
+  }
+  const target = firstEventInMeasure(cursorEvents, measureNumber);
+  if (!target) return;
+  transport.seek(eventProgress(target, cursorEvents, timings.at(-1)?.milliseconds));
+  scoreCursor.seek(target);
+}
+
+scoreElement.addEventListener("click", (event) => {
+  if (!transport.snapshot().ready) return;
+  const target = event.target as Element;
+  const classNames = target.closest("[class*='abcjs-m']")?.getAttribute("class") ?? "";
+  const classMeasure = totalMeasureFromClasses(classNames, -1);
+  if (classMeasure >= 0) {
+    seekToMeasure(classMeasure);
+    return;
+  }
+
+  const svg = target.closest("svg") as SVGSVGElement | null;
+  if (!svg || !visualTune) return;
+  const rect = svg.getBoundingClientRect();
+  const viewBox = svg.viewBox.baseVal;
+  const x = viewBox.x + ((event.clientX - rect.left) / rect.width) * viewBox.width;
+  const y = viewBox.y + ((event.clientY - rect.top) / rect.height) * viewBox.height;
+  const timings = visibleTimingEvents((visualTune as ABCJS.TuneObject & { noteTimings?: ABCJS.NoteTimingEvent[] }).noteTimings ?? []);
+  const pointMeasure = measureAtPoint(timings, x, y);
+  if (pointMeasure !== undefined) seekToMeasure(pointMeasure);
+});
 
 byId<HTMLButtonElement>("fullscreen").addEventListener("click", async () => {
   try {
