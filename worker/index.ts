@@ -23,7 +23,13 @@ export default {
       return new Response(null, { status: 204, headers: corsHeaders });
     }
 
-    if (url.pathname === "/" || url.pathname === "/health") {
+    if (url.pathname === "/") {
+      return withCors(new Response(widgetHtml, {
+        headers: { "Content-Type": "text/html; charset=utf-8" },
+      }));
+    }
+
+    if (url.pathname === "/health") {
       return withCors(
         Response.json({ name: "ABCoda", status: "ok", runtime: "cloudflare-worker", mcp: "/mcp" }),
       );

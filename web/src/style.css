@@ -56,6 +56,27 @@ button.primary[aria-pressed="true"] { color: var(--abcoda-accent); background: c
   padding: max(10px, env(safe-area-inset-top)) max(4px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(4px, env(safe-area-inset-left));
 }
 
+html[data-display-mode="fullscreen"] {
+  height: var(--abcoda-host-height, 100dvh);
+  max-height: 100dvh;
+  overflow: hidden;
+}
+html[data-display-mode="fullscreen"] body { height: 100%; overflow: hidden; }
+html[data-display-mode="fullscreen"] .app-shell {
+  height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-padding-bottom: max(calc(var(--abcoda-safe-bottom, 0px) + 24px), 120px);
+  padding:
+    max(12px, var(--abcoda-safe-top, 0px))
+    max(12px, var(--abcoda-safe-right, 0px))
+    max(calc(var(--abcoda-safe-bottom, 0px) + 24px), 120px)
+    max(12px, var(--abcoda-safe-left, 0px));
+}
+
+html[data-display-mode="standalone"] .icon-button { display: none; }
+
 .score-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 4px 10px; }
 .brand { color: var(--abcoda-muted); font-size: var(--font-text-xs-size, 12px); font-weight: var(--font-weight-medium, 550); line-height: 1.2; }
 h1 { margin: 1px 0 0; font-size: var(--font-heading-sm-size, 19px); line-height: var(--font-heading-sm-line-height, 1.3); font-weight: var(--font-weight-semibold, 650); }

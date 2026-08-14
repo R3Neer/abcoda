@@ -24,8 +24,10 @@ import {
   visibleTimingEvents,
   type VisibleTimingEvent,
 } from "./cursor";
+import { DeferredAudioBackend, type SynthControllerLike } from "./deferred-audio";
 import { applyInstruments } from "./music";
-import { TransportController, type PlaybackBackend, type TransportState } from "./transport";
+import { decodeStandaloneScore, encodeStandaloneScore } from "./standalone";
+import { TransportController, type TransportState } from "./transport";
 import "./style.css";
 
 const sample: RenderScoreOutput = {
@@ -56,11 +58,12 @@ const playbackIcon = byId<HTMLElement>("playback-icon");
 const playbackLabel = byId<HTMLElement>("playback-label");
 const rewindButton = byId<HTMLButtonElement>("rewind");
 const loopButton = byId<HTMLButtonElement>("loop");
+const mixer = byId<HTMLDetailsElement>("mixer");
 
 let payload: RenderScoreOutput | undefined;
 let visualTune: ABCJS.TuneObject | undefined;
 let synth: ABCJS.SynthObjectController | undefined;
-let playbackBackend: PlaybackBackend | undefined;
+let playbackBackend: DeferredAudioBackend | undefined;
 let instruments: Record<string, InstrumentName> = {};
 let mutedVoices = new Set<string>();
 let requestedConfiguration = 0;
@@ -164,9 +167,13 @@ type ChatGptBridge = {
   toolOutput?: unknown;
   theme?: "light" | "dark";
   styles?: { variables?: McpUiStyles; css?: { fonts?: string } };
+  displayMode?: "inline" | "fullscreen" | "pip";
+  maxHeight?: number;
+  safeArea?: { top?: number; right?: number; bottom?: number; left?: number };
   notifyIntrinsicHeight?: (height: number) => void;
   requestDisplayMode?: (options: { mode: "inline" | "fullscreen" | "pip" }) => Promise<unknown>;
   openExternal?: (options: { href: string; redirectUrl?: boolean }) => Promise<void>;
+  setOpenInAppUrl?: (options: { href: string }) => void;
 };
 
 const getChatGpt = () => (window as Window & { openai?: ChatGptBridge }).openai;
@@ -177,20 +184,50 @@ function showNotice(message: string, error = false): void {
   notice.classList.toggle("error", error);
 }
 
-function applyHostContext(context: Pick<McpUiHostContext, "theme" | "styles">): void {
+type HostVisualContext = Pick<
+  McpUiHostContext,
+  "theme" | "styles" | "displayMode" | "containerDimensions" | "safeAreaInsets"
+> & Pick<ChatGptBridge, "maxHeight" | "safeArea">;
+
+function applyHostContext(context: HostVisualContext): void {
   if (context.theme) applyDocumentTheme(context.theme);
   if (context.styles?.variables) applyHostStyleVariables(context.styles.variables);
   if (context.styles?.css?.fonts) applyHostFonts(context.styles.css.fonts);
+  if (context.displayMode) document.documentElement.dataset.displayMode = context.displayMode;
+
+  const dimensions = context.containerDimensions;
+  const height = dimensions && "height" in dimensions
+    ? dimensions.height
+    : dimensions?.maxHeight ?? context.maxHeight;
+  if (height) document.documentElement.style.setProperty("--abcoda-host-height", `${height}px`);
+
+  const safeArea = context.safeAreaInsets ?? context.safeArea;
+  if (safeArea) {
+    document.documentElement.style.setProperty("--abcoda-safe-top", `${safeArea.top ?? 0}px`);
+    document.documentElement.style.setProperty("--abcoda-safe-right", `${safeArea.right ?? 0}px`);
+    document.documentElement.style.setProperty("--abcoda-safe-bottom", `${safeArea.bottom ?? 0}px`);
+    document.documentElement.style.setProperty("--abcoda-safe-left", `${safeArea.left ?? 0}px`);
+  }
+}
+
+function updateOpenInAppUrl(output: RenderScoreOutput): void {
+  const bridge = getChatGpt();
+  if (!bridge?.setOpenInAppUrl) return;
+  const hash = encodeStandaloneScore(output);
+  const base = "https://abcoda.mud-repo-patcher-mcp-probe.workers.dev/";
+  bridge.setOpenInAppUrl({ href: hash.length <= 24_000 ? `${base}${hash}` : `${base}?demo=1` });
 }
 
 function updateTransport(state: TransportState): void {
+  const starting = state.busy && state.playing;
   playbackButton.disabled = !state.ready || state.busy;
   rewindButton.disabled = !state.ready || state.busy;
   loopButton.disabled = state.busy;
   playbackButton.setAttribute("aria-pressed", String(state.playing));
-  playbackButton.setAttribute("aria-label", state.playing ? "Pause" : "Play");
-  playbackIcon.textContent = state.playing ? "Ⅱ" : "▶";
-  playbackLabel.textContent = state.playing ? "Pause" : "Play";
+  playbackButton.setAttribute("aria-label", starting ? "Preparing audio" : state.playing ? "Pause" : "Play");
+  playbackButton.setAttribute("aria-busy", String(starting));
+  playbackIcon.textContent = starting ? "…" : state.playing ? "Ⅱ" : "▶";
+  playbackLabel.textContent = starting ? "Loading…" : state.playing ? "Pause" : "Play";
   loopButton.setAttribute("aria-pressed", String(state.loop));
   tempo.disabled = state.busy;
   tempo.value = String(state.tempo);
@@ -212,7 +249,10 @@ function refreshCursorEvents(): void {
 }
 
 const cursorControl: ABCJS.CursorControl = {
-  onStart: () => transport.playbackStarted(),
+  onStart: () => {
+    if (notice.textContent === "Tap Play to enable audio.") showNotice("");
+    transport.playbackStarted();
+  },
   onFinished: () => {
     transport.playbackFinished();
     scoreCursor.rewind();
@@ -238,16 +278,7 @@ async function runConfigurationQueue(): Promise<void> {
     }
 
     synth ??= new ABCJS.synth.SynthController();
-    playbackBackend ??= {
-      // SynthController.play() is itself a play/pause toggle. Calling its pause()
-      // method does not reset abcjs's internal isStarted flag, so resume would fail.
-      play: () => synth?.play() as unknown as Promise<void> | undefined,
-      pause: () => synth?.play() as unknown as Promise<void> | undefined,
-      restart: () => synth?.restart(),
-      setProgress: (progress) => synth?.setProgress(progress),
-      toggleLoop: () => synth?.toggleLoop(),
-      setWarp: (percent) => synth?.setWarp(percent),
-    };
+    playbackBackend ??= new DeferredAudioBackend(synth as unknown as SynthControllerLike);
     synth.load("#abcjs-audio", cursorControl, {
       displayLoop: false,
       displayPlay: false,
@@ -265,14 +296,14 @@ async function runConfigurationQueue(): Promise<void> {
       const selectedMutes = new Set(mutedVoices);
       if (!score || !tune) break;
 
-      const result = await synth.setTune(tune, false, {
+      await playbackBackend.configure(tune, {
         qpm: score.score.playback.tempo,
         chordsOff: true,
         sequenceCallback: (sequence) =>
           applyInstruments(sequence, voiceIds, selectedInstruments, selectedMutes),
       });
       appliedConfiguration = revision;
-      if (result.status === "no-audio-context") showNotice("Tap Play to enable audio.");
+      showNotice("Tap Play to enable audio.");
     }
 
     await transport.completeConfiguration(playbackBackend);
@@ -330,6 +361,8 @@ function renderMixer(): void {
 
 async function render(output: RenderScoreOutput): Promise<void> {
   payload = output;
+  playbackBackend = undefined;
+  updateOpenInAppUrl(output);
   instruments = { ...output.score.playback.instruments };
   mutedVoices = new Set(output.score.playback.mutedVoices);
   transport.reset(output.score.playback.tempo, output.score.playback.tempo, output.score.playback.loop);
@@ -404,6 +437,11 @@ scoreElement.addEventListener("click", (event) => {
   const timings = visibleTimingEvents((visualTune as ABCJS.TuneObject & { noteTimings?: ABCJS.NoteTimingEvent[] }).noteTimings ?? []);
   const pointMeasure = measureAtPoint(timings, x, y);
   if (pointMeasure !== undefined) seekToMeasure(pointMeasure);
+});
+
+mixer.addEventListener("toggle", () => {
+  if (!mixer.open || document.documentElement.dataset.displayMode !== "fullscreen") return;
+  requestAnimationFrame(() => mixer.scrollIntoView({ block: "nearest", behavior: "smooth" }));
 });
 
 byId<HTMLButtonElement>("fullscreen").addEventListener("click", async () => {
@@ -481,7 +519,8 @@ function setupChatGptHeightNotifications(): void {
 setupChatGptHeightNotifications();
 
 if (window.parent === window || new URLSearchParams(location.search).has("demo")) {
-  void render(sample);
+  document.documentElement.dataset.displayMode = "standalone";
+  void render(decodeStandaloneScore(location.hash) ?? sample);
 } else {
   app.connect().then(() => {
     const context = app.getHostContext();
