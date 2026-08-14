@@ -4,6 +4,7 @@ import {
   firstEventInMeasure,
   measureAtPoint,
   nextCursorEvent,
+  timingEventsForTune,
   totalMeasureFromClasses,
   visibleTimingEvents,
 } from "../web/src/cursor";
@@ -17,6 +18,17 @@ const events = visibleTimingEvents([
 ]);
 
 describe("score seeking helpers", () => {
+  it("keeps abcjs setTiming bound to its tune object", () => {
+    const tune = {
+      setTiming(this: unknown, bpm: number) {
+        expect(this).toBe(tune);
+        expect(bpm).toBe(96);
+        return [];
+      },
+    };
+    expect(timingEventsForTune(tune as never, 96)).toEqual([]);
+  });
+
   it("prefers global abcjs measure classes across wrapped systems", () => {
     expect(totalMeasureFromClasses("abcjs-note abcjs-m1 abcjs-mm13", 0)).toBe(13);
     expect(totalMeasureFromClasses("abcjs-note abcjs-m2", 0)).toBe(2);

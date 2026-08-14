@@ -20,6 +20,7 @@ import {
   firstEventInMeasure,
   measureAtPoint,
   nextCursorEvent,
+  timingEventsForTune,
   totalMeasureFromClasses,
   visibleTimingEvents,
   type VisibleTimingEvent,
@@ -241,11 +242,12 @@ const transport = new TransportController(96, 96, false, updateTransport);
 
 function refreshCursorEvents(): void {
   if (!visualTune) return;
-  const makeTimings = visualTune.setTiming as unknown as (
-    bpm?: number,
-    measuresOfDelay?: number,
-  ) => ABCJS.NoteTimingEvent[];
-  scoreCursor.setEvents(visibleTimingEvents(makeTimings(transport.snapshot().tempo, 0)));
+  try {
+    scoreCursor.setEvents(visibleTimingEvents(timingEventsForTune(visualTune, transport.snapshot().tempo)));
+  } catch {
+    // Cursor timing is an enhancement. It must never disable score playback.
+    scoreCursor.setEvents([]);
+  }
 }
 
 const cursorControl: ABCJS.CursorControl = {
@@ -307,8 +309,8 @@ async function runConfigurationQueue(): Promise<void> {
     }
 
     await transport.completeConfiguration(playbackBackend);
-    refreshCursorEvents();
     completed = true;
+    refreshCursorEvents();
   } catch (error) {
     transport.failConfiguration();
     showNotice(error instanceof Error ? error.message : "Audio could not be prepared.", true);
@@ -367,7 +369,10 @@ async function render(output: RenderScoreOutput): Promise<void> {
   mutedVoices = new Set(output.score.playback.mutedVoices);
   transport.reset(output.score.playback.tempo, output.score.playback.tempo, output.score.playback.loop);
   byId<HTMLElement>("score-title").textContent = output.score.display.title ?? abcTitle(output.score.abc) ?? "Interactive score";
-  scoreElement.classList.toggle("colored-voices", output.score.display.coloredVoices);
+  scoreElement.classList.toggle(
+    "colored-voices",
+    output.score.display.coloredVoices && output.voiceIds.length > 1,
+  );
   showNotice(output.warnings.join(" "));
 
   const measuresPerLine = output.score.display.preferredMeasuresPerLine ?? (window.innerWidth < 620 ? 2 : 4);
@@ -408,8 +413,11 @@ function seekToMeasure(measureNumber: number): void {
   let cursorEvents = visibleTimingEvents(timings);
   if (cursorEvents.length === 0) {
     if (!visualTune) return;
-    const makeTimings = visualTune.setTiming as unknown as (bpm?: number, delay?: number) => ABCJS.NoteTimingEvent[];
-    timings = makeTimings(transport.snapshot().tempo, 0);
+    try {
+      timings = timingEventsForTune(visualTune, transport.snapshot().tempo);
+    } catch {
+      return;
+    }
     cursorEvents = visibleTimingEvents(timings);
   }
   const target = firstEventInMeasure(cursorEvents, measureNumber);

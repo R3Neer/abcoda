@@ -8,6 +8,18 @@ export type VisibleTimingEvent = ABCJS.NoteTimingEvent & {
   measureNumber: number;
 };
 
+export function timingEventsForTune(
+  tune: ABCJS.TuneObject,
+  bpm: number,
+): ABCJS.NoteTimingEvent[] {
+  const setTiming = tune.setTiming as unknown as (
+    this: ABCJS.TuneObject,
+    bpm?: number,
+    measuresOfDelay?: number,
+  ) => ABCJS.NoteTimingEvent[];
+  return setTiming.call(tune, bpm, 0);
+}
+
 export function visibleTimingEvents(events: ABCJS.NoteTimingEvent[]): VisibleTimingEvent[] {
   return events.filter((event): event is VisibleTimingEvent =>
     event.type === "event" &&
