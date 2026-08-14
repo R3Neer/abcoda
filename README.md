@@ -81,6 +81,27 @@ The MCP endpoint is `http://localhost:8787/mcp`; health is available at `/health
 
 ## Deployment
 
+### Cloudflare Workers (recommended)
+
+ABCoda includes a native stateless Worker entrypoint. The widget remains a single HTML asset embedded in the Worker bundle; no KV, D1, R2, secrets, environment variables, or paid service is required.
+
+In **Workers & Pages → Create application → Import a repository**, authorize GitHub and select `R3Neer/abcoda`. Use:
+
+- Production branch: `main`
+- Root directory: `/`
+- Build command: `npm run build:widget`
+- Deploy command: `npx wrangler deploy`
+
+After deployment, health is at `https://<worker>.workers.dev/health` and the ChatGPT MCP endpoint is `https://<worker>.workers.dev/mcp`.
+
+For a local Worker preview:
+
+```bash
+npm run dev:worker
+```
+
+### Container alternative
+
 The included Dockerfile is intentionally platform-neutral:
 
 ```bash
@@ -88,7 +109,7 @@ docker build -t abcoda .
 docker run --rm -p 8787:8787 abcoda
 ```
 
-Deploy that image to any HTTPS container host (Cloudflare Containers, Railway, Render, Fly.io, or equivalent). No volumes or environment variables are required; `PORT` is optional. A serverless adapter can be added later, but a tiny long-running Node process keeps MCP streaming behavior predictable for the MVP.
+Deploy that image to any HTTPS container host (Railway, Render, Fly.io, or equivalent). No volumes or environment variables are required; `PORT` is optional.
 
 ## Security and privacy
 

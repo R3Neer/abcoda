@@ -1,3 +1,4 @@
+import fs from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
@@ -11,7 +12,7 @@ describe("ABCoda MCP surface", () => {
   let client: Client;
 
   beforeEach(async () => {
-    server = createAbcodaServer(widgetPath);
+    server = createAbcodaServer(() => fs.readFile(widgetPath, "utf8"));
     client = new Client({ name: "abcoda-test", version: "1.0.0" });
     const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
     await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);

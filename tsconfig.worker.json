@@ -1,0 +1,8 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": [],
+    "exactOptionalPropertyTypes": false
+  },
+  "include": ["worker/**/*.ts", "server/app.ts", "shared/**/*.ts"]
+}

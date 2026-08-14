@@ -1,8 +1,13 @@
 import { createServer } from "node:http";
+import fs from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { createAbcodaServer } from "./app.js";
 
 const port = Number(process.env.PORT ?? 8787);
+const currentDir = path.dirname(fileURLToPath(import.meta.url));
+const widgetPath = path.resolve(currentDir, "../../widget/index.html");
 
 const httpServer = createServer(async (request, response) => {
   response.setHeader("Access-Control-Allow-Origin", "*");
@@ -26,7 +31,7 @@ const httpServer = createServer(async (request, response) => {
     return;
   }
 
-  const server = createAbcodaServer();
+  const server = createAbcodaServer(() => fs.readFile(widgetPath, "utf8"));
   const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
   response.on("close", () => {
     void transport.close();

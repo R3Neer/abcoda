@@ -1,6 +1,3 @@
-import fs from "node:fs/promises";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 import ABCJS from "abcjs";
 import {
   RESOURCE_MIME_TYPE,
@@ -13,15 +10,14 @@ import { extractVoiceIds } from "../shared/voices.js";
 
 export const widgetUri = "ui://abcoda/score-v1.html";
 
-const currentDir = path.dirname(fileURLToPath(import.meta.url));
-const defaultWidgetPath = path.resolve(currentDir, "../../widget/index.html");
+export type WidgetLoader = () => Promise<string>;
 
 export function validateAbc(abc: string): string[] {
   const parsed = ABCJS.parseOnly(abc);
   return parsed.flatMap((tune) => tune.warnings ?? []).map(String);
 }
 
-export function createAbcodaServer(widgetPath = defaultWidgetPath): McpServer {
+export function createAbcodaServer(loadWidget: WidgetLoader): McpServer {
   const server = new McpServer({ name: "ABCoda", version: "0.1.0" });
 
   registerAppTool(
@@ -96,7 +92,7 @@ export function createAbcodaServer(widgetPath = defaultWidgetPath): McpServer {
         {
           uri: widgetUri,
           mimeType: RESOURCE_MIME_TYPE,
-          text: await fs.readFile(widgetPath, "utf8"),
+          text: await loadWidget(),
           _meta: {
             ui: {
               csp: {
