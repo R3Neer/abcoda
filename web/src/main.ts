@@ -45,6 +45,7 @@ const sample: RenderScoreOutput = {
       mutedVoices: [],
       loop: false,
     },
+    notation: { voiceKinds: {} },
     display: { title: "ABCoda demo", coloredVoices: true },
   },
 };

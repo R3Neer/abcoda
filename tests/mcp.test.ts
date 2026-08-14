@@ -23,10 +23,13 @@ describe("ABCoda MCP surface", () => {
     await server.close();
   });
 
-  it("advertises one read-only render tool", async () => {
+  it("advertises stateless planning and rendering tools", async () => {
     const result = await client.listTools();
-    expect(result.tools).toHaveLength(1);
-    expect(result.tools[0]).toMatchObject({
+    expect(result.tools).toHaveLength(2);
+    expect(result.tools.find((tool) => tool.name === "prepare_composition")).toMatchObject({
+      annotations: { readOnlyHint: true, destructiveHint: false },
+    });
+    expect(result.tools.find((tool) => tool.name === "render_score")).toMatchObject({
       name: "render_score",
       annotations: { readOnlyHint: true, destructiveHint: false },
       _meta: {
@@ -34,6 +37,42 @@ describe("ABCoda MCP surface", () => {
         "openai/outputTemplate": widgetUri,
       },
     });
+  });
+
+  it("returns a style-specific typed composition plan", async () => {
+    const brief = {
+      styleFamily: "baroque",
+      styleDetail: "two-part invention",
+      form: "invention exposition, episode, return",
+      measures: 16,
+      meter: "4/4",
+      tempo: 84,
+      pitchLanguage: "D minor, functional tonal",
+      difficulty: "intermediate",
+      intent: "performance",
+      ensemble: [
+        { voiceId: "RH", instrument: "piano right hand", role: "melody", kind: "pitched" },
+        { voiceId: "LH", instrument: "piano left hand", role: "countermelody", kind: "pitched" },
+      ],
+      constraints: ["original subject"],
+    };
+    const result = await client.callTool({ name: "prepare_composition", arguments: brief });
+    expect(result.isError).not.toBe(true);
+    expect(result.structuredContent).toMatchObject({
+      brief,
+      guidance: { style: expect.arrayContaining([expect.stringContaining("imitation")]) },
+    });
+    expect(result.content).toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: "text", text: expect.stringContaining("COMPOSITION PROFILE: baroque") }),
+    ]));
+  });
+
+  it("publishes style-aware composition instructions during MCP initialization", () => {
+    const instructions = client.getInstructions();
+    expect(instructions).toContain("Apply theory by requested style");
+    expect(instructions).toContain("Baroque or Bach-informed");
+    expect(instructions).toContain("Pop/rock/funk/R&B");
+    expect(instructions?.slice(0, 512)).toContain("prepare_composition");
   });
 
   it("normalizes a score call into structured content", async () => {
@@ -48,7 +87,10 @@ describe("ABCoda MCP surface", () => {
     expect(result.structuredContent).toMatchObject({
       schemaVersion: 1,
       voiceIds: ["default"],
-      score: { playback: { tempo: 72, instruments: { default: "cello" } } },
+      score: {
+        abc: expect.stringContaining("Q:1/4=72"),
+        playback: { tempo: 72, instruments: { default: "cello" } },
+      },
     });
   });
 

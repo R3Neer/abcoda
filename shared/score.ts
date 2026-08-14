@@ -1,4 +1,5 @@
 import { z } from "zod/v4";
+import { compositionBriefSchema } from "./composition-plan.js";
 
 export const instrumentProgram = {
   acoustic_grand_piano: 0,
@@ -37,6 +38,7 @@ export const instrumentSchema = z.enum(
 export const renderScoreInputSchema = z.object({
   schemaVersion: z.literal(1).default(1),
   abc: z.string().min(1).max(65_536).describe("A complete score in ABC notation."),
+  composition: compositionBriefSchema.optional().describe("The typed brief returned by prepare_composition when composing rather than only rendering supplied ABC."),
   playback: z
     .object({
       tempo: z.number().int().min(20).max(300).default(96),
@@ -45,6 +47,14 @@ export const renderScoreInputSchema = z.object({
       loop: z.boolean().default(false),
     })
     .default({ tempo: 96, instruments: {}, mutedVoices: [], loop: false }),
+  notation: z
+    .object({
+      voiceKinds: z
+        .record(z.string(), z.enum(["pitched", "unpitched_percussion"]))
+        .default({})
+        .describe("Notation role by V: voice ID. Mark drum-kit and auxiliary unpitched voices as unpitched_percussion."),
+    })
+    .default({ voiceKinds: {} }),
   display: z
     .object({
       title: z.string().max(120).optional(),

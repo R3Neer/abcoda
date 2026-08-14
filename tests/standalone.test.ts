@@ -10,6 +10,7 @@ const output: RenderScoreOutput = {
     schemaVersion: 1,
     abc: "X:1\nT:Árbol & cielo\nK:C\nCDEF|",
     playback: { tempo: 96, instruments: {}, mutedVoices: [], loop: false },
+    notation: { voiceKinds: {} },
     display: { coloredVoices: true },
   },
 };

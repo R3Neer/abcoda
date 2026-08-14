@@ -1,6 +1,6 @@
 # ABCoda
 
-Interactive ABC music notation inside AI conversations. ABCoda is a small TypeScript MCP App: the model calls `render_score`, the server validates the payload and supplies a sandboxed single-file widget, and the browser does the rendering and audio work with abcjs.
+Interactive ABC music notation inside AI conversations. ABCoda is a small TypeScript MCP App: for new music the model first calls `prepare_composition`, then calls `render_score`; the server supplies a sandboxed single-file widget, and the browser does the rendering and audio work with abcjs.
 
 ## MVP capabilities
 
@@ -11,6 +11,7 @@ Interactive ABC music notation inside AI conversations. ABCoda is a small TypeSc
 - click-to-seek by measure with a continuously moving playback cursor;
 - ChatGPT host tokens, light/dark theme changes, and mobile layout;
 - stateless MCP server: no auth, database, user data, or music backend.
+- style-aware MCP composition instructions plus conservative ABC contract checks;
 
 ## Architecture
 
@@ -26,15 +27,21 @@ The built widget is a self-contained HTML file. The only runtime network depende
 
 ## Tool contract
 
+For a composition or arrangement, `prepare_composition` first receives a compact typed brief (style family/detail, form, measure count, meter, tempo, pitch language, difficulty, intent, ensemble roles, and constraints). It returns only the relevant style/form/instrument/notation guidance. This is a stateless planning pass: no plan is stored server-side, and the same brief is included in the subsequent render call.
+
 ```ts
 render_score({
   schemaVersion: 1,
+  composition: preparedBrief,
   abc: "X:1\\nT:Duet\\n...",
   playback: {
     tempo: 72,
     instruments: { RH: "acoustic_grand_piano", LH: "cello" },
     mutedVoices: [],
     loop: false
+  },
+  notation: {
+    voiceKinds: { DRUMS: "unpitched_percussion" }
   },
   display: {
     title: "Short duet",
@@ -45,6 +52,7 @@ render_score({
 ```
 
 Voice keys must match ABC `V:` identifiers. The authoritative schemas and instrument allowlist live in [`shared/score.ts`](shared/score.ts).
+ABCoda's bootstrap contract lives in [`shared/composer-instructions.ts`](shared/composer-instructions.ts), while the typed brief and style router live in [`shared/composition-plan.ts`](shared/composition-plan.ts). Common-practice counterpoint is not silently imposed on jazz, pop, impressionist, post-tonal, or experimental writing. The mechanical normalizer in [`shared/abc-lint.ts`](shared/abc-lint.ts) aligns `Q:` with playback tempo, enforces percussion clef/key metadata only when the caller explicitly types a voice as unpitched percussion, and reports inconsistent headers/voice references.
 
 ## Local development
 

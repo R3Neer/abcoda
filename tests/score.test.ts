@@ -8,6 +8,7 @@ describe("score contract", () => {
     const parsed = renderScoreInputSchema.parse({ abc: "X:1\nK:C\nCDEF|" });
     expect(parsed.playback.tempo).toBe(96);
     expect(parsed.playback.instruments).toEqual({});
+    expect(parsed.notation.voiceKinds).toEqual({});
     expect(parsed.schemaVersion).toBe(1);
   });
 
