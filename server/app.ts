@@ -8,7 +8,8 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { renderScoreInputSchema, renderScoreOutputSchema } from "../shared/score.js";
 import { extractVoiceIds } from "../shared/voices.js";
 
-export const widgetUri = "ui://abcoda/score-v3.html";
+export const widgetUri = "ui://abcoda/score-v4.html";
+const widgetDomain = "https://abcoda.mud-repo-patcher-mcp-probe.workers.dev";
 
 const widgetCsp = {
   connectDomains: ["https://paulrosen.github.io"],
@@ -91,11 +92,13 @@ export function createAbcodaServer(loadWidget: WidgetLoader): McpServer {
       _meta: {
         ui: {
           csp: widgetCsp,
+          domain: widgetDomain,
           prefersBorder: true,
         },
         "openai/widgetDescription": "Interactive ABC music score with playback controls.",
         "openai/widgetPrefersBorder": true,
         "openai/widgetCSP": legacyWidgetCsp,
+        "openai/widgetDomain": widgetDomain,
       },
     },
     async () => ({
@@ -107,11 +110,13 @@ export function createAbcodaServer(loadWidget: WidgetLoader): McpServer {
           _meta: {
             ui: {
               csp: widgetCsp,
+              domain: widgetDomain,
               prefersBorder: true,
             },
             "openai/widgetDescription": "Interactive ABC music score with playback controls.",
             "openai/widgetPrefersBorder": true,
             "openai/widgetCSP": legacyWidgetCsp,
+            "openai/widgetDomain": widgetDomain,
           },
         },
       ],

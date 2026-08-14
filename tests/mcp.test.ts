@@ -56,8 +56,12 @@ describe("ABCoda MCP surface", () => {
     const result = await client.readResource({ uri: widgetUri });
     expect(result.contents[0]).toMatchObject({ uri: widgetUri });
     expect(result.contents[0]?._meta).toMatchObject({
-      ui: { prefersBorder: true },
+      ui: {
+        domain: "https://abcoda.mud-repo-patcher-mcp-probe.workers.dev",
+        prefersBorder: true,
+      },
       "openai/widgetPrefersBorder": true,
+      "openai/widgetDomain": "https://abcoda.mud-repo-patcher-mcp-probe.workers.dev",
     });
     expect("text" in result.contents[0]! ? result.contents[0].text : "").toContain("ABCoda test widget");
   });
