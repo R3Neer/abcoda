@@ -29,7 +29,10 @@ describe("ABCoda MCP surface", () => {
     expect(result.tools[0]).toMatchObject({
       name: "render_score",
       annotations: { readOnlyHint: true, destructiveHint: false },
-      _meta: { ui: { resourceUri: widgetUri } },
+      _meta: {
+        ui: { resourceUri: widgetUri },
+        "openai/outputTemplate": widgetUri,
+      },
     });
   });
 
@@ -52,6 +55,10 @@ describe("ABCoda MCP surface", () => {
   it("serves the sandboxed UI resource", async () => {
     const result = await client.readResource({ uri: widgetUri });
     expect(result.contents[0]).toMatchObject({ uri: widgetUri });
+    expect(result.contents[0]?._meta).toMatchObject({
+      ui: { prefersBorder: true },
+      "openai/widgetPrefersBorder": true,
+    });
     expect("text" in result.contents[0]! ? result.contents[0].text : "").toContain("ABCoda test widget");
   });
 });

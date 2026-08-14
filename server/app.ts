@@ -8,7 +8,17 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { renderScoreInputSchema, renderScoreOutputSchema } from "../shared/score.js";
 import { extractVoiceIds } from "../shared/voices.js";
 
-export const widgetUri = "ui://abcoda/score-v1.html";
+export const widgetUri = "ui://abcoda/score-v2.html";
+
+const widgetCsp = {
+  connectDomains: ["https://paulrosen.github.io"],
+  resourceDomains: ["https://paulrosen.github.io"],
+};
+
+const legacyWidgetCsp = {
+  connect_domains: ["https://paulrosen.github.io"],
+  resource_domains: ["https://paulrosen.github.io"],
+};
 
 export type WidgetLoader = () => Promise<string>;
 
@@ -37,6 +47,7 @@ export function createAbcodaServer(loadWidget: WidgetLoader): McpServer {
       },
       _meta: {
         ui: { resourceUri: widgetUri },
+        "openai/outputTemplate": widgetUri,
         "openai/toolInvocation/invoking": "Preparing the score…",
         "openai/toolInvocation/invoked": "Score ready",
       },
@@ -79,12 +90,12 @@ export function createAbcodaServer(loadWidget: WidgetLoader): McpServer {
       mimeType: RESOURCE_MIME_TYPE,
       _meta: {
         ui: {
-          csp: {
-            connectDomains: ["https://paulrosen.github.io"],
-            resourceDomains: ["https://paulrosen.github.io"],
-          },
+          csp: widgetCsp,
           prefersBorder: true,
         },
+        "openai/widgetDescription": "Interactive ABC music score with playback controls.",
+        "openai/widgetPrefersBorder": true,
+        "openai/widgetCSP": legacyWidgetCsp,
       },
     },
     async () => ({
@@ -95,12 +106,12 @@ export function createAbcodaServer(loadWidget: WidgetLoader): McpServer {
           text: await loadWidget(),
           _meta: {
             ui: {
-              csp: {
-                connectDomains: ["https://paulrosen.github.io"],
-                resourceDomains: ["https://paulrosen.github.io"],
-              },
+              csp: widgetCsp,
               prefersBorder: true,
             },
+            "openai/widgetDescription": "Interactive ABC music score with playback controls.",
+            "openai/widgetPrefersBorder": true,
+            "openai/widgetCSP": legacyWidgetCsp,
           },
         },
       ],
