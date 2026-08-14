@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["node", "vite/client", "vitest/globals"],
+    "exactOptionalPropertyTypes": false,
+    "noEmit": true
+  },
+  "include": ["tests/**/*.ts", "shared/**/*.ts", "server/**/*.ts", "web/**/*.ts"]
+}

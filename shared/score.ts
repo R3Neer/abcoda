@@ -1,0 +1,87 @@
+import { z } from "zod/v4";
+
+export const instrumentProgram = {
+  acoustic_grand_piano: 0,
+  bright_acoustic_piano: 1,
+  church_organ: 19,
+  acoustic_guitar_nylon: 24,
+  acoustic_bass: 32,
+  violin: 40,
+  viola: 41,
+  cello: 42,
+  contrabass: 43,
+  string_ensemble_1: 48,
+  choir_aahs: 52,
+  trumpet: 56,
+  trombone: 57,
+  french_horn: 60,
+  soprano_sax: 64,
+  alto_sax: 65,
+  tenor_sax: 66,
+  oboe: 68,
+  english_horn: 69,
+  bassoon: 70,
+  clarinet: 71,
+  piccolo: 72,
+  flute: 73,
+  recorder: 74,
+} as const;
+
+export type InstrumentName = keyof typeof instrumentProgram;
+export const instrumentNames = Object.keys(instrumentProgram) as InstrumentName[];
+
+export const instrumentSchema = z.enum(
+  instrumentNames as [InstrumentName, ...InstrumentName[]],
+);
+
+export const renderScoreInputSchema = z.object({
+  schemaVersion: z.literal(1).default(1),
+  abc: z.string().min(1).max(65_536).describe("A complete score in ABC notation."),
+  playback: z
+    .object({
+      tempo: z.number().int().min(20).max(300).default(96),
+      instruments: z.record(z.string(), instrumentSchema).default({}),
+      mutedVoices: z.array(z.string()).default([]),
+      loop: z.boolean().default(false),
+    })
+    .default({ tempo: 96, instruments: {}, mutedVoices: [], loop: false }),
+  display: z
+    .object({
+      title: z.string().max(120).optional(),
+      coloredVoices: z.boolean().default(true),
+      preferredMeasuresPerLine: z.number().int().min(1).max(8).optional(),
+    })
+    .default({ coloredVoices: true }),
+});
+
+export type RenderScoreInput = z.infer<typeof renderScoreInputSchema>;
+
+export const renderScoreOutputSchema = z.object({
+  schemaVersion: z.literal(1),
+  score: renderScoreInputSchema,
+  voiceIds: z.array(z.string()),
+  warnings: z.array(z.string()),
+});
+
+export type RenderScoreOutput = z.infer<typeof renderScoreOutputSchema>;
+
+export const selectionContextSchema = z.object({
+  type: z.literal("abcoda.score_selection"),
+  schemaVersion: z.literal(1),
+  scoreFingerprint: z.string(),
+  selection: z.object({
+    selectedMeasures: z.array(z.number().int().positive()),
+    selectedVoices: z.array(z.string()),
+    selectedElements: z.array(
+      z.object({
+        measure: z.number().int().positive(),
+        voice: z.string(),
+        line: z.number().int().nonnegative(),
+        startChar: z.number().int().nonnegative().optional(),
+        endChar: z.number().int().nonnegative().optional(),
+      }),
+    ),
+  }),
+});
+
+export type SelectionContext = z.infer<typeof selectionContextSchema>;

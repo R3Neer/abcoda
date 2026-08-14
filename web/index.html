@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ABCoda</title>
+  </head>
+  <body>
+    <main id="app" class="app-shell" aria-live="polite">
+      <header class="score-header">
+        <div>
+          <div class="brand">ABCoda</div>
+          <h1 id="score-title">Interactive score</h1>
+        </div>
+        <button id="fullscreen" class="icon-button" type="button" title="Open full screen" aria-label="Open full screen">⛶</button>
+      </header>
+
+      <section id="notice" class="notice" hidden></section>
+      <section id="score" class="score" aria-label="Musical score"></section>
+      <div id="abcjs-audio" class="abcjs-audio-host" hidden></div>
+
+      <section class="transport" aria-label="Playback controls">
+        <div class="transport-buttons">
+          <button id="play" class="primary" type="button">▶ <span>Play</span></button>
+          <button id="pause" type="button">Ⅱ <span>Pause</span></button>
+          <button id="stop" type="button">■ <span>Stop</span></button>
+          <button id="loop" type="button" aria-pressed="false">↻ <span>Loop</span></button>
+        </div>
+        <label class="tempo-control" for="tempo">
+          <span>Tempo</span>
+          <input id="tempo" type="range" min="20" max="300" value="96" />
+          <output id="tempo-output" for="tempo">96 BPM</output>
+        </label>
+      </section>
+
+      <details id="mixer" class="mixer">
+        <summary>Voices and instruments</summary>
+        <div id="voice-controls" class="voice-controls"></div>
+      </details>
+
+      <footer class="selection-bar">
+        <span id="selection-summary">Select notes or measures to discuss them.</span>
+        <div class="selection-actions">
+          <button id="clear-selection" type="button" disabled>Clear</button>
+          <button id="explain-selection" class="primary" type="button" disabled>Explain selection</button>
+        </div>
+      </footer>
+      <button id="sample-credits" class="credits" type="button">FluidR3_GM samples · CC BY 3.0</button>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
