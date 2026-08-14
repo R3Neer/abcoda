@@ -40,8 +40,8 @@ h1 { margin: 2px 0 0; font-size: clamp(18px, 4vw, 24px); line-height: 1.2; }
 .notice { margin: 8px 0; padding: 10px 12px; color: var(--muted); background: var(--surface); border-radius: 10px; font-size: 13px; }
 .notice.error { color: #a11; background: color-mix(in srgb, #d33 12%, transparent); }
 
-.score { overflow-x: auto; min-height: 160px; border-radius: 12px; background: #fff; color: #151515; }
-.score svg { display: block; max-width: 100%; }
+.score { overflow: visible; min-height: 160px; border-radius: 12px; background: #fff; color: #151515; }
+.score svg { display: block; width: 100% !important; height: auto; max-width: 100%; }
 .score .abcjs-note, .score .abcjs-rest, .score .abcjs-bar { cursor: pointer; transition: fill .1s ease, stroke .1s ease; }
 .score .abcoda-playing { fill: #e05a36 !important; stroke: #e05a36 !important; }
 .score .abcoda-selected { fill: var(--accent, #6f42c1) !important; stroke: var(--accent, #6f42c1) !important; filter: drop-shadow(0 0 2px color-mix(in srgb, var(--accent) 55%, transparent)); }

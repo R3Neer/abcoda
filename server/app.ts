@@ -8,7 +8,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { renderScoreInputSchema, renderScoreOutputSchema } from "../shared/score.js";
 import { extractVoiceIds } from "../shared/voices.js";
 
-export const widgetUri = "ui://abcoda/score-v2.html";
+export const widgetUri = "ui://abcoda/score-v3.html";
 
 const widgetCsp = {
   connectDomains: ["https://paulrosen.github.io"],

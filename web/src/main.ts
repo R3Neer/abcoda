@@ -7,12 +7,13 @@ import {
 } from "@modelcontextprotocol/ext-apps";
 import {
   instrumentNames,
+  renderScoreInputSchema,
   renderScoreOutputSchema,
   type InstrumentName,
   type RenderScoreOutput,
   type SelectionContext,
 } from "../../shared/score";
-import { abcTitle } from "../../shared/voices";
+import { abcTitle, extractVoiceIds } from "../../shared/voices";
 import { applyInstruments, fingerprint, measureFromClasses } from "./music";
 import "./style.css";
 
@@ -55,6 +56,17 @@ let synthLoopEnabled = false;
 let scoreHash = "";
 let instruments: Record<string, InstrumentName> = {};
 let mutedVoices = new Set<string>();
+
+type ChatGptBridge = {
+  toolInput?: unknown;
+  toolOutput?: unknown;
+  notifyIntrinsicHeight?: (height: number) => void;
+  sendFollowUpMessage?: (options: { prompt: string; scrollToBottom?: boolean }) => Promise<void>;
+  requestDisplayMode?: (options: { mode: "inline" | "fullscreen" | "pip" }) => Promise<unknown>;
+  openExternal?: (options: { href: string }) => Promise<void>;
+};
+
+const getChatGpt = () => (window as Window & { openai?: ChatGptBridge }).openai;
 
 type SelectedItem = {
   key: string;
@@ -253,20 +265,17 @@ async function render(output: RenderScoreOutput): Promise<void> {
   scoreElement.classList.toggle("colored-voices", output.score.display.coloredVoices);
   showNotice(output.warnings.join(" "));
 
+  const measuresPerLine = output.score.display.preferredMeasuresPerLine ?? (window.innerWidth < 620 ? 2 : 4);
   const tunes = ABCJS.renderAbc(scoreElement, output.score.abc, {
     responsive: "resize",
     add_classes: true,
     clickListener: handleScoreClick,
     foregroundColor: "currentColor",
-    ...(output.score.display.preferredMeasuresPerLine === undefined
-      ? {}
-      : {
-          wrap: {
-            preferredMeasuresPerLine: output.score.display.preferredMeasuresPerLine,
-            minSpacing: 1.7,
-            maxSpacing: 2.8,
-          },
-        }),
+    wrap: {
+      preferredMeasuresPerLine: measuresPerLine,
+      minSpacing: 1.7,
+      maxSpacing: 2.8,
+    },
   });
   visualTune = tunes[0];
   if (!visualTune) {
@@ -303,20 +312,36 @@ clearButton.addEventListener("click", clearSelection);
 explainButton.addEventListener("click", async () => {
   await publishSelection();
   try {
-    await app.sendMessage({
-      role: "user",
-      content: [{ type: "text", text: "Explícame musicalmente la selección actual de la partitura." }],
-    });
+    const bridge = getChatGpt();
+    if (bridge?.sendFollowUpMessage) {
+      await bridge.sendFollowUpMessage({
+        prompt: "Explícame musicalmente la selección actual de la partitura.",
+      });
+    } else {
+      await app.sendMessage({
+        role: "user",
+        content: [{ type: "text", text: "Explícame musicalmente la selección actual de la partitura." }],
+      });
+    }
   } catch {
     showNotice("The host did not accept the follow-up message.", true);
   }
 });
 byId<HTMLButtonElement>("fullscreen").addEventListener("click", async () => {
-  try { await app.requestDisplayMode({ mode: "fullscreen" }); } catch { /* optional host capability */ }
+  try {
+    const bridge = getChatGpt();
+    if (bridge?.requestDisplayMode) await bridge.requestDisplayMode({ mode: "fullscreen" });
+    else await app.requestDisplayMode({ mode: "fullscreen" });
+  } catch { /* optional host capability */ }
 });
 byId<HTMLButtonElement>("sample-credits").addEventListener("click", async () => {
   try {
-    await app.openLink({ url: "https://github.com/gleitz/midi-js-soundfonts" });
+    const bridge = getChatGpt();
+    if (bridge?.openExternal) {
+      await bridge.openExternal({ href: "https://github.com/gleitz/midi-js-soundfonts" });
+    } else {
+      await app.openLink({ url: "https://github.com/gleitz/midi-js-soundfonts" });
+    }
   } catch {
     // Link opening is optional in standalone and restricted hosts.
   }
@@ -331,6 +356,52 @@ app.ontoolresult = (params) => {
   const result = renderScoreOutputSchema.safeParse(params.structuredContent);
   if (result.success) void render(result.data);
 };
+
+function renderFromChatGptGlobals(globals: ChatGptBridge): void {
+  const output = renderScoreOutputSchema.safeParse(globals.toolOutput);
+  if (output.success) {
+    void render(output.data);
+    return;
+  }
+
+  const input = renderScoreInputSchema.safeParse(globals.toolInput);
+  if (input.success) {
+    void render({
+      schemaVersion: 1,
+      score: input.data,
+      voiceIds: extractVoiceIds(input.data.abc),
+      warnings: [],
+    });
+  }
+}
+
+const initialChatGpt = getChatGpt();
+if (initialChatGpt) renderFromChatGptGlobals(initialChatGpt);
+window.addEventListener("openai:set_globals", ((event: CustomEvent<{ globals?: ChatGptBridge }>) => {
+  if (event.detail?.globals) {
+    renderFromChatGptGlobals(event.detail.globals);
+    setupChatGptHeightNotifications();
+  }
+}) as EventListener, { passive: true });
+
+let chatGptHeightObserver: ResizeObserver | undefined;
+function setupChatGptHeightNotifications(): void {
+  const bridge = getChatGpt();
+  if (!bridge?.notifyIntrinsicHeight || chatGptHeightObserver) return;
+  let scheduled = false;
+  const notifyHeight = () => {
+    if (scheduled) return;
+    scheduled = true;
+    requestAnimationFrame(() => {
+      scheduled = false;
+      getChatGpt()?.notifyIntrinsicHeight?.(Math.ceil(document.documentElement.scrollHeight));
+    });
+  };
+  chatGptHeightObserver = new ResizeObserver(notifyHeight);
+  chatGptHeightObserver.observe(document.documentElement);
+  notifyHeight();
+}
+setupChatGptHeightNotifications();
 
 if (window.parent === window || new URLSearchParams(location.search).has("demo")) {
   void render(sample);
