@@ -10,7 +10,7 @@
     "build:widget": "vite build",
     "build:server": "tsc -p tsconfig.server.json",
     "dev": "npm run build:widget && tsx watch server/index.ts",
-    "start": "node dist/server/index.js",
+    "start": "node dist/server/server/index.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.server.json --noEmit && tsc -p tsconfig.test.json --noEmit",
