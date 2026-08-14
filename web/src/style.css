@@ -106,8 +106,10 @@ h1 { margin: 1px 0 0; font-size: var(--font-heading-sm-size, 19px); line-height:
   stroke-width: 1.8;
   vector-effect: non-scaling-stroke;
   filter: drop-shadow(0 0 1px color-mix(in srgb, var(--abcoda-accent) 45%, transparent));
+  transition: opacity 80ms ease-out;
 }
 .score .abcoda-cursor.is-visible { opacity: 1; }
+.score .abcoda-cursor.is-visible.is-wrapping { opacity: .12; }
 .score.colored-voices .abcjs-note.abcjs-v0,
 .score.colored-voices .abcjs-rest.abcjs-v0 { color: #3478c9; fill: #3478c9; stroke: #3478c9; }
 .score.colored-voices .abcjs-note.abcjs-v1,

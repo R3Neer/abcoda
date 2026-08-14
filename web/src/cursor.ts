@@ -66,6 +66,32 @@ export function nextCursorEvent(
   return index < 0 ? undefined : events.slice(index + 1).find((event) => event.milliseconds > current.milliseconds);
 }
 
+export type CursorMotion = {
+  x: number;
+  duration: number;
+  wrapsLine: boolean;
+};
+
+export function cursorMotionFrom(
+  events: VisibleTimingEvent[],
+  current: VisibleTimingEvent,
+): CursorMotion | undefined {
+  const next = nextCursorEvent(events, current);
+  if (!next) return undefined;
+
+  const duration = next.milliseconds - current.milliseconds;
+  if (duration <= 0) return undefined;
+  const wrapsLine = next.line !== current.line || next.top !== current.top;
+  const lineRight = events
+    .filter((event) => event.line === current.line && event.top === current.top)
+    .reduce(
+      (right, event) => Math.max(right, event.endX ?? event.left + (event.width ?? 0)),
+      current.endX ?? current.left + (current.width ?? 12),
+    );
+  const x = wrapsLine ? lineRight : next.left;
+  return x > current.left ? { x, duration, wrapsLine } : undefined;
+}
+
 export function measureAtPoint(
   events: VisibleTimingEvent[],
   x: number,

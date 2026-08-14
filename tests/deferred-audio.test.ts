@@ -16,10 +16,11 @@ function setup() {
     toggleLoop: vi.fn(() => { calls.push("loop"); }),
     setWarp: vi.fn(async (warp) => { calls.push(`warp:${warp}`); }),
   };
-  const backend = new DeferredAudioBackend(synth);
+  const ensureAudio = vi.fn(async () => { calls.push("audio:running"); });
+  const backend = new DeferredAudioBackend(synth, ensureAudio);
   const tune = {} as ABCJS.TuneObject;
   const options = { qpm: 96 } as ABCJS.SynthOptions;
-  return { backend, calls, options, synth, tune };
+  return { backend, calls, ensureAudio, options, synth, tune };
 }
 
 describe("deferred abcjs audio", () => {
@@ -45,11 +46,13 @@ describe("deferred abcjs audio", () => {
 
     expect(calls).toEqual([
       "setTune:false",
+      "audio:running",
       "setTune:true",
       "loop",
       "warp:125",
       "progress:0.4",
       "play",
+      "audio:running",
     ]);
   });
 
@@ -63,5 +66,16 @@ describe("deferred abcjs audio", () => {
 
     expect(calls.filter((call) => call === "setTune:true")).toHaveLength(2);
     expect(calls.filter((call) => call === "play")).toHaveLength(3);
+  });
+
+  it("does not start abcjs when the host keeps Web Audio blocked", async () => {
+    const { backend, synth, tune, options } = setup();
+    const blocked = new DeferredAudioBackend(synth, async () => {
+      throw new Error("Audio is blocked");
+    });
+    await blocked.configure(tune, options);
+
+    await expect(blocked.play()).rejects.toThrow("Audio is blocked");
+    expect(synth.play).not.toHaveBeenCalled();
   });
 });

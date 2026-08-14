@@ -134,7 +134,19 @@ export class TransportController {
     this.state.tempo = tempo;
     this.emit();
     if (this.backend && this.state.ready && !this.state.busy) {
-      await this.backend.setWarp((tempo / this.baseTempo) * 100);
+      // abcjs rebuilds the complete audio buffer in setWarp. Mark that work as
+      // busy so play/pause/seek cannot race the rebuild and corrupt its state.
+      this.state.busy = true;
+      this.emit();
+      try {
+        await this.backend.setWarp((tempo / this.baseTempo) * 100);
+      } catch (error) {
+        this.state.playing = false;
+        throw error;
+      } finally {
+        this.state.busy = false;
+        this.emit();
+      }
     }
   }
 

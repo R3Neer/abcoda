@@ -17,9 +17,9 @@ import {
 import { abcTitle, extractVoiceIds } from "../../shared/voices";
 import {
   eventProgress,
+  cursorMotionFrom,
   firstEventInMeasure,
   measureAtPoint,
-  nextCursorEvent,
   timingEventsForTune,
   totalMeasureFromClasses,
   visibleTimingEvents,
@@ -48,7 +48,7 @@ const sample: RenderScoreOutput = {
   },
 };
 
-const app = new App({ name: "ABCoda score", version: "0.2.0" });
+const app = new App({ name: "ABCoda score", version: "0.2.1" });
 const byId = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const scoreElement = byId<HTMLElement>("score");
 const notice = byId<HTMLElement>("notice");
@@ -103,6 +103,7 @@ class ScoreCursor {
       candidate.left === event.left,
     );
     if (!current) return;
+    this.line?.classList.remove("is-wrapping");
     this.current = current;
     this.place(current.left, current);
     if (this.playing) this.animateFrom(current);
@@ -110,6 +111,7 @@ class ScoreCursor {
 
   seek(event: VisibleTimingEvent): void {
     cancelAnimationFrame(this.frame);
+    this.line?.classList.remove("is-wrapping");
     this.current = event;
     this.place(event.left, event);
     if (this.playing) this.animateFrom(event);
@@ -143,18 +145,19 @@ class ScoreCursor {
 
   private animateFrom(current: VisibleTimingEvent): void {
     cancelAnimationFrame(this.frame);
-    const next = nextCursorEvent(this.events, current);
-    if (!next || next.line !== current.line || next.top !== current.top) return;
-    const fullDistance = next.left - current.left;
-    const remainingDistance = next.left - this.x;
+    const motion = cursorMotionFrom(this.events, current);
+    if (!motion) return;
+    const fullDistance = motion.x - current.left;
+    const remainingDistance = motion.x - this.x;
     if (fullDistance <= 0 || remainingDistance <= 0) return;
-    const duration = (next.milliseconds - current.milliseconds) * (remainingDistance / fullDistance);
+    const duration = motion.duration * (remainingDistance / fullDistance);
     const startX = this.x;
     const started = performance.now();
     const tick = (now: number) => {
       if (!this.playing || this.current !== current) return;
       const progress = Math.min(1, (now - started) / Math.max(1, duration));
       this.place(startX + remainingDistance * progress, current);
+      if (motion.wrapsLine && progress > 0.82) this.line?.classList.add("is-wrapping");
       if (progress < 1) this.frame = requestAnimationFrame(tick);
     };
     this.frame = requestAnimationFrame(tick);
@@ -280,7 +283,16 @@ async function runConfigurationQueue(): Promise<void> {
     }
 
     synth ??= new ABCJS.synth.SynthController();
-    playbackBackend ??= new DeferredAudioBackend(synth as unknown as SynthControllerLike);
+    playbackBackend ??= new DeferredAudioBackend(
+      synth as unknown as SynthControllerLike,
+      async () => {
+        const context = ABCJS.synth.activeAudioContext();
+        if (context.state !== "running") await context.resume();
+        if (context.state !== "running") {
+          throw new Error("Audio is blocked by the browser. Check that this tab is not muted, then press Play again.");
+        }
+      },
+    );
     synth.load("#abcjs-audio", cursorControl, {
       displayLoop: false,
       displayPlay: false,
@@ -300,6 +312,7 @@ async function runConfigurationQueue(): Promise<void> {
 
       await playbackBackend.configure(tune, {
         qpm: score.score.playback.tempo,
+        soundFontVolumeMultiplier: 3,
         chordsOff: true,
         sequenceCallback: (sequence) =>
           applyInstruments(sequence, voiceIds, selectedInstruments, selectedMutes),
@@ -403,9 +416,18 @@ rewindButton.addEventListener("click", () => {
   transport.rewind();
   scoreCursor.rewind();
 });
-tempo.addEventListener("input", async () => {
-  await transport.setTempo(Number(tempo.value));
-  refreshCursorEvents();
+tempo.addEventListener("input", () => {
+  // Preview the value immediately, but don't ask abcjs to rebuild its entire
+  // audio buffer for every pixel traversed by the range control.
+  tempoOutput.value = `${tempo.value} BPM`;
+});
+tempo.addEventListener("change", () => {
+  void transport.setTempo(Number(tempo.value))
+    .then(refreshCursorEvents)
+    .catch((error: unknown) => showNotice(
+      error instanceof Error ? error.message : "Tempo could not be changed.",
+      true,
+    ));
 });
 
 function seekToMeasure(measureNumber: number): void {

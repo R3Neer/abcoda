@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  cursorMotionFrom,
   eventProgress,
   firstEventInMeasure,
   measureAtPoint,
@@ -12,7 +13,7 @@ import {
 const events = visibleTimingEvents([
   { type: "event", milliseconds: 0, millisecondsPerMeasure: 2000, left: 20, top: 10, height: 50, line: 0, measureNumber: 0 },
   { type: "event", milliseconds: 500, millisecondsPerMeasure: 2000, left: 60, top: 10, height: 50, line: 0, measureNumber: 0 },
-  { type: "event", milliseconds: 2000, millisecondsPerMeasure: 2000, left: 120, top: 10, height: 50, line: 0, measureNumber: 1 },
+  { type: "event", milliseconds: 2000, millisecondsPerMeasure: 2000, left: 120, endX: 180, top: 10, height: 50, line: 0, measureNumber: 1 },
   { type: "event", milliseconds: 4000, millisecondsPerMeasure: 2000, left: 20, top: 80, height: 50, line: 1, measureNumber: 2 },
   { type: "end", milliseconds: 6000, millisecondsPerMeasure: 2000 },
 ]);
@@ -50,5 +51,10 @@ describe("score seeking helpers", () => {
   it("chooses the next distinct timed note for continuous motion", () => {
     expect(nextCursorEvent(events, events[0]!)?.milliseconds).toBe(500);
     expect(nextCursorEvent(events, events.at(-1)!)).toBeUndefined();
+  });
+
+  it("sweeps to the end and fades before wrapping to the next system", () => {
+    expect(cursorMotionFrom(events, events[1]!)).toEqual({ x: 120, duration: 1500, wrapsLine: false });
+    expect(cursorMotionFrom(events, events[2]!)).toEqual({ x: 180, duration: 2000, wrapsLine: true });
   });
 });

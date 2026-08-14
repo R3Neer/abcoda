@@ -136,6 +136,22 @@ describe("loop, tempo and reconfiguration combinations", () => {
     expect(controller.snapshot()).toMatchObject({ ready: true, busy: false, tempo: 125, loop: true });
   });
 
+  it("blocks transport controls while abcjs rebuilds audio for a tempo change", async () => {
+    let release!: () => void;
+    const pending = new Promise<void>((resolve) => { release = resolve; });
+    const { backend, controller } = setup();
+    await controller.completeConfiguration(backend);
+    vi.mocked(backend.setWarp).mockReturnValueOnce(pending);
+
+    const changing = controller.setTempo(140);
+    expect(controller.snapshot()).toMatchObject({ busy: true, tempo: 140 });
+    await controller.togglePlayback();
+    expect(backend.play).not.toHaveBeenCalled();
+    release();
+    await changing;
+    expect(controller.snapshot()).toMatchObject({ busy: false, tempo: 140 });
+  });
+
   it("recovers button availability after a configuration failure", () => {
     const { controller } = setup();
     controller.beginConfiguration();
