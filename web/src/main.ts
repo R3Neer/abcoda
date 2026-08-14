@@ -28,6 +28,7 @@ import {
 import { DeferredAudioBackend, type SynthControllerLike } from "./deferred-audio";
 import { applyInstruments } from "./music";
 import { decodeStandaloneScore, encodeStandaloneScore } from "./standalone";
+import { hiddenSynthVisualOptions } from "./synth-options";
 import { TransportController, type TransportState } from "./transport";
 import "./style.css";
 
@@ -293,13 +294,7 @@ async function runConfigurationQueue(): Promise<void> {
         }
       },
     );
-    synth.load("#abcjs-audio", cursorControl, {
-      displayLoop: false,
-      displayPlay: false,
-      displayProgress: false,
-      displayRestart: false,
-      displayWarp: false,
-    });
+    synth.load("#abcjs-audio", cursorControl, hiddenSynthVisualOptions);
 
     while (appliedConfiguration < requestedConfiguration) {
       const revision = requestedConfiguration;
