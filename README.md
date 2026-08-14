@@ -5,12 +5,10 @@ Interactive ABC music notation inside AI conversations. ABCoda is a small TypeSc
 ## MVP capabilities
 
 - responsive multi-voice notation from ABC;
-- play, pause, stop, loop, and live tempo control;
+- combined play/pause, loop, and live tempo control;
 - General MIDI instrument selection and mute per ABC voice;
 - playback cursor synchronized with the engraved score;
-- light/dark host integration and mobile layout;
-- note/measure selection published as typed model context;
-- fixed “Explain selection” follow-up action;
+- ChatGPT host tokens, light/dark theme changes, and mobile layout;
 - stateless MCP server: no auth, database, user data, or music backend.
 
 ## Architecture
@@ -21,7 +19,6 @@ flowchart TD
     B -->|validated score + ui resource| C[Sandboxed ABCoda widget]
     C --> D[abcjs engraving]
     C --> E[abcjs synth + FluidR3 samples]
-    C -->|typed selection snapshot| A
 ```
 
 The built widget is a self-contained HTML file. The only runtime network dependency is the default abcjs FluidR3_GM sample host, explicitly declared in the resource CSP.
@@ -47,25 +44,6 @@ render_score({
 ```
 
 Voice keys must match ABC `V:` identifiers. The authoritative schemas and instrument allowlist live in [`shared/score.ts`](shared/score.ts).
-
-Selection does not inject arbitrary prose into model context. Every change overwrites the previous snapshot:
-
-```json
-{
-  "type": "abcoda.score_selection",
-  "schemaVersion": 1,
-  "scoreFingerprint": "fnv1a-…",
-  "selection": {
-    "selectedMeasures": [12, 13],
-    "selectedVoices": ["RH"],
-    "selectedElements": [
-      { "measure": 12, "voice": "RH", "line": 2, "startChar": 148, "endChar": 150 }
-    ]
-  }
-}
-```
-
-Only the explicit “Explain selection” button asks the host to send a fixed user message. Selection itself does not trigger model inference.
 
 ## Local development
 
@@ -128,7 +106,7 @@ ABCoda is MIT licensed. abcjs is MIT licensed. The default FluidR3_GM samples ar
 
 ## Next milestones
 
-1. Measure-range selection, voice coloring, and selection looping.
+1. Reintroduce measure-range selection only after reliable desktop and touch hit-testing is available.
 2. Solo/volume per voice and transposition.
 3. Export ABC/MIDI, then opt-in MusicXML/PDF conversion.
 4. Self-hosted subsetted samples and better piano articulation.

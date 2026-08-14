@@ -64,24 +64,3 @@ export const renderScoreOutputSchema = z.object({
 });
 
 export type RenderScoreOutput = z.infer<typeof renderScoreOutputSchema>;
-
-export const selectionContextSchema = z.object({
-  type: z.literal("abcoda.score_selection"),
-  schemaVersion: z.literal(1),
-  scoreFingerprint: z.string(),
-  selection: z.object({
-    selectedMeasures: z.array(z.number().int().positive()),
-    selectedVoices: z.array(z.string()),
-    selectedElements: z.array(
-      z.object({
-        measure: z.number().int().positive(),
-        voice: z.string(),
-        line: z.number().int().nonnegative(),
-        startChar: z.number().int().nonnegative().optional(),
-        endChar: z.number().int().nonnegative().optional(),
-      }),
-    ),
-  }),
-});
-
-export type SelectionContext = z.infer<typeof selectionContextSchema>;

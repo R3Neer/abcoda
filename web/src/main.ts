@@ -1,9 +1,11 @@
 import ABCJS from "abcjs";
 import {
   App,
+  applyDocumentTheme,
   applyHostFonts,
   applyHostStyleVariables,
   type McpUiHostContext,
+  type McpUiStyles,
 } from "@modelcontextprotocol/ext-apps";
 import {
   instrumentNames,
@@ -11,10 +13,10 @@ import {
   renderScoreOutputSchema,
   type InstrumentName,
   type RenderScoreOutput,
-  type SelectionContext,
 } from "../../shared/score";
 import { abcTitle, extractVoiceIds } from "../../shared/voices";
-import { applyInstruments, fingerprint, measureFromClasses } from "./music";
+import { applyInstruments } from "./music";
+import { TransportController, type TransportState } from "./transport";
 import "./style.css";
 
 const sample: RenderScoreOutput = {
@@ -34,50 +36,37 @@ const sample: RenderScoreOutput = {
   },
 };
 
-const app = new App({ name: "ABCoda score", version: "0.1.0" });
+const app = new App({ name: "ABCoda score", version: "0.2.0" });
 const byId = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const scoreElement = byId<HTMLElement>("score");
 const notice = byId<HTMLElement>("notice");
 const tempo = byId<HTMLInputElement>("tempo");
 const tempoOutput = byId<HTMLOutputElement>("tempo-output");
-const selectionSummary = byId<HTMLElement>("selection-summary");
-const explainButton = byId<HTMLButtonElement>("explain-selection");
-const clearButton = byId<HTMLButtonElement>("clear-selection");
+const playbackButton = byId<HTMLButtonElement>("playback-toggle");
+const playbackIcon = byId<HTMLElement>("playback-icon");
+const playbackLabel = byId<HTMLElement>("playback-label");
 const loopButton = byId<HTMLButtonElement>("loop");
 
 let payload: RenderScoreOutput | undefined;
 let visualTune: ABCJS.TuneObject | undefined;
 let synth: ABCJS.SynthObjectController | undefined;
-let currentTempo = 96;
-let baseTempo = 96;
-let playing = false;
-let loopEnabled = false;
-let synthLoopEnabled = false;
-let scoreHash = "";
 let instruments: Record<string, InstrumentName> = {};
 let mutedVoices = new Set<string>();
+let requestedConfiguration = 0;
+let appliedConfiguration = 0;
+let configurationRunning = false;
 
 type ChatGptBridge = {
   toolInput?: unknown;
   toolOutput?: unknown;
+  theme?: "light" | "dark";
+  styles?: { variables?: McpUiStyles; css?: { fonts?: string } };
   notifyIntrinsicHeight?: (height: number) => void;
-  sendFollowUpMessage?: (options: { prompt: string; scrollToBottom?: boolean }) => Promise<void>;
   requestDisplayMode?: (options: { mode: "inline" | "fullscreen" | "pip" }) => Promise<unknown>;
-  openExternal?: (options: { href: string }) => Promise<void>;
+  openExternal?: (options: { href: string; redirectUrl?: boolean }) => Promise<void>;
 };
 
 const getChatGpt = () => (window as Window & { openai?: ChatGptBridge }).openai;
-
-type SelectedItem = {
-  key: string;
-  measure: number;
-  voice: string;
-  line: number;
-  startChar?: number;
-  endChar?: number;
-  element: HTMLElement;
-};
-const selected = new Map<string, SelectedItem>();
 
 function showNotice(message: string, error = false): void {
   notice.textContent = message;
@@ -85,130 +74,99 @@ function showNotice(message: string, error = false): void {
   notice.classList.toggle("error", error);
 }
 
-function applyHostContext(context: McpUiHostContext): void {
-  if (context.theme) document.documentElement.dataset.theme = context.theme;
+function applyHostContext(context: Pick<McpUiHostContext, "theme" | "styles">): void {
+  if (context.theme) applyDocumentTheme(context.theme);
   if (context.styles?.variables) applyHostStyleVariables(context.styles.variables);
   if (context.styles?.css?.fonts) applyHostFonts(context.styles.css.fonts);
 }
+
+function updateTransport(state: TransportState): void {
+  playbackButton.disabled = !state.ready || state.busy;
+  loopButton.disabled = state.busy;
+  playbackButton.setAttribute("aria-pressed", String(state.playing));
+  playbackButton.setAttribute("aria-label", state.playing ? "Pause" : "Play");
+  playbackIcon.textContent = state.playing ? "Ⅱ" : "▶";
+  playbackLabel.textContent = state.playing ? "Pause" : "Play";
+  loopButton.setAttribute("aria-pressed", String(state.loop));
+  tempo.disabled = state.busy;
+  tempo.value = String(state.tempo);
+  tempoOutput.value = `${state.tempo} BPM`;
+  byId<HTMLElement>("app").classList.toggle("is-configuring", state.busy);
+}
+
+const transport = new TransportController(96, 96, false, updateTransport);
 
 function clearPlayingCursor(): void {
   scoreElement.querySelectorAll(".abcoda-playing").forEach((node) => node.classList.remove("abcoda-playing"));
 }
 
 const cursorControl: ABCJS.CursorControl = {
-  onStart: () => { playing = true; },
-  onFinished: () => { playing = false; clearPlayingCursor(); },
+  onStart: () => transport.playbackStarted(),
+  onFinished: () => {
+    transport.playbackFinished();
+    clearPlayingCursor();
+  },
   onEvent: (event) => {
     clearPlayingCursor();
     event.elements?.flat().forEach((element) => element.classList.add("abcoda-playing"));
   },
 };
 
-async function configureAudio(): Promise<void> {
-  if (!payload || !visualTune) return;
-  if (playing) synth?.pause();
-  playing = false;
+function requestAudioConfiguration(): void {
+  requestedConfiguration += 1;
+  if (!configurationRunning) void runConfigurationQueue();
+}
+
+async function runConfigurationQueue(): Promise<void> {
+  configurationRunning = true;
+  let completed = false;
+  transport.beginConfiguration();
   clearPlayingCursor();
-  if (!ABCJS.synth.supportsAudio()) {
-    showNotice("Audio playback is not available in this browser context.", true);
-    return;
-  }
-  synth ??= new ABCJS.synth.SynthController();
-  synth.load("#abcjs-audio", cursorControl, {
-    displayLoop: false,
-    displayPlay: false,
-    displayProgress: false,
-    displayRestart: false,
-    displayWarp: false,
-  });
-  const result = await synth.setTune(visualTune, false, {
-    qpm: baseTempo,
-    chordsOff: true,
-    sequenceCallback: (sequence) =>
-      applyInstruments(sequence, payload?.voiceIds ?? [], instruments, mutedVoices),
-  });
-  if (result.status === "no-audio-context") {
-    showNotice("Tap Play to enable audio.");
-  }
-  if (loopEnabled !== synthLoopEnabled) {
-    synth.toggleLoop();
-    synthLoopEnabled = loopEnabled;
-  }
-  await synth.setWarp((currentTempo / baseTempo) * 100);
-}
 
-function selectionSnapshot(): SelectionContext {
-  const items = [...selected.values()];
-  return {
-    type: "abcoda.score_selection",
-    schemaVersion: 1,
-    scoreFingerprint: scoreHash,
-    selection: {
-      selectedMeasures: [...new Set(items.map((item) => item.measure))].sort((a, b) => a - b),
-      selectedVoices: [...new Set(items.map((item) => item.voice))],
-      selectedElements: items.map(({ measure, voice, line, startChar, endChar }) => ({
-        measure,
-        voice,
-        line,
-        ...(startChar === undefined ? {} : { startChar }),
-        ...(endChar === undefined ? {} : { endChar }),
-      })),
-    },
-  };
-}
-
-async function publishSelection(): Promise<void> {
-  const snapshot = selectionSnapshot();
-  const count = snapshot.selection.selectedElements.length;
-  const measures = snapshot.selection.selectedMeasures.join(", ");
-  selectionSummary.textContent = count === 0
-    ? "Select notes or measures to discuss them."
-    : `${count} element${count === 1 ? "" : "s"} selected · measure${snapshot.selection.selectedMeasures.length === 1 ? "" : "s"} ${measures}`;
-  explainButton.disabled = count === 0;
-  clearButton.disabled = count === 0;
   try {
-    await app.updateModelContext({ structuredContent: snapshot });
-  } catch {
-    // Standalone demo mode has no host; the local interaction still works.
-  }
-}
+    if (!ABCJS.synth.supportsAudio()) {
+      showNotice("Audio playback is not available in this browser context.", true);
+      transport.failConfiguration();
+      return;
+    }
 
-function clearSelection(): void {
-  selected.forEach(({ element }) => element.classList.remove("abcoda-selected"));
-  selected.clear();
-  void publishSelection();
-}
-
-function handleScoreClick(
-  abcElement: ABCJS.AbcElem,
-  _tuneNumber: number,
-  classes: string,
-  analysis: ABCJS.ClickListenerAnalysis,
-): void {
-  if (!payload) return;
-  const element = analysis.selectableElement;
-  const measure = measureFromClasses(classes, analysis.measure);
-  const voice = payload.voiceIds[analysis.voice] ?? payload.voiceIds[0] ?? "default";
-  const startChar = "startChar" in abcElement && typeof abcElement.startChar === "number" ? abcElement.startChar : undefined;
-  const endChar = "endChar" in abcElement && typeof abcElement.endChar === "number" ? abcElement.endChar : undefined;
-  const key = `${voice}:${measure}:${startChar ?? analysis.line}:${endChar ?? analysis.measure}`;
-
-  if (selected.has(key)) {
-    selected.get(key)?.element.classList.remove("abcoda-selected");
-    selected.delete(key);
-  } else {
-    element.classList.add("abcoda-selected");
-    selected.set(key, {
-      key,
-      measure,
-      voice,
-      line: analysis.line,
-      ...(startChar === undefined ? {} : { startChar }),
-      ...(endChar === undefined ? {} : { endChar }),
-      element,
+    synth ??= new ABCJS.synth.SynthController();
+    synth.load("#abcjs-audio", cursorControl, {
+      displayLoop: false,
+      displayPlay: false,
+      displayProgress: false,
+      displayRestart: false,
+      displayWarp: false,
     });
+
+    while (appliedConfiguration < requestedConfiguration) {
+      const revision = requestedConfiguration;
+      const score = payload;
+      const tune = visualTune;
+      const voiceIds = [...(score?.voiceIds ?? [])];
+      const selectedInstruments = { ...instruments };
+      const selectedMutes = new Set(mutedVoices);
+      if (!score || !tune) break;
+
+      const result = await synth.setTune(tune, false, {
+        qpm: score.score.playback.tempo,
+        chordsOff: true,
+        sequenceCallback: (sequence) =>
+          applyInstruments(sequence, voiceIds, selectedInstruments, selectedMutes),
+      });
+      appliedConfiguration = revision;
+      if (result.status === "no-audio-context") showNotice("Tap Play to enable audio.");
+    }
+
+    await transport.completeConfiguration(synth);
+    completed = true;
+  } catch (error) {
+    transport.failConfiguration();
+    showNotice(error instanceof Error ? error.message : "Audio could not be prepared.", true);
+  } finally {
+    configurationRunning = false;
+    if (completed && appliedConfiguration < requestedConfiguration) void runConfigurationQueue();
   }
-  void publishSelection();
 }
 
 function renderMixer(): void {
@@ -218,9 +176,11 @@ function renderMixer(): void {
   payload.voiceIds.forEach((voiceId) => {
     const row = document.createElement("div");
     row.className = "voice-row";
+
     const name = document.createElement("span");
     name.className = "voice-name";
     name.textContent = voiceId;
+
     const select = document.createElement("select");
     select.setAttribute("aria-label", `Instrument for ${voiceId}`);
     instrumentNames.forEach((instrument) => {
@@ -232,8 +192,9 @@ function renderMixer(): void {
     });
     select.addEventListener("change", () => {
       instruments[voiceId] = select.value as InstrumentName;
-      void configureAudio();
+      requestAudioConfiguration();
     });
+
     const muteLabel = document.createElement("label");
     muteLabel.className = "mute-label";
     const checkbox = document.createElement("input");
@@ -241,7 +202,7 @@ function renderMixer(): void {
     checkbox.checked = mutedVoices.has(voiceId);
     checkbox.addEventListener("change", () => {
       checkbox.checked ? mutedVoices.add(voiceId) : mutedVoices.delete(voiceId);
-      void configureAudio();
+      requestAudioConfiguration();
     });
     muteLabel.append(checkbox, "Mute");
     row.append(name, select, muteLabel);
@@ -251,16 +212,9 @@ function renderMixer(): void {
 
 async function render(output: RenderScoreOutput): Promise<void> {
   payload = output;
-  clearSelection();
-  scoreHash = fingerprint(output.score.abc);
-  baseTempo = output.score.playback.tempo;
-  currentTempo = baseTempo;
   instruments = { ...output.score.playback.instruments };
   mutedVoices = new Set(output.score.playback.mutedVoices);
-  loopEnabled = output.score.playback.loop;
-  loopButton.setAttribute("aria-pressed", String(loopEnabled));
-  tempo.value = String(currentTempo);
-  tempoOutput.value = `${currentTempo} BPM`;
+  transport.reset(output.score.playback.tempo, output.score.playback.tempo, output.score.playback.loop);
   byId<HTMLElement>("score-title").textContent = output.score.display.title ?? abcTitle(output.score.abc) ?? "Interactive score";
   scoreElement.classList.toggle("colored-voices", output.score.display.coloredVoices);
   showNotice(output.warnings.join(" "));
@@ -269,7 +223,6 @@ async function render(output: RenderScoreOutput): Promise<void> {
   const tunes = ABCJS.renderAbc(scoreElement, output.score.abc, {
     responsive: "resize",
     add_classes: true,
-    clickListener: handleScoreClick,
     foregroundColor: "currentColor",
     wrap: {
       preferredMeasuresPerLine: measuresPerLine,
@@ -283,50 +236,15 @@ async function render(output: RenderScoreOutput): Promise<void> {
     return;
   }
   renderMixer();
-  await configureAudio();
+  requestAudioConfiguration();
 }
 
-byId<HTMLButtonElement>("play").addEventListener("click", () => {
-  if (!synth) return;
-  if (!playing) synth.play();
+playbackButton.addEventListener("click", () => {
+  try { transport.togglePlayback(); } catch { showNotice("Playback could not start.", true); }
 });
-byId<HTMLButtonElement>("pause").addEventListener("click", () => synth?.pause());
-byId<HTMLButtonElement>("stop").addEventListener("click", () => {
-  if (playing) synth?.pause();
-  synth?.restart();
-  playing = false;
-  clearPlayingCursor();
-});
-loopButton.addEventListener("click", () => {
-  loopEnabled = !loopEnabled;
-  loopButton.setAttribute("aria-pressed", String(loopEnabled));
-  synth?.toggleLoop();
-  synthLoopEnabled = loopEnabled;
-});
-tempo.addEventListener("input", () => {
-  currentTempo = Number(tempo.value);
-  tempoOutput.value = `${currentTempo} BPM`;
-  void synth?.setWarp((currentTempo / baseTempo) * 100);
-});
-clearButton.addEventListener("click", clearSelection);
-explainButton.addEventListener("click", async () => {
-  await publishSelection();
-  try {
-    const bridge = getChatGpt();
-    if (bridge?.sendFollowUpMessage) {
-      await bridge.sendFollowUpMessage({
-        prompt: "Explícame musicalmente la selección actual de la partitura.",
-      });
-    } else {
-      await app.sendMessage({
-        role: "user",
-        content: [{ type: "text", text: "Explícame musicalmente la selección actual de la partitura." }],
-      });
-    }
-  } catch {
-    showNotice("The host did not accept the follow-up message.", true);
-  }
-});
+loopButton.addEventListener("click", () => transport.toggleLoop());
+tempo.addEventListener("input", () => void transport.setTempo(Number(tempo.value)));
+
 byId<HTMLButtonElement>("fullscreen").addEventListener("click", async () => {
   try {
     const bridge = getChatGpt();
@@ -334,17 +252,14 @@ byId<HTMLButtonElement>("fullscreen").addEventListener("click", async () => {
     else await app.requestDisplayMode({ mode: "fullscreen" });
   } catch { /* optional host capability */ }
 });
+
 byId<HTMLButtonElement>("sample-credits").addEventListener("click", async () => {
+  const href = "https://github.com/gleitz/midi-js-soundfonts";
   try {
     const bridge = getChatGpt();
-    if (bridge?.openExternal) {
-      await bridge.openExternal({ href: "https://github.com/gleitz/midi-js-soundfonts" });
-    } else {
-      await app.openLink({ url: "https://github.com/gleitz/midi-js-soundfonts" });
-    }
-  } catch {
-    // Link opening is optional in standalone and restricted hosts.
-  }
+    if (bridge?.openExternal) await bridge.openExternal({ href, redirectUrl: false });
+    else await app.openLink({ url: href });
+  } catch { /* optional in standalone and restricted hosts */ }
 });
 
 app.onhostcontextchanged = applyHostContext;
@@ -358,6 +273,7 @@ app.ontoolresult = (params) => {
 };
 
 function renderFromChatGptGlobals(globals: ChatGptBridge): void {
+  applyHostContext(globals);
   const output = renderScoreOutputSchema.safeParse(globals.toolOutput);
   if (output.success) {
     void render(output.data);

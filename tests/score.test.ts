@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { renderScoreInputSchema } from "../shared/score";
 import { abcTitle, extractVoiceIds } from "../shared/voices";
-import { applyInstruments, fingerprint, measureFromClasses } from "../web/src/music";
+import { applyInstruments } from "../web/src/music";
 
 describe("score contract", () => {
   it("fills lightweight playback defaults", () => {
@@ -40,10 +40,13 @@ describe("client music helpers", () => {
     expect(tracks[1]?.[0]).toMatchObject({ instrument: "cello", volume: 0 });
   });
 
-  it("derives measure numbers and stable score fingerprints", () => {
-    expect(measureFromClasses("abcjs-note abcjs-m11", 0)).toBe(12);
-    expect(measureFromClasses("abcjs-note", 4)).toBe(5);
-    expect(fingerprint("abc")).toBe(fingerprint("abc"));
-    expect(fingerprint("abc")).not.toBe(fingerprint("abd"));
+  it("keeps instrument and mute changes independent across voices", () => {
+    const tracks = [
+      [{ pitch: 60, instrument: "acoustic_grand_piano", start: 0, end: 1, startChar: 0, endChar: 1, volume: 80 }],
+      [{ pitch: 48, instrument: "acoustic_grand_piano", start: 0, end: 1, startChar: 2, endChar: 3, volume: 90 }],
+    ];
+    applyInstruments(tracks, ["RH", "LH"], { RH: "flute", LH: "cello" }, new Set(["RH"]));
+    expect(tracks[0]?.[0]).toMatchObject({ instrument: "flute", volume: 0 });
+    expect(tracks[1]?.[0]).toMatchObject({ instrument: "cello", volume: 90 });
   });
 });
