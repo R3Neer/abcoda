@@ -28,7 +28,10 @@ import {
   widgetResourceUri,
 } from "@abcoda/contracts";
 import type { WidgetArtifact } from "../assets/widget-artifact";
-import { observeMcpTool, type McpRequestObservability } from "./request-observability";
+import {
+  startMcpToolObservation,
+  type McpRequestObservability,
+} from "./request-observability";
 import {
   fromScoreSnapshotDto,
   toEvaluateScoreResultDto,
@@ -105,30 +108,24 @@ export function createV2McpServer(
         "openai/toolInvocation/invoked": "Composition plan ready",
       },
     },
-    (rawInput) => observeMcpTool(observability, "prepare_composition", () => {
+    (rawInput) => {
+      const observation = startMcpToolObservation(observability, "prepare_composition");
       try {
         const result = prepareComposition.execute({
           brief: compositionBriefSchema.parse(rawInput),
         });
-        return {
-          outcome: "success" as const,
-          result: {
-            structuredContent: result,
-            content: [{ type: "text" as const, text: result.prompt }],
-          },
-        };
+        return observation.complete("success", {
+          structuredContent: result,
+          content: [{ type: "text" as const, text: result.prompt }],
+        });
       } catch (error) {
         const message = error instanceof Error ? error.message : "Invalid composition brief.";
-        return {
-          outcome: "failure" as const,
-          failed: true,
-          result: {
-            isError: true,
-            content: [{ type: "text" as const, text: `Could not prepare composition: ${message}` }],
-          },
-        };
+        return observation.complete("failure", {
+          isError: true,
+          content: [{ type: "text" as const, text: `Could not prepare composition: ${message}` }],
+        }, true);
       }
-    }),
+    },
   );
 
   registerAppTool(
@@ -151,32 +148,26 @@ export function createV2McpServer(
         "openai/toolInvocation/invoked": "Score validation complete",
       },
     },
-    (rawInput) => observeMcpTool(observability, "validate_score", () => {
+    (rawInput) => {
+      const observation = startMcpToolObservation(observability, "validate_score");
       try {
         const command = evaluateScoreRequestSchema.parse(rawInput);
         const result = toEvaluateScoreResultDto(evaluateScore.execute(command));
         const text = result.status === "success" && result.snapshot
           ? `Validated revision ${result.snapshot.revision} with ${result.snapshot.document.voices.length} voice${result.snapshot.document.voices.length === 1 ? "" : "s"}.`
           : `Score validation found ${result.diagnostics?.length ?? 0} blocking diagnostic${result.diagnostics?.length === 1 ? "" : "s"}.`;
-        return {
-          outcome: result.status,
-          result: {
-            structuredContent: result,
-            content: [{ type: "text" as const, text }],
-          },
-        };
+        return observation.complete(result.status, {
+          structuredContent: result,
+          content: [{ type: "text" as const, text }],
+        });
       } catch (error) {
         const message = error instanceof Error ? error.message : "Invalid score request.";
-        return {
-          outcome: "failure" as const,
-          failed: true,
-          result: {
-            isError: true,
-            content: [{ type: "text" as const, text: `Could not validate score: ${message}` }],
-          },
-        };
+        return observation.complete("failure", {
+          isError: true,
+          content: [{ type: "text" as const, text: `Could not validate score: ${message}` }],
+        }, true);
       }
-    }),
+    },
   );
 
   if (loadWidget) {
@@ -202,7 +193,8 @@ export function createV2McpServer(
           "openai/toolInvocation/invoked": "Score ready",
         },
       },
-      (rawInput) => observeMcpTool(observability, "render_score", () => {
+      (rawInput) => {
+        const observation = startMcpToolObservation(observability, "render_score");
         try {
           const input = renderScoreToolInputSchema.parse(rawInput);
           const internalResult = input.schemaVersion === 1
@@ -218,32 +210,25 @@ export function createV2McpServer(
             : input.schemaVersion === 2 && input.presentation !== undefined
               ? { ...result, presentation: input.presentation }
               : result;
-          return {
-            outcome: adapted.status,
-            result: {
-              structuredContent: adapted,
-              content: [
-                {
-                  type: "text" as const,
-                  text: adapted.status === "success" && adapted.snapshot
-                    ? `Prepared revision ${adapted.snapshot.revision} for interactive presentation${input.schemaVersion === 1 ? " through the schema 1 compatibility adapter" : ""}.`
-                    : "The score could not be presented because validation failed.",
-                },
-              ],
-            },
-          };
+          return observation.complete(adapted.status, {
+            structuredContent: adapted,
+            content: [
+              {
+                type: "text" as const,
+                text: adapted.status === "success" && adapted.snapshot
+                  ? `Prepared revision ${adapted.snapshot.revision} for interactive presentation${input.schemaVersion === 1 ? " through the schema 1 compatibility adapter" : ""}.`
+                  : "The score could not be presented because validation failed.",
+              },
+            ],
+          });
         } catch (error) {
           const message = error instanceof Error ? error.message : "Invalid presentation request.";
-          return {
-            outcome: "failure" as const,
-            failed: true,
-            result: {
-              isError: true,
-              content: [{ type: "text" as const, text: `Could not present score: ${message}` }],
-            },
-          };
+          return observation.complete("failure", {
+            isError: true,
+            content: [{ type: "text" as const, text: `Could not present score: ${message}` }],
+          }, true);
         }
-      }),
+      },
     );
 
     registerAppResource(
