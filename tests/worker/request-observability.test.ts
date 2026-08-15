@@ -27,7 +27,7 @@ async function callTool(
       params: { name, arguments: args },
     }),
   });
-  return { response, body: await response.json() as ToolCallBody };
+  return { response, body: await response.json() };
 }
 
 function expectCorrelated(response: Response, body: ToolCallBody): void {
