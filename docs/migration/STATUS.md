@@ -15,7 +15,7 @@
 | 0. Congelar y caracterizar | complete | Baseline reproducido desde `ae36154`; contratos legacy, corpus ABC, defecto tunebook y capacidades/defectos quedaron registrados antes del primer corte. La suite browser posterior conserva los escenarios de UX que se decidió mantener o corregir. |
 | 1. Esqueleto y dependencias | complete | Workspaces, tsconfigs, apps Worker/widget, ESLint tipado, límites automáticos, detección de ciclos, CI Node 22 y builds legacy/v2 simultáneos pasan en `check:browser`. Versiones y URI v2 proceden de `packages/contracts`. |
 | 2. Contratos y modelo canónico | complete | Contratos externos v2 versionados y adaptador schema 1; aggregate rico con IDs nominales de melodía/voz/compás/evento/revisión; snapshot compacto; `PlaybackProfile`, `ScoreOperation`, diagnósticos con corrección y resultados discriminados. Worker, widget y aplicación compilan sin importarse entre sí. |
-| 3. Codec y diagnósticos | in progress | `CanonicalAbcCodec` ya produce voces, compases, eventos, duraciones y rangos con round-trip lossless y corpus generado. Faltan validación mecánica y operaciones canónicas antes de G3. |
+| 3. Codec y diagnósticos | complete | `CanonicalAbcCodec` modela corpus, rangos y nodos opacos con round-trip lossless; validadores distinguen sintaxis de consistencia; normalización es idempotente; `ApplyScoreOperation` transpone tonalidad/notas/acordes, preserva percusión y aplica instrumento/mute/restauración sin revisiones parciales. `abcjs` ya no transforma borradores. |
 | 4. Casos de uso | in progress | `EvaluateScore` está detrás de `ScoreCodec`; la política pura `@abcoda/composition` es compartida sin depender de MCP ni Cloudflare. |
 | 5. MCP y Worker seguro | in progress | `prepare_composition`, `validate_score` y `render_score`, recurso UI, health, límites HTTP y CORS por allowlist pasan 11 pruebas en workerd. Faltan completar headers/telemetría de petición y la prueba en preview real. |
 | 6. Shell y bridge | complete | `HostBridge` aísla resultados, teardown, tema y safe areas; los controladores poseen estado y efectos por revisión; `DomWidgetView` posee el DOM. El laboratorio cubre carga, error, recuperación y carreras en móvil/escritorio. |
@@ -54,8 +54,8 @@ Este corte demuestra inversión de dependencias y cierra el comportamiento v2 de
 
 ## Limitaciones conscientes actuales
 
-- El codec canónico conserva construcciones desconocidas como nodos opacos y ya representa el corpus actual, pero aún no diagnostica incoherencias métricas ni aplica operaciones estructurales.
-- Normalización y transposición siguen teniendo caminos heredados basados en texto/abcjs que deben migrarse al modelo canónico durante la Fase 3.
+- El codec canónico conserva construcciones desconocidas como nodos opacos seguros; ampliar el corpus seguirá siendo trabajo incremental, no un bloqueo de la migración.
+- `abcjs` queda deliberadamente limitado a grabado, timeline y síntesis del navegador; la edición/transposición ya usa operaciones canónicas propias.
 - El HTML v2 autocontenido mide 253,25 kB gzip y el Worker v2 245,26 kB gzip; ambos están dentro de los presupuestos automatizados.
 - Las 64 pruebas browser cubren interacciones y responsive, pero aún faltan referencias visuales focalizadas, lector de pantalla, contraste alto y audición real.
 - La rama local está diez commits por delante de `origin/architecture-v2` antes del siguiente push de migración.

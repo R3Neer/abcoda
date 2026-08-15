@@ -108,6 +108,17 @@ describe("architecture v2 first vertical slice", () => {
     });
   });
 
+  it("rejects mechanically inconsistent ABC after syntactic decoding", () => {
+    const result = evaluate.execute({
+      abc: "X:1\nM:4/4\nL:1/4\nK:C\nC D E F|C D E|C D E F|]",
+      revision: 3,
+    });
+    expect(result).toMatchObject({
+      status: "invalid",
+      diagnostics: [{ code: "ABC_MEASURE_DURATION_MISMATCH", severity: "error" }],
+    });
+  });
+
   it("keeps versions centralized and requires a real artifact digest", () => {
     expect(versions).toEqual({
       appVersion: "0.13.0-alpha.1",

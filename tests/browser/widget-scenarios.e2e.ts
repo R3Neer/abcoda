@@ -434,7 +434,7 @@ test("mixed pitched and percussion voices keep compatible controls and transposi
   await page.locator("#editor > summary").click();
   await page.locator("#transpose-up").click();
   const draft = page.locator("#abc-draft");
-  await expect(draft).toHaveValue(/K:Db/);
+  await expect(draft).toHaveValue(/K:C#/);
   await expect(draft).toHaveValue(/\[V:D\]\[K:none clef=perc\] C D E F\|C D E F\|\]/);
   await expect(page.locator("#status")).toHaveText("Revision 2 ready");
   await expect(percussionInstrument).toHaveValue("standard_drum_kit");

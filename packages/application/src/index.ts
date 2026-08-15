@@ -1,7 +1,10 @@
 import type {
+  ApplyScoreOperationResult,
   DecodeScoreResult,
   Diagnostic,
+  PlaybackProfile,
   ScoreDocument,
+  ScoreOperation,
   ScoreSnapshot,
 } from "../../domain/src/index";
 import { asRevisionId } from "../../domain/src/index";
@@ -9,6 +12,25 @@ import { asRevisionId } from "../../domain/src/index";
 export interface ScoreCodec {
   decode(source: string): DecodeScoreResult;
   encode(document: ScoreDocument): string;
+}
+
+export interface ScoreOperationExecutor {
+  apply(command: ApplyScoreOperationCommand): ApplyScoreOperationResult;
+}
+
+export interface ApplyScoreOperationCommand {
+  readonly document: ScoreDocument;
+  readonly original: ScoreDocument;
+  readonly playback: PlaybackProfile;
+  readonly operation: ScoreOperation;
+}
+
+export class ApplyScoreOperation {
+  constructor(private readonly executor: ScoreOperationExecutor) {}
+
+  execute(command: ApplyScoreOperationCommand): ApplyScoreOperationResult {
+    return this.executor.apply(command);
+  }
 }
 
 export interface EvaluateScoreCommand {
@@ -32,6 +54,9 @@ export class EvaluateScore {
   execute(command: EvaluateScoreCommand): EvaluateScoreResult {
     const decoded = this.codec.decode(command.abc);
     if (!decoded.ok) {
+      return { status: "invalid", diagnostics: decoded.diagnostics };
+    }
+    if (decoded.diagnostics.some((diagnostic) => diagnostic.severity === "error")) {
       return { status: "invalid", diagnostics: decoded.diagnostics };
     }
 

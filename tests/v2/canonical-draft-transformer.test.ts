@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AbcjsDraftTransformer } from "../../apps/widget/src/adapters/abcjs/abcjs-draft-transformer";
+import { CanonicalDraftTransformer } from "../../apps/widget/src/adapters/local/canonical-draft-transformer";
 
 const mixed = `X:1
 T:Mixed
@@ -12,16 +12,16 @@ K:C
 [V:P] C D E F|]
 [V:D][K:none clef=perc] C D E F|]`;
 
-describe("AbcjsDraftTransformer", () => {
+describe("CanonicalDraftTransformer", () => {
   it("transposes key and pitched notation while preserving percussion", () => {
-    const result = new AbcjsDraftTransformer().transpose(mixed, 2);
+    const result = new CanonicalDraftTransformer().transpose(mixed, 2);
     expect(result).toContain("K:D");
-    expect(result).toContain("[V:P] D E F G|]");
+    expect(result).toContain("[V:P] D E ^F G|]");
     expect(result).toContain("[V:D][K:none clef=perc] C D E F|]");
   });
 
   it("is an identity at zero and rejects unsafe intervals", () => {
-    const transformer = new AbcjsDraftTransformer();
+    const transformer = new CanonicalDraftTransformer();
     expect(transformer.transpose(mixed, 0)).toBe(mixed);
     expect(() => transformer.transpose(mixed, 2.5)).toThrow(/whole number/);
     expect(() => transformer.transpose(mixed, 25)).toThrow(/between -24 and 24/);

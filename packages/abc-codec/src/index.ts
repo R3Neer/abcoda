@@ -3,6 +3,8 @@ import type { DecodeScoreResult, ScoreDocument } from "../../domain/src/index";
 import { parseAbc } from "./parser";
 
 export { parseAbc } from "./parser";
+export * from "./operations";
+export { validateScore } from "./validation";
 
 /**
  * Lossless serialization is the safe baseline for the canonical model: until a

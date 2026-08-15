@@ -17,6 +17,7 @@ import {
   type VoiceId,
 } from "../../domain/src/index";
 import { addDuration, durationFromSuffix, multiplyDuration, rational } from "./rational";
+import { validateScore } from "./validation";
 
 interface SourceLine {
   readonly text: string;
@@ -496,5 +497,5 @@ export function parseAbc(sourceInput: string): DecodeScoreResult {
     directives,
     source: { format: "abc", text: source },
   };
-  return { ok: true, diagnostics: [], document };
+  return { ok: true, diagnostics: validateScore(document), document };
 }

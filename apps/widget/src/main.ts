@@ -1,6 +1,6 @@
 import "./styles/index.css";
 import { AbcjsEngraver } from "./adapters/abcjs/abcjs-engraver";
-import { AbcjsDraftTransformer } from "./adapters/abcjs/abcjs-draft-transformer";
+import { CanonicalDraftTransformer } from "./adapters/local/canonical-draft-transformer";
 import { DomWidgetView } from "./adapters/dom/dom-widget-view";
 import { DomScoreCursor } from "./adapters/dom/dom-score-cursor";
 import { createHostBridge } from "./adapters/host/create-host-bridge";
@@ -78,7 +78,7 @@ const draft = new DraftSessionController(
   new LocalScoreEvaluator(),
   (state) => view.showDraft(state),
   (result) => { void controller.receive(result); },
-  new AbcjsDraftTransformer(),
+  new CanonicalDraftTransformer(),
   700,
 );
 const runtime = new WidgetRuntime(
