@@ -3,12 +3,12 @@
 ABCoda uses two deliberately separate layers.
 
 1. The MCP server sends a short workflow contract from `shared/composer-instructions.ts`.
-2. Before new composition or arrangement, the model calls `prepare_composition` with the typed brief in `shared/composition-plan.ts`. The stateless assembler returns only the relevant style, form, pitch, rhythm, texture, instrumentation, difficulty/intent, notation, and preflight modules. The same brief is carried into `render_score`; nothing is stored server-side.
+2. Before new composition or arrangement, the model calls `prepare_composition` with the typed brief in `shared/composition-plan.ts`. The stateless assembler returns only the relevant generation modules, musical-review criteria, and mechanical preflight. The same complete brief is carried into `render_score`; nothing is stored server-side.
 3. `shared/abc-lint.ts` performs only conservative, testable normalisation and linting. It does not reject parallel fifths, demand tonal cadences, or otherwise turn aesthetic conventions into universal syntax errors.
 
 That separation matters. Counterpoint, harmony, form, texture, and orchestration describe different relationships, and strict voice-leading is a pedagogical model rather than a universal historical style. Pop/rock, jazz, impressionist, post-tonal, and experimental idioms often organise musical time and vertical sonority differently from common-practice tonal music.
 
-## Composition brief v2
+## Composition brief v3
 
 The form is intentionally multidimensional. A style label cannot safely imply a form, pitch system, texture, or rhythmic feel: jazz may be modal or functional; a canon may be tonal or twelve-tone; and coloristic music may use ternary, process, or free form. The typed fields therefore route independent prompt modules:
 
@@ -20,12 +20,32 @@ The form is intentionally multidimensional. A style label cannot safely imply a 
 | Time | `meter`, `tempo`, `rhythmicFeel` | 10 feels plus simple, compound, additive and free-meter interpretation |
 | Distribution | `texture` | 8 textures from monophony and heterophony through counterpoint, groove layers and color mass |
 | Physical writing | ensemble `family`, `role`, `kind`, `transpositionSemitones` | 13 instrument families with voice-specific role and notation metadata |
-| Scope | `difficulty`, `intent` | 4 difficulty levels and 5 purposes |
+| Performer scope | `difficulty`, `intent` | 4 performer difficulty levels and 5 purposes |
+| Composition process | `effort` | `quick`, `standard`, `careful`, or `exhaustive` silent review strategy |
 | Overrides | `constraints`, `departures` | requirements and deliberate exceptions |
 
 Conflict precedence is explicit: constraints and departures first; then pitch framework for pitch/harmony, form family for architecture, feel/meter for time, texture for distribution, instrument family for physical realisation, and style for idiomatic vocabulary. Atypical combinations generate compatibility notes rather than being silently normalised.
 
-Every generated prompt contains priorities, relevant modules for all populated domains, ABC/playback instructions, and a silent musical/notational preflight. `renderHints` carries tempo, meter, and typed voice kinds forward mechanically.
+`difficulty` and `effort` are orthogonal. Difficulty describes what the performer must do; effort describes how deliberately the model plans, audits, and revises. A beginner miniature with exhaustive compositional effort is therefore valid. The schema default is `standard`; explicit user requests win, and the workflow instructions tell the model to infer a reasonable level rather than ask unnecessarily.
+
+Effort changes the process, not merely the number or intensity of adjectives:
+
+| Effort | Silent workflow |
+| --- | --- |
+| `quick` | Draft, one integrated sanity check, mechanical preflight, render |
+| `standard` | Draft, material/form check, playability/notation-readiness check, repair clear problems, preflight, render |
+| `careful` | Plan and draft, separate domain passes, global integration audit, substantive revision, preflight, render |
+| `exhaustive` | Plan and draft, all domain audits, substantive revision, a second audit of the revised whole, preflight, render |
+
+For `careful` and `exhaustive`, the first draft is explicitly disposable: phrases, accompaniment, harmony, rhythm, orchestration, transitions, or complete sections may be rewritten. `standard` also repairs clear substantive defects; `quick` stays proportionate to a rapid request.
+
+The output separates three concerns:
+
+1. `guidance` tells the model what to compose for the selected profile.
+2. `review` asks what characteristic failures to find in that particular result. Its form, style, pitch, rhythm, texture, and instrument criteria are routed only from selectors present in the brief; integration depth comes from `effort`. It includes “technically correct but mediocre” tests at higher effort while interpreting repetition, non-functional harmony, parallel motion, and other features through the declared idiom.
+3. `guidance.preflight` checks mechanical ABC/playback consistency: headers, voices, measures, accidentals, tuplets, ties, repeats, clefs, transposition, voice kinds, tempo, instruments, and abcjs compatibility.
+
+Musical review occurs silently inside the prompt returned by `prepare_composition`, before mechanical preflight. It does not create a separate `review_composition` tool or add server state. `renderHints` still carries tempo, meter, and typed voice kinds forward mechanically.
 
 This is a rubric, not an “automatic genius” switch. It should reduce random-note output, contradictory instructions, and stylistic category errors, but no text-only validator can hear the result. Musical quality still depends on model capability, requested scope, and iteration with the listener.
 

@@ -54,6 +54,7 @@ describe("ABCoda MCP surface", () => {
       pitchLanguage: "D minor, functional tonal",
       texture: "contrapuntal",
       difficulty: "intermediate",
+      effort: "careful",
       intent: "performance",
       ensemble: [
         { voiceId: "RH", instrument: "piano right hand", family: "keyboard", role: "melody", kind: "pitched", transpositionSemitones: 0 },
@@ -65,12 +66,17 @@ describe("ABCoda MCP surface", () => {
     const result = await client.callTool({ name: "prepare_composition", arguments: brief });
     expect(result.isError).not.toBe(true);
     expect(result.structuredContent).toMatchObject({
-      schemaVersion: 2,
+      schemaVersion: 3,
       brief,
       guidance: {
         style: expect.arrayContaining([expect.stringContaining("imitation")]),
         form: expect.arrayContaining([expect.stringContaining("subject length/profile")]),
         texture: expect.arrayContaining([expect.stringContaining("independent contour and rhythm")]),
+      },
+      review: {
+        strategy: expect.arrayContaining([expect.stringContaining("separate silent passes")]),
+        style: expect.arrayContaining([expect.stringContaining("sequence")]),
+        form: expect.arrayContaining([expect.stringContaining("entries")]),
       },
       renderHints: { tempo: 84, meter: "4/4", voiceKinds: { RH: "pitched", LH: "pitched" } },
     });
@@ -84,6 +90,8 @@ describe("ABCoda MCP surface", () => {
     expect(instructions).toContain("prepare_composition");
     expect(instructions).toContain("formFamily");
     expect(instructions).toContain("pitchFramework");
+    expect(instructions).toContain("effort");
+    expect(instructions).toContain("difficulty performer difficulty");
     expect(instructions.slice(0, 512)).toContain("render_score");
     expect(instructions).not.toContain("Baroque or Bach-informed");
     expect(instructions).not.toContain("Pop/rock/funk/R&B");

@@ -14,7 +14,7 @@ Interactive ABC music notation inside AI conversations. ABCoda is a small TypeSc
 - click-to-seek by measure with a continuously moving playback cursor;
 - ChatGPT host tokens, light/dark theme changes, and mobile layout;
 - stateless MCP server: no auth, database, user data, or music backend.
-- style-aware MCP composition instructions plus conservative ABC contract checks;
+- style- and domain-aware composition guidance, silent musical review, and conservative ABC contract checks;
 
 ## Architecture
 
@@ -30,7 +30,7 @@ The built widget is a self-contained HTML file. The only runtime network depende
 
 ## Tool contract
 
-For a composition or arrangement, `prepare_composition` first receives a compact typed brief. Version 2 separates style, form archetype/section plan, pitch framework, meter/rhythmic feel, texture, difficulty, intent, instrument family/role/kind/transposition, constraints, and deliberate departures. It assembles only the relevant modules and returns typed render hints. This is a stateless planning pass: no plan is stored server-side, and the same brief is included in the subsequent render call.
+For a composition or arrangement, `prepare_composition` first receives a compact typed brief. Version 3 separates style, form archetype/section plan, pitch framework, meter/rhythmic feel, texture, performer difficulty, composition/review effort, intent, instrument family/role/kind/transposition, constraints, and deliberate departures. It assembles only the relevant generation and musical-review modules, followed by a separate mechanical ABC preflight, and returns typed render hints. This is a stateless planning pass: no plan is stored server-side, no separate review tool is used, and the same complete brief is included in the subsequent render call.
 
 ```ts
 render_score({

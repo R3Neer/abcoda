@@ -37,7 +37,7 @@ export function validateAbc(abc: string): string[] {
 
 export function createAbcodaServer(loadWidget: WidgetLoader): McpServer {
   const server = new McpServer(
-    { name: "ABCoda", version: "0.4.0" },
+    { name: "ABCoda", version: "0.5.0" },
     { instructions: abcodaComposerInstructions },
   );
 
@@ -47,7 +47,7 @@ export function createAbcodaServer(loadWidget: WidgetLoader): McpServer {
     {
       title: "Prepare a composition brief",
       description:
-        "Use this when the user asks to compose or arrange new music. Infer the complete typed brief from stated constraints and responsible defaults. ABCoda combines independent modules for style, form, pitch framework, rhythm, texture, instruments, difficulty, intent, notation, and conflict resolution. Do not use when merely rendering ABC already supplied by the user.",
+        "Use this when the user asks to compose or arrange new music. Infer the complete typed brief, including composition effort, from stated constraints and responsible defaults. ABCoda routes independent generation and silent musical-review modules for style, form, pitch, rhythm, texture, instruments, difficulty, intent, notation, and conflict resolution. Do not use when merely rendering ABC already supplied by the user.",
       inputSchema: compositionBriefSchema,
       outputSchema: compositionPlanOutputSchema,
       annotations: {

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildCompositionPlan,
   compositionBriefSchema,
+  compositionEffortLevels,
   compositionIntents,
   compositionPlanOutputSchema,
   difficultyLevels,
@@ -13,6 +14,7 @@ import {
   textureModels,
   type CompositionBrief,
 } from "../shared/composition-plan";
+import { renderScoreInputSchema } from "../shared/score";
 
 const base: CompositionBrief = compositionBriefSchema.parse({
   styleFamily: "classical",
@@ -28,6 +30,7 @@ const base: CompositionBrief = compositionBriefSchema.parse({
   pitchLanguage: "C major with a half cadence and authentic close",
   texture: "melody_accompaniment",
   difficulty: "intermediate",
+  effort: "standard",
   intent: "performance",
   ensemble: [{
     voiceId: "P1",
@@ -153,16 +156,33 @@ describe("tailored composition plans", () => {
 
 describe("prompt coverage matrix", () => {
   it("gives every selector at least one dedicated, nonempty module", () => {
-    for (const styleFamily of styleFamilies) expect(plan({ styleFamily }).guidance.style.length).toBeGreaterThan(0);
-    for (const formFamily of formFamilies) expect(plan({ formFamily }).guidance.form.length).toBeGreaterThan(2);
-    for (const pitchFramework of pitchFrameworks) expect(plan({ pitchFramework }).guidance.pitch.length).toBeGreaterThan(1);
-    for (const rhythmicFeel of rhythmicFeels) expect(plan({ rhythmicFeel }).guidance.rhythm.length).toBeGreaterThan(2);
-    for (const texture of textureModels) expect(plan({ texture }).guidance.texture.length).toBeGreaterThan(1);
+    for (const styleFamily of styleFamilies) {
+      expect(plan({ styleFamily }).guidance.style.length).toBeGreaterThan(0);
+      expect(plan({ styleFamily }).review.style.length).toBeGreaterThan(0);
+    }
+    for (const formFamily of formFamilies) {
+      expect(plan({ formFamily }).guidance.form.length).toBeGreaterThan(2);
+      expect(plan({ formFamily }).review.form.length).toBeGreaterThan(0);
+    }
+    for (const pitchFramework of pitchFrameworks) {
+      expect(plan({ pitchFramework }).guidance.pitch.length).toBeGreaterThan(1);
+      expect(plan({ pitchFramework }).review.pitch.length).toBeGreaterThan(0);
+    }
+    for (const rhythmicFeel of rhythmicFeels) {
+      expect(plan({ rhythmicFeel }).guidance.rhythm.length).toBeGreaterThan(2);
+      expect(plan({ rhythmicFeel }).review.rhythm.length).toBeGreaterThan(0);
+    }
+    for (const texture of textureModels) {
+      expect(plan({ texture }).guidance.texture.length).toBeGreaterThan(1);
+      expect(plan({ texture }).review.texture.length).toBeGreaterThan(0);
+    }
     for (const difficulty of difficultyLevels) expect(plan({ difficulty }).guidance.difficultyAndIntent.length).toBeGreaterThan(2);
     for (const intent of compositionIntents) expect(plan({ intent }).guidance.difficultyAndIntent.length).toBeGreaterThan(2);
     for (const family of instrumentFamilies) {
       expect(plan({ ensemble: [{ ...base.ensemble[0]!, family }] }).guidance.instruments.length).toBeGreaterThan(2);
+      expect(plan({ ensemble: [{ ...base.ensemble[0]!, family }] }).review.instruments.length).toBeGreaterThan(0);
     }
+    for (const effort of compositionEffortLevels) expect(plan({ effort }).review.strategy.length).toBeGreaterThan(0);
   });
 
   it("produces a valid, coherent prompt for every pair of major selectors", () => {
@@ -184,9 +204,137 @@ describe("prompt coverage matrix", () => {
       expect(result.prompt).toContain("RHYTHM AND METER");
       expect(result.prompt).toContain("TEXTURE");
       expect(result.prompt).toContain("INSTRUMENTS AND VOICES");
-      expect(result.prompt).toContain("SILENT PREFLIGHT");
-      expect(result.prompt.length).toBeLessThan(15_000);
+      expect(result.prompt).toContain("SILENT MUSICAL REVIEW STRATEGY");
+      expect(result.prompt).toContain("MECHANICAL ABC PREFLIGHT");
+      expect(result.prompt.length).toBeLessThan(18_000);
     }
     expect(combinations).toHaveLength(576);
+  });
+});
+
+describe("effort-aware musical review", () => {
+  it("defaults effort to standard and accepts every declared level", () => {
+    const { effort: _effort, ...withoutEffort } = base;
+    expect(compositionBriefSchema.parse(withoutEffort).effort).toBe("standard");
+    for (const effort of compositionEffortLevels) {
+      expect(compositionBriefSchema.parse({ ...base, effort }).effort).toBe(effort);
+    }
+  });
+
+  it("rejects invalid effort values", () => {
+    expect(() => compositionBriefSchema.parse({ ...base, effort: "heroic" })).toThrow();
+  });
+
+  it("keeps performer difficulty independent from composition effort", () => {
+    const result = plan({ difficulty: "beginner", effort: "exhaustive" });
+    expect(result.brief).toMatchObject({ difficulty: "beginner", effort: "exhaustive" });
+    expect(result.guidance.difficultyAndIntent.join(" ")).toContain("beginner");
+    expect(result.review.strategy.join(" ")).toContain("SECOND GLOBAL AUDIT");
+  });
+
+  it("uses a brief integrated check for quick effort", () => {
+    const result = plan({ effort: "quick" });
+    expect(result.review.strategy.join(" ")).toContain("one brief integrated sanity check");
+    expect(result.review.strategy.join(" ")).not.toContain("SECOND GLOBAL AUDIT");
+  });
+
+  it("uses normal material/form and playability review for standard effort", () => {
+    const result = plan({ effort: "standard" });
+    expect(result.review.strategy.join(" ")).toContain("material and formal function");
+    expect(result.review.strategy.join(" ")).toContain("playability and notation readiness");
+  });
+
+  it("uses domain passes and permits substantive rewriting for careful effort", () => {
+    const result = plan({ effort: "careful" });
+    expect(result.review.strategy.join(" ")).toContain("separate silent passes");
+    expect(result.review.strategy.join(" ")).toContain("The first draft is not sacred");
+    expect(result.review.strategy.join(" ")).toContain("complete sections");
+  });
+
+  it("adds a second global audit and real reconstruction for exhaustive effort", () => {
+    const result = plan({ effort: "exhaustive" });
+    const strategy = result.review.strategy.join(" ");
+    expect(strategy).toContain("SECOND GLOBAL AUDIT");
+    expect(strategy).toContain("Rebuild phrases");
+    expect(strategy).toContain("complete sections");
+    expect(result.review.integration.join(" ")).toContain("bar-filling passage");
+  });
+
+  it("routes Romantic failure modes without importing jazz criteria", () => {
+    const review = plan({ styleFamily: "romantic" }).review.style.join(" ");
+    expect(review).toContain("excessively square");
+    expect(review).toContain("unprepared climax");
+    expect(review).not.toContain("guide-tone");
+  });
+
+  it("does not repair coloristic writing toward common-practice defaults", () => {
+    const review = plan({ styleFamily: "impressionist_coloristic" }).review.style.join(" ");
+    expect(review).toContain("Do not penalise parallel motion");
+    expect(review).toContain("common-practice voice leading");
+  });
+
+  it("judges minimalist repetition by audible process rather than novelty", () => {
+    const review = plan({ styleFamily: "minimalist_electronic_cinematic" }).review.style.join(" ");
+    expect(review).toContain("Do not treat repetition itself as a defect");
+    expect(review).toContain("process");
+  });
+
+  it("does not impose tonal cadences on post-tonal music", () => {
+    const review = plan({ styleFamily: "atonal_post_tonal" }).review.style.join(" ");
+    expect(review).toContain("Do not demand tonal cadences");
+  });
+
+  it("routes functional form review for ternary and sentence", () => {
+    const ternary = plan({ formFamily: "ternary" }).review.form.join(" ");
+    expect(ternary).toContain("B provides substantive contrast");
+    expect(ternary).toContain("return");
+    const sentence = plan({ formFamily: "sentence" }).review.form.join(" ");
+    expect(sentence).toContain("presentation");
+    expect(sentence).toContain("continuation becomes more processive");
+  });
+
+  it("includes review only for instrument families that are present", () => {
+    const guitar = plan({ ensemble: [{ ...base.ensemble[0]!, instrument: "guitar", family: "guitar" }] }).review.instruments.join(" ");
+    expect(guitar).toContain("fretboard positions");
+    expect(guitar).not.toContain("register breaks/colour");
+    const mixed = plan({ ensemble: [
+      { ...base.ensemble[0]!, instrument: "guitar", family: "guitar" },
+      { ...base.ensemble[0]!, voiceId: "FL", instrument: "flute", family: "woodwind" },
+    ] }).review.instruments.join(" ");
+    expect(mixed).toContain("fretboard positions");
+    expect(mixed).toContain("register breaks/colour");
+  });
+
+  it("keeps mechanical ABC preflight separate and after musical review", () => {
+    const result = plan({ effort: "careful" });
+    const preflight = result.guidance.preflight.join(" ");
+    expect(preflight).toContain("X/T/M/L/Q/K order");
+    expect(preflight).toContain("V:/%%score IDs");
+    expect(preflight).not.toContain("motif/hook identity");
+    expect(result.prompt.indexOf("REVIEW — GLOBAL INTEGRATION")).toBeLessThan(result.prompt.indexOf("MECHANICAL ABC PREFLIGHT"));
+  });
+
+  it("keeps compatibility notes and emits schema v3", () => {
+    const result = plan({
+      styleFamily: "atonal_post_tonal",
+      pitchFramework: "tonal_functional",
+    });
+    expect(result.schemaVersion).toBe(3);
+    expect(result.compatibilityNotes.join(" ")).toContain("intentional hybrid");
+  });
+
+  it("passes the same complete brief to render_score.composition", () => {
+    const result = plan({ difficulty: "beginner", effort: "exhaustive" });
+    const renderInput = renderScoreInputSchema.parse({
+      abc: "X:1\nT:Test\nM:4/4\nL:1/4\nQ:1/4=96\nK:C\nC D E F|]",
+      composition: result.brief,
+    });
+    expect(renderInput.composition).toEqual(result.brief);
+  });
+
+  it("keeps quick prompts materially smaller than exhaustive prompts", () => {
+    const quick = plan({ effort: "quick" }).prompt;
+    const exhaustive = plan({ effort: "exhaustive" }).prompt;
+    expect(quick.length).toBeLessThan(exhaustive.length);
   });
 });

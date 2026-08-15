@@ -43,6 +43,7 @@ export const voiceRoles = [
 
 export const difficultyLevels = ["beginner", "intermediate", "advanced", "virtuosic"] as const;
 export const compositionIntents = ["performance", "study", "illustration", "accompaniment", "sketch"] as const;
+export const compositionEffortLevels = ["quick", "standard", "careful", "exhaustive"] as const;
 
 const sectionSchema = z.object({
   label: z.string().min(1).max(40),
@@ -75,6 +76,8 @@ export const compositionBriefSchema = z.object({
   pitchLanguage: z.string().min(1).max(200).describe("Specific key, mode, collection, row, centricity, chord language, or other organisation."),
   texture: z.enum(textureModels).default("mixed"),
   difficulty: z.enum(difficultyLevels),
+  effort: z.enum(compositionEffortLevels).default("standard")
+    .describe("Composition and silent-review effort; independent of performer difficulty."),
   intent: z.enum(compositionIntents),
   ensemble: z.array(ensembleVoiceSchema).min(1).max(32),
   constraints: z.array(z.string().min(1).max(240)).max(24).default([]),
@@ -91,10 +94,22 @@ const guidanceSchema = z.object({
   notation: z.array(z.string()), preflight: z.array(z.string()),
 });
 
+const reviewSchema = z.object({
+  strategy: z.array(z.string()),
+  form: z.array(z.string()),
+  style: z.array(z.string()),
+  pitch: z.array(z.string()),
+  rhythm: z.array(z.string()),
+  texture: z.array(z.string()),
+  instruments: z.array(z.string()),
+  integration: z.array(z.string()),
+});
+
 export const compositionPlanOutputSchema = z.object({
-  schemaVersion: z.literal(2),
+  schemaVersion: z.literal(3),
   brief: compositionBriefSchema,
   guidance: guidanceSchema,
+  review: reviewSchema,
   compatibilityNotes: z.array(z.string()),
   renderHints: z.object({
     tempo: z.number().int(), meter: z.string(),
@@ -110,6 +125,7 @@ type PitchFramework = CompositionBrief["pitchFramework"];
 type RhythmicFeel = CompositionBrief["rhythmicFeel"];
 type TextureModel = CompositionBrief["texture"];
 type InstrumentFamily = CompositionBrief["ensemble"][number]["family"];
+type CompositionEffort = CompositionBrief["effort"];
 
 const styleGuidance: Record<StyleFamily, string[]> = {
   medieval_renaissance: [
@@ -328,6 +344,147 @@ const instrumentGuidance: Record<InstrumentFamily, string[]> = {
   other: ["Verify the exact instrument's range, transposition, technique, sustain, articulation, polyphonic capacity, and notation conventions before composing its part."],
 };
 
+const styleReviewGuidance: Record<StyleFamily, string[]> = {
+  medieval_renaissance: ["Check that modal centre, singable line, cadence, consonance/dissonance treatment, and text/phrase remain coherent; flag accidental later functional-tonal reflexes or mechanical pseudo-species writing."],
+  baroque: ["Look for imitation that is merely cosmetic, sequences without direction, voices that collapse into accompaniment, inert bass motion, weak cadential hierarchy, unrelated ornament, or stile antico restrictions applied where the requested Baroque practice does not require them."],
+  classical: ["Check whether thematic economy, initiating/medial/cadential functions, cadence hierarchy, accompaniment pattern, contrast, and proportion are perceptible; flag square regularity or decorative activity that obscures formal rhetoric."],
+  romantic: ["Look for excessively square phrase rhythm, chromatic decoration without direction, uniform density, mechanical sequences, an unprepared climax, registral or harmonic tension without consequence, and material too weak to sustain the long-range trajectory."],
+  impressionist_coloristic: ["Audit collection/mode, pedals, spacing, register, resonance, timbral contrast, and evolution of colour. Do not penalise parallel motion, unresolved colour tones, or non-functional sonority, and ensure the draft was not repaired toward common-practice voice leading by reflex."],
+  jazz_blues: ["Check groove and chorus/form first, then idiomatic phrase placement, blue-note or modal/functional consistency, guide-tone continuity, bass purpose, voicing clarity, and selective tensions; flag crowded extensions or classical resolutions that erase the idiom."],
+  pop_rock_funk_rnb: ["Test hook identity, groove, beat–bass relationship, functional layers, sectional lift, register/density changes, and singable phrasing; do not condemn cyclic harmony or parallel motion merely for lacking common-practice function."],
+  folk_traditional_dance: ["Compare tune type, mode, accent, range, phrase length, ornament, repeats, and social/dance function with the named tradition; flag generic exoticism, mixed regional markers, or invented claims of authenticity."],
+  minimalist_electronic_cinematic: ["Do not treat repetition itself as a defect. Determine whether a perceptible process or dramatic trajectory governs change, whether repetition establishes identity rather than avoiding development, and whether exceptions to the process have structural purpose."],
+  atonal_post_tonal: ["Check recurrence and transformation of the declared cell, set, row, axis, or centre through invariants, register, density, contour, and formal placement. Do not demand tonal cadences or repair dissonance into functional tonality."],
+  experimental_free: ["Check whether gesture, silence, register, density, articulation, timbre, or process creates memory and direction, and whether every intended effect is encoded precisely enough to perform in ABC rather than surviving only as prose."],
+  other_hybrid: ["Verify that each source idiom still governs its assigned domain and that conflicts are resolved by the brief hierarchy; flag a generic averaged style or an attention-grabbing borrowed gesture with no structural integration."],
+};
+
+const formReviewGuidance: Record<FormFamily, string[]> = {
+  period: ["Verify related antecedent/consequent identity and a meaningful difference in arrival strength where appropriate; detect two adjacent phrases with no question–answer function, but do not impose an automatic eight-bar template."],
+  sentence: ["Verify that presentation establishes a basic idea plus repetition/sequence and that continuation becomes more processive through fragmentation, liquidation, acceleration, harmonic motion, or cadence; flag four juxtaposed ideas with no functional change."],
+  binary: ["Check that the first span creates a meaningful departure/arrival and the second answers, returns, or closes it; flag two unrelated miniatures or repeats that contribute nothing to the two-part function."],
+  rounded_binary: ["Check that contrasting material begins the second part and the opening idea returns recognisably within it; flag either an inaudible rounding or a full independent reprise that accidentally turns the design into ternary."],
+  ternary: ["Confirm that A establishes recognisable identity, B provides substantive contrast, and A/A′ is heard as return; review proportions, transitions, climax placement, and what the return changes or resolves."],
+  rondo: ["Check refrain recognisability, episode differentiation, tonal/pitch and textural distance, freshness of returns, transition economy, and whether the final return closes an arc rather than merely repeating the alternation."],
+  sonata: ["Audit exposition oppositions, transition, secondary/closing function, developmental destabilisation, recapitulatory return/resolution, and scale; flag a labelled ABA whose thematic or tonal/pitch conflicts never undergo a consequential process."],
+  variation: ["Identify the invariant that makes every variation belong to the theme, then check that successive transformations differ meaningfully and form an arc; flag unrelated miniatures or surface decoration without a new perspective."],
+  through_composed: ["Trace recurring interval, contour, rhythm, collection, text, or timbre across new sections and test the global energy/arrival curve; flag novelty that destroys memory or continuity that merely disguises stasis."],
+  strophic: ["Check that the reusable frame supports every stanza's prosody and cadence and that any variation preserves identity; flag accompaniment detail that depends on only one stanza or repeated music with no expressive fit."],
+  verse_chorus: ["Verify that verses advance material while the chorus concentrates the principal hook, and that pre-chorus/bridge functions are earned; flag sections distinguished only by volume or labels rather than melody, register, density, groove, or harmony."],
+  aaba: ["Check the A strain's returnability, the bridge's substantive departure, and the final A's renewed function; flag a bridge that feels like another A or an AABA label masking verse–chorus behaviour."],
+  twelve_bar_blues: ["Hear the three four-bar functions, response pattern, turnaround, riff/fill placement, and groove despite substitutions; flag reharmonisation that obscures the 12-bar cycle or a nominal blues lacking idiomatic phrase tension."],
+  fugue_invention: ["Verify a recognisable subject, audible entries, coherent answer strategy, viable companion/countersubject, episodes derived from the material, and register/density that reveals entries; flag counterpoint that degenerates into melody plus filler."],
+  canon: ["Re-test delay, interval, direction, transformation, and every overlap; verify that the rule stays audible and that beginning/end are designed, not produced by silently abandoning the canon."],
+  dance: ["Check characteristic metre/grouping, accent, pickup, tempo, bodily pulse, phrase lift, cadence rhythm, and repeat practice; flag generic periodic music wearing only a dance label."],
+  process: ["Verify that the process is perceptible, directional, and has a meaningful destination; distinguish identity-building repetition from stalled repetition and require every exception to perform a structural function."],
+  free: ["Trace memory, contrast, pacing, energy, and arrival through gesture, contour, register, density, timbre, or proportion; flag arbitrary succession hidden behind the absence of a preset form."],
+  other: ["Reconstruct the declared section/phrase functions and test proportion, transition, contrast, return, climax, and closure; flag labels added after the fact that do not correspond to audible events."],
+};
+
+const pitchReviewGuidance: Record<PitchFramework, string[]> = {
+  tonal_functional: ["Reconstruct the harmonic trajectory phrase by phrase: test tonicisations/chromaticism, harmonic rhythm, dissonance, style-appropriate voice leading, and whether cadential hierarchy supports the form."],
+  tonal_cyclic: ["Check where the loop begins perceptually and whether bass, inversion, melody, rhythm, register, and texture refresh or redirect it; do not demand classical predominant–dominant rhetoric from a deliberately cyclic syntax."],
+  modal: ["Check that final/centre and characteristic degrees remain audible and that cadence, drone/pedal, melody, and harmony do not accidentally neutralise the mode through habitual leading-tone tonality."],
+  blues: ["Check blue-note inflection, riff/call-response, melodic–harmonic tension, dominant-quality areas where idiomatic, and turnaround; do not force every chromatic pitch into classical resolution."],
+  jazz_extended: ["Audit guide-tone paths, melody–voicing compatibility, bass function, spacing, and the purpose of every extension/alteration; flag indiscriminate tension stacking or unexplained switching among functional, modal, planar, and pedal syntax."],
+  pentatonic: ["Check exact collection membership and whether contour, rhythm, register, transposition, pedal, or complementary material supplies hierarchy; flag shapeless saturation or unsupported cultural claims based on scale alone."],
+  symmetric_collection: ["Check collection integrity, common tones, axes, limited transpositions, subset emphasis, and contrast by register/rhythm/texture; do not invent functional roots where the declared collection makes them ambiguous."],
+  atonal_centric: ["Test whether recurrence, anchoring, register, rhythm, formal placement, or interval attraction makes the centre genuinely perceptible and whether chromatic saturation obscures it."],
+  set_or_interval_cell: ["Trace the cell/set through motives, verticalities, transposition, inversion, and register; flag transformations that lose recognisable interval identity or literal repetitions that never acquire function."],
+  twelve_tone: ["Verify row/order and intended transformations or partitions, then assess invariants, contour, register, rhythm, and phrasing; flag bookkeeping errors as well as serial correctness that produces no musical articulation."],
+  other: ["Reconstruct the stated stable, unstable, connecting, and arrival behaviours and test their recurrence; flag unconscious C-major defaults or a pitch label with no audible hierarchy."],
+};
+
+const rhythmReviewGuidance: Record<RhythmicFeel, string[]> = {
+  straight: ["Check subdivision, accent, rests, ties, activity, and phrase-level variation for clarity without unintended swing or mechanical sameness."],
+  swing: ["Check metric feel, phrase placement, accents, articulation, and coordination with bass/groove; do not require literal triplet spelling unless the notation itself calls for it."],
+  shuffle: ["Check persistent long–short subdivision, backbeat/accent, bass lock, and fill placement; flag drift into generic swing or fills that interrupt rather than lead the form."],
+  syncopated_groove: ["Verify a stable metric reference beneath anticipations, ties, rests, and displaced attacks, and check beat–bass–melody interlock; flag syncopation that merely muddies the pulse."],
+  dance_pattern: ["Check characteristic grouping, accent hierarchy, pickup, cadence rhythm, and phrase periodicity against the named dance; flag accents or fills that break bodily continuity."],
+  rubato_flexible: ["Check notated proportional clarity, breath, harmonic pacing, and phrase direction beneath flexibility; flag arbitrary duration changes or over-quantisation that erases rubato character."],
+  motoric_ostinato: ["Check ostinato recognisability and long-range change by accent, phase, harmony, register, density, or orchestration; flag random interruption or unchanged repetition with no process."],
+  asymmetric_additive: ["Recount grouping in every layer and verify beaming, accent, bass, and motives reinforce it; flag parts whose competing accents accidentally erase the additive metre."],
+  free: ["Check that duration and silence follow gesture, breath, text, proportion, or process and remain performable; flag arbitrary values that communicate neither freedom nor structure."],
+  mixed: ["Locate each rhythmic-character change, test the transition or shared pulse, and verify that the contrast articulates form rather than appearing as an unexplained switch."],
+};
+
+const textureReviewGuidance: Record<TextureModel, string[]> = {
+  monophonic: ["Check whether one line alone sustains contour, rhythm, register, articulation, implied harmony, breath, contrast, and arrival; remove filler that harmony would otherwise conceal."],
+  heterophonic: ["Check that variants share an unmistakable melodic identity, offsets and ornaments remain intentional, and cadential convergence is controlled rather than merely untidy unison."],
+  melody_accompaniment: ["Check that accompaniment leaves registral and rhythmic space, supports direction, and changes with form; flag automatic filler, constant competition, or doubling that weakens the melody."],
+  homorhythmic: ["Audit spacing, doubling, balance, text/accent alignment, and style-relevant voice leading; flag inert block motion or inner parts that exist only to complete chords."],
+  contrapuntal: ["Check each line independently for contour and rhythm, then together for imitation, dissonance, crossing, spacing, density, and cadence; flag nominal counterpoint that becomes accompaniment."],
+  layered_groove: ["Solo the conceptual beat, bass, harmony, melody, and novelty layers: each must have a role, interlock cleanly, and enter/exit with form; flag constant full-stack density."],
+  color_mass: ["Check the evolution of register, spacing, doubling, articulation, density, attack/release, and timbral transfer; flag an attractive sonority held without formal consequence."],
+  mixed: ["Map texture by section and verify that each change creates hierarchy, contrast, buildup, release, or return; flag gratuitous switching or continuous tutti caused merely by available voices."],
+};
+
+const instrumentReviewGuidance: Record<InstrumentFamily, string[]> = {
+  keyboard: ["Re-test hand allocation, spans, leaps, repeated notes, voicing, register, independence, and recovery; flag textures that are theoretically valid but physically or expressively awkward under two hands."],
+  bowed_string: ["Re-test strings/positions, crossings, bow length, articulation, double stops, sustain, register balance, and solo-versus-section assumptions; flag impossible simultaneities or phrasing with no bow logic."],
+  plucked_string: ["Re-test tuning, string/course allocation, chord shapes, resonance, damping, repeated attacks, mobility, and decay; flag keyboard-derived voicings or sustain the instrument cannot produce."],
+  guitar: ["Re-test fretboard positions, stretches, barrés, string crossings, chord shapes, repeated attacks, sustain, and voice leading across strings; flag passages requiring impossible hand relocation or keyboard-like spacing."],
+  bass: ["Check range, mobility, rests, articulation, approach tones, root/independent motion, and rhythmic lock with harmony/groove; flag continuous doubling or density that destroys low-register clarity."],
+  woodwind: ["Mark breaths and re-test tessitura, register breaks/colour, fingering combinations, articulation speed, leaps, transposition, and endurance; flag exposed phrases with no viable breath or recovery."],
+  brass: ["Mark breaths/recovery and re-test sounding transposition, overtone/register behaviour, attacks, endurance, mute assumptions, high/loud duration, and ensemble balance."],
+  voice: ["Read the line as sung text: test tessitura, breath, vowel sustain, consonant placement, prosody/stress, leaps, registration, and balance; flag technically possible notes that make the phrase unsingable."],
+  pitched_percussion: ["Re-test exact range, mallet mobility, chord capacity, rolls, damping, sustain, and mallet changes; flag resonance collisions or gestures borrowed from sustaining instruments."],
+  drum_kit: ["Assign every simultaneous event to a limb and check coordination, groove stability, fills, transitions, GM mapping, rests, and physical setup; flag impossible overlaps or fills with no formal destination."],
+  unpitched_percussion: ["Re-test instrument identity, simultaneous actions, stick/mallet changes, rolls, damping, cues, rests, setup, and GM mapping; flag unspecified timbres or impossible rapid logistics."],
+  electronic: ["Check whether register, envelope-like articulation, layering, density, repetition, and transitions communicate the timbral process under ABC/GM limits; flag effects promised only in prose."],
+  other: ["Verify exact range, transposition, technique, sustain, articulation, polyphony, notation, endurance, and setup for the named instrument; do not approve the part from family-level assumptions alone."],
+};
+
+interface EffortReviewPlan {
+  strategy: string[];
+  integration: string[];
+}
+
+const effortReviewGuidance: Record<CompositionEffort, EffortReviewPlan> = {
+  quick: {
+    strategy: [
+      "After the draft, run one brief integrated sanity check using the routed criteria below; fix the single most damaging mismatch, then proceed to mechanical preflight.",
+      "Keep this proportionate to a casual or rapid request: do not turn a sound miniature into an iterative redesign unless a glaring structural or playability failure demands it.",
+    ],
+    integration: ["Check that the principal idea is recognisable, the ending is earned, and no section or part obviously contradicts the brief."],
+  },
+  standard: {
+    strategy: [
+      "After drafting, review material and formal function first; then review playability and notation readiness. Correct every clear substantive problem before mechanical preflight.",
+      "Use the routed domain criteria below as observable tests, not as invitations to narrate a public self-critique.",
+    ],
+    integration: [
+      "Check that repetition creates identity or function, every section changes the musical situation, and contrast does not erase the principal material.",
+      "Check that climax/arrival, register, density, harmonic or pitch activity, rhythm, and texture support one coherent trajectory rather than several unrelated local successes.",
+    ],
+  },
+  careful: {
+    strategy: [
+      "Plan before drafting, then run separate silent passes for form/material; style/pitch/rhythm; texture/instruments; and global integration before mechanical preflight.",
+      "The first draft is not sacred. If a routed test exposes a substantive weakness, rewrite phrases, accompaniment, harmony, rhythm, orchestration, transitions, or complete sections instead of limiting revision to local polish.",
+    ],
+    integration: [
+      "Identify any material that merely fills bars, can be removed without loss, or repeats because development was avoided; judge repetition and non-functional harmony only by the declared style and process.",
+      "Track register, density, harmonic rhythm/pitch activity, texture, and rhythmic activity: flag long spans where too many remain constant without stylistic purpose.",
+      "Check that each section changes the musical situation, the climax is prepared and consequential, striking gestures grow from established material, and contrast preserves identity.",
+    ],
+  },
+  exhaustive: {
+    strategy: [
+      "Silently follow PLAN → DRAFT → FORM/MOTIF AUDIT → STYLE/PITCH AUDIT → RHYTHM/TEXTURE AUDIT → INSTRUMENT AUDIT → GLOBAL AUDIT → SUBSTANTIVE REVISION → SECOND GLOBAL AUDIT → MECHANICAL PREFLIGHT.",
+      "The first draft is not sacred. Rebuild phrases, accompaniment, harmony, rhythm, orchestration, transitions, or complete sections whenever structural evidence demands it; deletion is preferable to polishing inert material.",
+      "After revision, conduct a second global audit on the revised whole rather than assuming that local fixes preserved proportion, identity, balance, and trajectory.",
+    ],
+    integration: [
+      "Find every bar-filling passage and ask what audible function would be lost if it vanished; remove or transform material with no answer.",
+      "For every repetition, distinguish identity/process from avoidance of development using the declared idiom rather than a universal novelty bias.",
+      "Verify that each section changes the musical situation, every transition alters expectation, and the climax is both prepared and consequential.",
+      "Audit simultaneous constancy of register, density, harmonic rhythm/pitch activity, texture, and rhythmic activity; require either purposeful stasis or directed change.",
+      "Verify that conspicuous gestures derive from established material, contrast retains identity, identity avoids stagnation, and no technically correct passage remains merely generic.",
+    ],
+  },
+};
+
 const difficultyGuidance: Record<CompositionBrief["difficulty"], string[]> = {
   beginner: ["Limit range, leaps, accidentals, independent layers, chord spans, subdivisions, tempo pressure, and simultaneous demands while preserving the defining style/form idea."],
   intermediate: ["Allow moderate independence, syncopation, chromaticism, position/register changes, and articulation variety, but provide preparation and recovery around difficult gestures."],
@@ -400,6 +557,21 @@ function instrumentSection(brief: CompositionBrief): string[] {
   ];
 }
 
+function reviewSection(brief: CompositionBrief): CompositionPlanOutput["review"] {
+  const effortPlan = effortReviewGuidance[brief.effort];
+  const families = [...new Set(brief.ensemble.map((voice) => voice.family))];
+  return {
+    strategy: effortPlan.strategy,
+    form: formReviewGuidance[brief.formFamily],
+    style: styleReviewGuidance[brief.styleFamily],
+    pitch: pitchReviewGuidance[brief.pitchFramework],
+    rhythm: rhythmReviewGuidance[brief.rhythmicFeel],
+    texture: textureReviewGuidance[brief.texture],
+    instruments: families.flatMap((family) => instrumentReviewGuidance[family]),
+    integration: effortPlan.integration,
+  };
+}
+
 function notationSection(brief: CompositionBrief): string[] {
   const percussion = brief.ensemble.filter((voice) => voice.kind === "unpitched_percussion").map((voice) => voice.voiceId);
   const transposing = brief.ensemble.filter((voice) => voice.transpositionSemitones !== 0);
@@ -422,17 +594,31 @@ function priorities(brief: CompositionBrief): string[] {
   ];
 }
 
-function renderPrompt(brief: CompositionBrief, guidance: CompositionPlanOutput["guidance"], notes: string[]): string {
+function renderPrompt(
+  brief: CompositionBrief,
+  guidance: CompositionPlanOutput["guidance"],
+  review: CompositionPlanOutput["review"],
+  notes: string[],
+): string {
   const sections: Array<[string, string[]]> = [
     ["PRIORITIES AND CONFLICT RESOLUTION", guidance.priorities], ["STYLE", guidance.style],
     ["FORM AND DEVELOPMENT", guidance.form], ["PITCH AND HARMONY", guidance.pitch],
     ["RHYTHM AND METER", guidance.rhythm], ["TEXTURE", guidance.texture],
     ["INSTRUMENTS AND VOICES", guidance.instruments], ["DIFFICULTY AND PURPOSE", guidance.difficultyAndIntent],
-    ["ABC AND PLAYBACK", guidance.notation], ["SILENT PREFLIGHT", guidance.preflight],
+    ["ABC AND PLAYBACK", guidance.notation],
+    ["SILENT MUSICAL REVIEW STRATEGY", review.strategy],
+    ["REVIEW — FORM AND MATERIAL", review.form],
+    ["REVIEW — STYLE", review.style],
+    ["REVIEW — PITCH AND HARMONY", review.pitch],
+    ["REVIEW — RHYTHM", review.rhythm],
+    ["REVIEW — TEXTURE", review.texture],
+    ["REVIEW — INSTRUMENTS", review.instruments],
+    ["REVIEW — GLOBAL INTEGRATION", review.integration],
+    ["MECHANICAL ABC PREFLIGHT", guidance.preflight],
   ];
   if (notes.length > 0) sections.splice(1, 0, ["COMBINATION NOTES", notes]);
   return [
-    `COMPOSITION PROFILE: ${brief.styleFamily}${brief.styleDetail ? ` — ${brief.styleDetail}` : ""}; ${brief.formFamily}; ${brief.pitchFramework}; ${brief.rhythmicFeel}; ${brief.texture}.`,
+    `COMPOSITION PROFILE: ${brief.styleFamily}${brief.styleDetail ? ` — ${brief.styleDetail}` : ""}; ${brief.formFamily}; ${brief.pitchFramework}; ${brief.rhythmicFeel}; ${brief.texture}; effort=${brief.effort}.`,
     ...sections.map(([title, lines]) => `${title}\n${lines.map((line) => `- ${line}`).join("\n")}`),
   ].join("\n\n");
 }
@@ -454,16 +640,17 @@ export function buildCompositionPlan(brief: CompositionBrief): CompositionPlanOu
     difficultyAndIntent: [`Write at ${brief.difficulty} level for ${brief.intent}.`, ...difficultyGuidance[brief.difficulty], ...intentGuidance[brief.intent]],
     notation: notationSection(brief),
     preflight: [
-      "Before render_score, silently verify brief, motif/hook identity, phrase/section functions, contrast, development, climax/arrival, pitch logic, groove, voice leading, playability, and balance.",
-      "Then verify X/T/M/L/Q/K order, V:/%%score IDs, clefs/transposition, bar durations, pickups, accidentals, tuplets, ties, repeats/endings, final bars, voiceKinds, tempo, and instruments.",
-      "Revise substantive problems before rendering. Parser acceptance proves syntax compatibility, not musical quality.",
+      "Verify X/T/M/L/Q/K order, V:/%%score IDs, clefs and transposition, bar durations, pickups, accidentals, tuplets, ties, repeats/endings, final bars, voiceKinds, tempo, and instruments.",
+      "Check that every simultaneous voice has complete bars, declared IDs match playback/notation maps, percussion uses intentional GM mappings, and the final ABC is abcjs-compatible.",
+      "If render_score reports substantive mechanical warnings, repair the ABC and render once more. Parser acceptance proves syntax compatibility, not musical quality.",
     ],
   };
+  const review = reviewSection(brief);
   const result: CompositionPlanOutput = {
-    schemaVersion: 2, brief, guidance, compatibilityNotes: notes,
+    schemaVersion: 3, brief, guidance, review, compatibilityNotes: notes,
     renderHints: { tempo: brief.tempo, meter: brief.meter, voiceKinds: Object.fromEntries(brief.ensemble.map((voice) => [voice.voiceId, voice.kind])) },
     prompt: "",
   };
-  result.prompt = renderPrompt(brief, guidance, notes);
+  result.prompt = renderPrompt(brief, guidance, review, notes);
   return result;
 }
