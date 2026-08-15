@@ -96,17 +96,15 @@ const guidanceSchema = z.object({
 
 const reviewSchema = z.object({
   strategy: z.array(z.string()),
-  form: z.array(z.string()),
-  style: z.array(z.string()),
-  pitch: z.array(z.string()),
-  rhythm: z.array(z.string()),
-  texture: z.array(z.string()),
-  instruments: z.array(z.string()),
-  integration: z.array(z.string()),
+  macro: z.array(z.string()),
+  meso: z.array(z.string()),
+  local: z.array(z.string()),
+  performance: z.array(z.string()),
+  finalHolisticAudit: z.array(z.string()),
 });
 
 export const compositionPlanOutputSchema = z.object({
-  schemaVersion: z.literal(3),
+  schemaVersion: z.literal(4),
   brief: compositionBriefSchema,
   guidance: guidanceSchema,
   review: reviewSchema,
@@ -511,49 +509,66 @@ const instrumentReviewGuidance: Record<InstrumentFamily, string[]> = {
 
 interface EffortReviewPlan {
   strategy: string[];
-  integration: string[];
+  macro: string[];
+  meso: string[];
+  finalHolisticAudit: string[];
 }
 
 const effortReviewGuidance: Record<CompositionEffort, EffortReviewPlan> = {
   quick: {
     strategy: [
-      "After the draft, run one brief integrated sanity check using the routed criteria below; fix the single most damaging mismatch, then proceed to mechanical preflight.",
-      "Keep this proportionate to a casual or rapid request: do not turn a sound miniature into an iterative redesign unless a glaring structural or playability failure demands it.",
+      "After the draft, run a light MACRO sanity check, then a combined LOCAL/playability sanity check, then mechanical preflight; do not turn a sound miniature into a thesis.",
+      "Backtrack only for a clear failure: after fixing it, re-check the highest earlier level the fix could obviously have disturbed before continuing.",
     ],
-    integration: ["Check that the principal idea is recognisable, the ending is earned, and no section or part obviously contradicts the brief."],
+    macro: ["Check that the principal idea is recognisable, the ending is earned, and no section or part obviously contradicts the brief."],
+    meso: [],
+    finalHolisticAudit: [],
   },
   standard: {
     strategy: [
-      "After drafting, review material and formal function first; then review playability and notation readiness. Correct every clear substantive problem before mechanical preflight.",
-      "Use the routed domain criteria below as observable tests, not as invitations to narrate a public self-critique.",
+      "Review silently from MACRO → DEVELOPMENT/MESO → LOCAL MUSICAL → PERFORMANCE/EXPRESSION, then run mechanical preflight. Do not advance while the current layer has a clear substantive defect.",
+      "After a substantive correction, return to the highest earlier layer reasonably affected—at least one layer back—and descend again. Treat this as convergence, not a one-pass checklist.",
+      "Correct clear substantive problems without narrating a public self-critique.",
     ],
-    integration: [
+    macro: [
+      "Check that climax/arrival, large-scale register and density, and closure support one coherent trajectory rather than several unrelated local successes.",
+    ],
+    meso: [
       "Check that repetition creates identity or function, every section changes the musical situation, and contrast does not erase the principal material.",
-      "Check that climax/arrival, register, density, harmonic or pitch activity, rhythm, and texture support one coherent trajectory rather than several unrelated local successes.",
     ],
+    finalHolisticAudit: [],
   },
   careful: {
     strategy: [
-      "Plan before drafting, then run separate silent passes for form/material; style/pitch/rhythm; texture/instruments; and global integration before mechanical preflight.",
+      "Plan and draft, then review silently from MACRO → DEVELOPMENT/MESO → LOCAL MUSICAL → PERFORMANCE/EXPRESSION. Do not advance while the current layer contains a substantive defect.",
+      "Backtracking is mandatory after every substantive change: return to the highest earlier layer reasonably affected, with a minimum of one layer back, then descend again until all musical layers converge.",
       "The first draft is not sacred. If a routed test exposes a substantive weakness, rewrite phrases, accompaniment, harmony, rhythm, orchestration, transitions, or complete sections instead of limiting revision to local polish.",
     ],
-    integration: [
-      "Identify any material that merely fills bars, can be removed without loss, or repeats because development was avoided; judge repetition and non-functional harmony only by the declared style and process.",
+    macro: [
       "Track register, density, harmonic rhythm/pitch activity, texture, and rhythmic activity: flag long spans where too many remain constant without stylistic purpose.",
       "Check that each section changes the musical situation, the climax is prepared and consequential, striking gestures grow from established material, and contrast preserves identity.",
     ],
+    meso: [
+      "Identify any material that merely fills bars, can be removed without loss, or repeats because development was avoided; judge repetition and non-functional harmony only by the declared style and process.",
+    ],
+    finalHolisticAudit: [],
   },
   exhaustive: {
     strategy: [
-      "Silently follow PLAN → DRAFT → FORM/MOTIF AUDIT → STYLE/PITCH AUDIT → RHYTHM/TEXTURE AUDIT → INSTRUMENT AUDIT → GLOBAL AUDIT → SUBSTANTIVE REVISION → SECOND GLOBAL AUDIT → MECHANICAL PREFLIGHT.",
+      "Silently follow PLAN → DRAFT → MACRO → DEVELOPMENT/MESO → LOCAL MUSICAL → PERFORMANCE/EXPRESSION, with scope-aware backtracking until every musical layer converges; only then run FINAL HOLISTIC AUDIT → MECHANICAL PREFLIGHT.",
+      "Do not advance while the current layer contains a substantive defect. After every substantive change, return to the highest earlier layer reasonably affected, with a minimum of one layer back; structural rewrites return to MACRO.",
       "The first draft is not sacred. Rebuild phrases, accompaniment, harmony, rhythm, orchestration, transitions, or complete sections whenever structural evidence demands it; deletion is preferable to polishing inert material.",
-      "After revision, conduct a second global audit on the revised whole rather than assuming that local fixes preserved proportion, identity, balance, and trajectory.",
     ],
-    integration: [
-      "Find every bar-filling passage and ask what audible function would be lost if it vanished; remove or transform material with no answer.",
-      "For every repetition, distinguish identity/process from avoidance of development using the declared idiom rather than a universal novelty bias.",
+    macro: [
       "Verify that each section changes the musical situation, every transition alters expectation, and the climax is both prepared and consequential.",
       "Audit simultaneous constancy of register, density, harmonic rhythm/pitch activity, texture, and rhythmic activity; require either purposeful stasis or directed change.",
+    ],
+    meso: [
+      "Find every bar-filling passage and ask what audible function would be lost if it vanished; remove or transform material with no answer.",
+      "For every repetition, distinguish identity/process from avoidance of development using the declared idiom rather than a universal novelty bias.",
+    ],
+    finalHolisticAudit: [
+      "After all layers converge, re-hear the revised piece as one uninterrupted whole. Re-test identity, proportion, trajectory, climax, closure, contrast, balance, playability, and expressive logic rather than trusting the preceding local approvals.",
       "Verify that conspicuous gestures derive from established material, contrast retains identity, identity avoids stagnation, and no technically correct passage remains merely generic.",
     ],
   },
@@ -634,21 +649,57 @@ function instrumentSection(brief: CompositionBrief): string[] {
 function reviewSection(brief: CompositionBrief): CompositionPlanOutput["review"] {
   const effortPlan = effortReviewGuidance[brief.effort];
   const families = [...new Set(brief.ensemble.map((voice) => voice.family))];
+  const beamReview = "Inspect the engraved beam groups, not only the durations: beams must reveal the prevailing beat/subdivision, spaces in ABC must split groups deliberately, and an all-unbeamed run of eighth-or-shorter notes requires a musical reason rather than source-code formatting.";
+
+  if (brief.effort === "quick") {
+    return {
+      strategy: effortPlan.strategy,
+      macro: [
+        "MACRO sanity: reject an obvious failure of global identity, declared form, proportion, tension, climax, or closure before inspecting details.",
+        ...formReviewGuidance[brief.formFamily],
+        ...styleReviewGuidance[brief.styleFamily],
+        ...pitchReviewGuidance[brief.pitchFramework],
+        ...effortPlan.macro,
+      ],
+      meso: [],
+      local: [
+        "LOCAL/playability sanity: reject obvious rhythmic, textural, registral, balance, or physical-writing failures; polish only marks that materially change execution.",
+        ...rhythmReviewGuidance[brief.rhythmicFeel],
+        ...textureReviewGuidance[brief.texture],
+        ...families.flatMap((family) => instrumentReviewGuidance[family]),
+        ...expressiveReviewGuidance(brief),
+        beamReview,
+      ],
+      performance: [],
+      finalHolisticAudit: [],
+    };
+  }
+
   return {
     strategy: effortPlan.strategy,
-    form: formReviewGuidance[brief.formFamily],
-    style: styleReviewGuidance[brief.styleFamily],
-    pitch: pitchReviewGuidance[brief.pitchFramework],
-    rhythm: [
-      ...rhythmReviewGuidance[brief.rhythmicFeel],
-      "Inspect the engraved beam groups, not only the durations: beams must reveal the prevailing beat/subdivision, spaces in ABC must split groups deliberately, and an all-unbeamed run of eighth-or-shorter notes requires a musical reason rather than source-code formatting.",
+    macro: [
+      "Establish the coarsest verdict first: global identity, form and section plan, proportions, large contrasts, tension trajectory, climax, and closure must work before any finer repair is allowed to legitimise them.",
+      ...formReviewGuidance[brief.formFamily],
+      ...effortPlan.macro,
     ],
-    texture: textureReviewGuidance[brief.texture],
-    instruments: [
+    meso: [
+      "Test section and phrase function, motive development/transformation, pitch or harmonic trajectory and style-appropriate arrivals, transitions, repetition versus development, and the way rhythm and texture articulate the form.",
+      ...styleReviewGuidance[brief.styleFamily],
+      ...pitchReviewGuidance[brief.pitchFramework],
+      ...textureReviewGuidance[brief.texture],
+      ...effortPlan.meso,
+    ],
+    local: [
+      "Inspect local musical causality: style-appropriate voice leading and dissonance, counterpoint, spacing/register, rhythmic accents, balance among layers, and physical playability must support the already-approved larger functions.",
+      ...rhythmReviewGuidance[brief.rhythmicFeel],
       ...families.flatMap((family) => instrumentReviewGuidance[family]),
+      beamReview,
+    ],
+    performance: [
+      "Only after the musical substance survives the preceding layers, audit articulations, slurs, dynamics and hairpins, pedal, bowing, ornaments, breath marks, beaming, and other expressive/notational realisation for idiom, scope, legibility, and executable intent.",
       ...expressiveReviewGuidance(brief),
     ],
-    integration: effortPlan.integration,
+    finalHolisticAudit: effortPlan.finalHolisticAudit,
   };
 }
 
@@ -688,20 +739,18 @@ function renderPrompt(
     ["RHYTHM AND METER", guidance.rhythm], ["TEXTURE", guidance.texture],
     ["INSTRUMENTS AND VOICES", guidance.instruments], ["DIFFICULTY AND PURPOSE", guidance.difficultyAndIntent],
     ["ABC AND PLAYBACK", guidance.notation],
-    ["SILENT MUSICAL REVIEW STRATEGY", review.strategy],
-    ["REVIEW — FORM AND MATERIAL", review.form],
-    ["REVIEW — STYLE", review.style],
-    ["REVIEW — PITCH AND HARMONY", review.pitch],
-    ["REVIEW — RHYTHM", review.rhythm],
-    ["REVIEW — TEXTURE", review.texture],
-    ["REVIEW — INSTRUMENTS", review.instruments],
-    ["REVIEW — GLOBAL INTEGRATION", review.integration],
+    ["SILENT HIERARCHICAL REVIEW STRATEGY", review.strategy],
+    ["L1 — MACRO / ARCHITECTURE", review.macro],
+    ["L2 — DEVELOPMENT / MESO", review.meso],
+    ["L3 — LOCAL MUSICAL", review.local],
+    ["L4 — PERFORMANCE / EXPRESSION", review.performance],
+    ["FINAL HOLISTIC AUDIT", review.finalHolisticAudit],
     ["MECHANICAL ABC PREFLIGHT", guidance.preflight],
   ];
   if (notes.length > 0) sections.splice(1, 0, ["COMBINATION NOTES", notes]);
   return [
     `COMPOSITION PROFILE: ${brief.styleFamily}${brief.styleDetail ? ` — ${brief.styleDetail}` : ""}; ${brief.formFamily}; ${brief.pitchFramework}; ${brief.rhythmicFeel}; ${brief.texture}; effort=${brief.effort}.`,
-    ...sections.map(([title, lines]) => `${title}\n${lines.map((line) => `- ${line}`).join("\n")}`),
+    ...sections.filter(([, lines]) => lines.length > 0).map(([title, lines]) => `${title}\n${lines.map((line) => `- ${line}`).join("\n")}`),
   ].join("\n\n");
 }
 
@@ -729,7 +778,7 @@ export function buildCompositionPlan(brief: CompositionBrief): CompositionPlanOu
   };
   const review = reviewSection(brief);
   const result: CompositionPlanOutput = {
-    schemaVersion: 3, brief, guidance, review, compatibilityNotes: notes,
+    schemaVersion: 4, brief, guidance, review, compatibilityNotes: notes,
     renderHints: { tempo: brief.tempo, meter: brief.meter, voiceKinds: Object.fromEntries(brief.ensemble.map((voice) => [voice.voiceId, voice.kind])) },
     prompt: "",
   };

@@ -3,11 +3,11 @@ For composition/arrangement, infer the complete typed brief, including effort, a
 
 Keep domains independent: style=vocabulary, formFamily=architecture, pitchFramework=pitch/harmony, feel+meter=time, texture=distribution, instruments=physical writing, difficulty performer difficulty, effort=composition/review process, intent=purpose. Preserve intentional hybrids.
 
-Infer effort: explicit choice wins; casual/rapid→quick or standard; normal→standard; careful/serious→careful; explicit maximum depth→exhaustive. Difficulty and effort are independent. Effort changes silent passes, not adjectives: perform routed audits, let careful/exhaustive rewrite substantive material, and do not publish self-criticism.
+Infer effort: explicit choice wins; casual/rapid→quick or standard; normal→standard; careful/serious→careful; maximum depth→exhaustive. Difficulty and effort are independent. Effort changes the algorithm, not adjectives: review macro→development→local→performance; after substantive edits return to the highest earlier layer affected and descend until convergence. Careful/exhaustive may rewrite material; never publish self-criticism.
 
 Use original material; for named artists use only high-level traits, never recognisable passages. Claim no authenticity without a named tradition, and no musical quality merely because ABCoda rendered.
 
-Musical review tests musical domains and expressive playability; mechanical preflight tests ABC/playback consistency. Warnings and abcjs acceptance do not measure quality.
+Musical review is hierarchical and convergent; mechanical preflight remains a separate final test of ABC/playback consistency. Warnings and abcjs acceptance do not measure quality.
 
 Follow routed effort/difficulty and instrument-specific expressive guidance. Simple music may need slurs, ties and basic articulation; developed scores need purposeful dynamics, hairpins, breaths, fermatas, ornaments or techniques only when idiomatic—never visual confetti. For suitable piano styles from standard/intermediate upward, write clear Ped./release points; avoid automatic pedal in dry/historical idioms and never claim synth pedalling.
 

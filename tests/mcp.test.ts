@@ -66,7 +66,7 @@ describe("ABCoda MCP surface", () => {
     const result = await client.callTool({ name: "prepare_composition", arguments: brief });
     expect(result.isError).not.toBe(true);
     expect(result.structuredContent).toMatchObject({
-      schemaVersion: 3,
+      schemaVersion: 4,
       brief,
       guidance: {
         style: expect.arrayContaining([expect.stringContaining("imitation")]),
@@ -74,9 +74,9 @@ describe("ABCoda MCP surface", () => {
         texture: expect.arrayContaining([expect.stringContaining("independent contour and rhythm")]),
       },
       review: {
-        strategy: expect.arrayContaining([expect.stringContaining("separate silent passes")]),
-        style: expect.arrayContaining([expect.stringContaining("sequence")]),
-        form: expect.arrayContaining([expect.stringContaining("entries")]),
+        strategy: expect.arrayContaining([expect.stringContaining("Backtracking is mandatory")]),
+        meso: expect.arrayContaining([expect.stringContaining("sequence")]),
+        macro: expect.arrayContaining([expect.stringContaining("entries")]),
       },
       renderHints: { tempo: 84, meter: "4/4", voiceKinds: { RH: "pitched", LH: "pitched" } },
     });

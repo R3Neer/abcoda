@@ -158,29 +158,29 @@ describe("prompt coverage matrix", () => {
   it("gives every selector at least one dedicated, nonempty module", () => {
     for (const styleFamily of styleFamilies) {
       expect(plan({ styleFamily }).guidance.style.length).toBeGreaterThan(0);
-      expect(plan({ styleFamily }).review.style.length).toBeGreaterThan(0);
+      expect(plan({ styleFamily }).review.meso.length).toBeGreaterThan(0);
     }
     for (const formFamily of formFamilies) {
       expect(plan({ formFamily }).guidance.form.length).toBeGreaterThan(2);
-      expect(plan({ formFamily }).review.form.length).toBeGreaterThan(0);
+      expect(plan({ formFamily }).review.macro.length).toBeGreaterThan(0);
     }
     for (const pitchFramework of pitchFrameworks) {
       expect(plan({ pitchFramework }).guidance.pitch.length).toBeGreaterThan(1);
-      expect(plan({ pitchFramework }).review.pitch.length).toBeGreaterThan(0);
+      expect(plan({ pitchFramework }).review.meso.length).toBeGreaterThan(0);
     }
     for (const rhythmicFeel of rhythmicFeels) {
       expect(plan({ rhythmicFeel }).guidance.rhythm.length).toBeGreaterThan(2);
-      expect(plan({ rhythmicFeel }).review.rhythm.length).toBeGreaterThan(0);
+      expect(plan({ rhythmicFeel }).review.local.length).toBeGreaterThan(0);
     }
     for (const texture of textureModels) {
       expect(plan({ texture }).guidance.texture.length).toBeGreaterThan(1);
-      expect(plan({ texture }).review.texture.length).toBeGreaterThan(0);
+      expect(plan({ texture }).review.meso.length).toBeGreaterThan(0);
     }
     for (const difficulty of difficultyLevels) expect(plan({ difficulty }).guidance.difficultyAndIntent.length).toBeGreaterThan(2);
     for (const intent of compositionIntents) expect(plan({ intent }).guidance.difficultyAndIntent.length).toBeGreaterThan(2);
     for (const family of instrumentFamilies) {
       expect(plan({ ensemble: [{ ...base.ensemble[0]!, family }] }).guidance.instruments.length).toBeGreaterThan(2);
-      expect(plan({ ensemble: [{ ...base.ensemble[0]!, family }] }).review.instruments.length).toBeGreaterThan(0);
+      expect(plan({ ensemble: [{ ...base.ensemble[0]!, family }] }).review.local.length).toBeGreaterThan(0);
     }
     for (const effort of compositionEffortLevels) expect(plan({ effort }).review.strategy.length).toBeGreaterThan(0);
   });
@@ -204,7 +204,7 @@ describe("prompt coverage matrix", () => {
       expect(result.prompt).toContain("RHYTHM AND METER");
       expect(result.prompt).toContain("TEXTURE");
       expect(result.prompt).toContain("INSTRUMENTS AND VOICES");
-      expect(result.prompt).toContain("SILENT MUSICAL REVIEW STRATEGY");
+      expect(result.prompt).toContain("SILENT HIERARCHICAL REVIEW STRATEGY");
       expect(result.prompt).toContain("MECHANICAL ABC PREFLIGHT");
       expect(result.prompt.length).toBeLessThan(18_000);
     }
@@ -229,78 +229,107 @@ describe("effort-aware musical review", () => {
     const result = plan({ difficulty: "beginner", effort: "exhaustive" });
     expect(result.brief).toMatchObject({ difficulty: "beginner", effort: "exhaustive" });
     expect(result.guidance.difficultyAndIntent.join(" ")).toContain("beginner");
-    expect(result.review.strategy.join(" ")).toContain("SECOND GLOBAL AUDIT");
+    expect(result.review.strategy.join(" ")).toContain("FINAL HOLISTIC AUDIT");
+  });
+
+  it("renders musical layers coarse-to-fine before mechanical preflight", () => {
+    const prompt = plan({ effort: "careful" }).prompt;
+    const headings = [
+      "L1 — MACRO / ARCHITECTURE",
+      "L2 — DEVELOPMENT / MESO",
+      "L3 — LOCAL MUSICAL",
+      "L4 — PERFORMANCE / EXPRESSION",
+      "MECHANICAL ABC PREFLIGHT",
+    ];
+    const positions = headings.map((heading) => prompt.indexOf(heading));
+    expect(positions.every((position) => position >= 0)).toBe(true);
+    expect(positions).toEqual([...positions].sort((left, right) => left - right));
   });
 
   it("uses a brief integrated check for quick effort", () => {
     const result = plan({ effort: "quick" });
-    expect(result.review.strategy.join(" ")).toContain("one brief integrated sanity check");
-    expect(result.review.strategy.join(" ")).not.toContain("SECOND GLOBAL AUDIT");
+    expect(result.review.strategy.join(" ")).toContain("light MACRO sanity check");
+    expect(result.review.meso).toEqual([]);
+    expect(result.review.performance).toEqual([]);
+    expect(result.review.finalHolisticAudit).toEqual([]);
+    expect(result.prompt).toContain("L1 — MACRO / ARCHITECTURE");
+    expect(result.prompt).toContain("L3 — LOCAL MUSICAL");
+    expect(result.prompt).not.toContain("L2 — DEVELOPMENT / MESO");
+    expect(result.prompt).not.toContain("L4 — PERFORMANCE / EXPRESSION");
   });
 
   it("uses normal material/form and playability review for standard effort", () => {
     const result = plan({ effort: "standard" });
-    expect(result.review.strategy.join(" ")).toContain("material and formal function");
-    expect(result.review.strategy.join(" ")).toContain("playability and notation readiness");
+    expect(result.review.strategy.join(" ")).toContain("MACRO → DEVELOPMENT/MESO → LOCAL MUSICAL → PERFORMANCE/EXPRESSION");
+    expect(result.review.strategy.join(" ")).toContain("at least one layer back");
   });
 
-  it("uses domain passes and permits substantive rewriting for careful effort", () => {
+  it("uses all hierarchical layers and permits substantive rewriting for careful effort", () => {
     const result = plan({ effort: "careful" });
-    expect(result.review.strategy.join(" ")).toContain("separate silent passes");
+    expect(result.review.strategy.join(" ")).toContain("Backtracking is mandatory");
     expect(result.review.strategy.join(" ")).toContain("The first draft is not sacred");
     expect(result.review.strategy.join(" ")).toContain("complete sections");
+    expect(result.review.macro.length).toBeGreaterThan(0);
+    expect(result.review.meso.length).toBeGreaterThan(0);
+    expect(result.review.local.length).toBeGreaterThan(0);
+    expect(result.review.performance.length).toBeGreaterThan(0);
   });
 
-  it("adds a second global audit and real reconstruction for exhaustive effort", () => {
+  it("adds a final holistic audit after convergence and real reconstruction for exhaustive effort", () => {
     const result = plan({ effort: "exhaustive" });
     const strategy = result.review.strategy.join(" ");
-    expect(strategy).toContain("SECOND GLOBAL AUDIT");
+    expect(strategy).toContain("until every musical layer converges");
+    expect(strategy).toContain("FINAL HOLISTIC AUDIT");
     expect(strategy).toContain("Rebuild phrases");
     expect(strategy).toContain("complete sections");
-    expect(result.review.integration.join(" ")).toContain("bar-filling passage");
+    expect(result.review.meso.join(" ")).toContain("bar-filling passage");
+    expect(result.review.finalHolisticAudit.join(" ")).toContain("After all layers converge");
+    const finalAuditHeading = result.prompt.lastIndexOf("FINAL HOLISTIC AUDIT");
+    expect(result.prompt.indexOf("L4 — PERFORMANCE / EXPRESSION")).toBeLessThan(finalAuditHeading);
+    expect(finalAuditHeading).toBeLessThan(result.prompt.indexOf("MECHANICAL ABC PREFLIGHT"));
   });
 
   it("routes Romantic failure modes without importing jazz criteria", () => {
-    const review = plan({ styleFamily: "romantic" }).review.style.join(" ");
+    const review = plan({ styleFamily: "romantic" }).review.meso.join(" ");
     expect(review).toContain("excessively square");
     expect(review).toContain("unprepared climax");
     expect(review).not.toContain("guide-tone");
   });
 
   it("does not repair coloristic writing toward common-practice defaults", () => {
-    const review = plan({ styleFamily: "impressionist_coloristic" }).review.style.join(" ");
+    const review = plan({ styleFamily: "impressionist_coloristic" }).review.meso.join(" ");
     expect(review).toContain("Do not penalise parallel motion");
     expect(review).toContain("common-practice voice leading");
   });
 
   it("judges minimalist repetition by audible process rather than novelty", () => {
-    const review = plan({ styleFamily: "minimalist_electronic_cinematic" }).review.style.join(" ");
+    const review = plan({ styleFamily: "minimalist_electronic_cinematic" }).review.meso.join(" ");
     expect(review).toContain("Do not treat repetition itself as a defect");
     expect(review).toContain("process");
   });
 
   it("does not impose tonal cadences on post-tonal music", () => {
-    const review = plan({ styleFamily: "atonal_post_tonal" }).review.style.join(" ");
+    const review = plan({ styleFamily: "atonal_post_tonal" }).review.meso.join(" ");
     expect(review).toContain("Do not demand tonal cadences");
   });
 
   it("routes functional form review for ternary and sentence", () => {
-    const ternary = plan({ formFamily: "ternary" }).review.form.join(" ");
+    const ternary = plan({ formFamily: "ternary" }).review.macro.join(" ");
     expect(ternary).toContain("B provides substantive contrast");
     expect(ternary).toContain("return");
-    const sentence = plan({ formFamily: "sentence" }).review.form.join(" ");
+    const sentence = plan({ formFamily: "sentence" }).review.macro.join(" ");
     expect(sentence).toContain("presentation");
     expect(sentence).toContain("continuation becomes more processive");
   });
 
   it("includes review only for instrument families that are present", () => {
-    const guitar = plan({ ensemble: [{ ...base.ensemble[0]!, instrument: "guitar", family: "guitar" }] }).review.instruments.join(" ");
+    const guitar = plan({ ensemble: [{ ...base.ensemble[0]!, instrument: "guitar", family: "guitar" }] }).review.local.join(" ");
     expect(guitar).toContain("fretboard positions");
     expect(guitar).not.toContain("register breaks/colour");
     const mixed = plan({ ensemble: [
       { ...base.ensemble[0]!, instrument: "guitar", family: "guitar" },
       { ...base.ensemble[0]!, voiceId: "FL", instrument: "flute", family: "woodwind" },
-    ] }).review.instruments.join(" ");
+    ] }).review.local.join(" ");
     expect(mixed).toContain("fretboard positions");
     expect(mixed).toContain("register breaks/colour");
   });
@@ -311,14 +340,14 @@ describe("effort-aware musical review", () => {
     expect(preflight).toContain("X/T/M/L/Q/K order");
     expect(preflight).toContain("V:/%%score IDs");
     expect(preflight).not.toContain("motif/hook identity");
-    expect(result.prompt.indexOf("REVIEW — GLOBAL INTEGRATION")).toBeLessThan(result.prompt.indexOf("MECHANICAL ABC PREFLIGHT"));
+    expect(result.prompt.indexOf("L4 — PERFORMANCE / EXPRESSION")).toBeLessThan(result.prompt.indexOf("MECHANICAL ABC PREFLIGHT"));
   });
 
   it("encodes meter-aware beams through deliberate ABC whitespace", () => {
     const result = plan({ meter: "6/8", rhythmicFeel: "dance_pattern" });
     expect(result.guidance.notation.join(" ")).toContain("whitespace breaks the beam");
     expect(result.guidance.notation.join(" ")).toContain("dotted beats in compound meter");
-    expect(result.review.rhythm.join(" ")).toContain("Inspect the engraved beam groups");
+    expect(result.review.local.join(" ")).toContain("Inspect the engraved beam groups");
     expect(result.guidance.preflight.join(" ")).toContain("beam grouping is encoded through deliberate ABC whitespace");
   });
 
@@ -336,7 +365,7 @@ describe("effort-aware musical review", () => {
     expect(notation).toContain("!crescendo(!");
     expect(notation).toContain('"_Ped."');
     expect(notation).toContain("does not yet reproduce these pedal changes in audio");
-    expect(result.review.instruments.join(" ")).toContain("Rehearse the piano pedal plan");
+    expect(result.review.performance.join(" ")).toContain("Rehearse the piano pedal plan");
   });
 
   it("lets exhaustive effort fully notate an easy piano piece without raising performer difficulty", () => {
@@ -365,12 +394,12 @@ describe("effort-aware musical review", () => {
     expect(drums).not.toContain('"_Ped."');
   });
 
-  it("keeps compatibility notes and emits schema v3", () => {
+  it("keeps compatibility notes and emits schema v4", () => {
     const result = plan({
       styleFamily: "atonal_post_tonal",
       pitchFramework: "tonal_functional",
     });
-    expect(result.schemaVersion).toBe(3);
+    expect(result.schemaVersion).toBe(4);
     expect(result.compatibilityNotes.join(" ")).toContain("intentional hybrid");
   });
 

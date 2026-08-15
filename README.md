@@ -31,7 +31,7 @@ The built widget is a self-contained HTML file. The only runtime network depende
 
 ## Tool contract
 
-For a composition or arrangement, `prepare_composition` first receives a compact typed brief. Version 3 separates style, form archetype/section plan, pitch framework, meter/rhythmic feel, texture, performer difficulty, composition/review effort, intent, instrument family/role/kind/transposition, constraints, and deliberate departures. It assembles only the relevant generation and musical-review modules, followed by a separate mechanical ABC preflight, and returns typed render hints. This is a stateless planning pass: no plan is stored server-side, no separate review tool is used, and the same complete brief is included in the subsequent render call.
+For a composition or arrangement, `prepare_composition` first receives a compact typed brief. Version 4 separates style, form archetype/section plan, pitch framework, meter/rhythmic feel, texture, performer difficulty, composition/review effort, intent, instrument family/role/kind/transposition, constraints, and deliberate departures. It routes only the relevant review criteria into a macro → meso → local → performance hierarchy, with scope-aware backtracking until convergence, followed by a separate mechanical ABC preflight. This is a stateless planning pass: no plan is stored server-side, no separate review tool is used, and the same complete brief is included in the subsequent render call.
 
 ```ts
 render_score({

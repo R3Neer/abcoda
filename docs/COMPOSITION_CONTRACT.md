@@ -8,7 +8,7 @@ ABCoda uses two deliberately separate layers.
 
 That separation matters. Counterpoint, harmony, form, texture, and orchestration describe different relationships, and strict voice-leading is a pedagogical model rather than a universal historical style. Pop/rock, jazz, impressionist, post-tonal, and experimental idioms often organise musical time and vertical sonority differently from common-practice tonal music.
 
-## Composition brief v3
+## Composition brief v4
 
 The form is intentionally multidimensional. A style label cannot safely imply a form, pitch system, texture, or rhythmic feel: jazz may be modal or functional; a canon may be tonal or twelve-tone; and coloristic music may use ternary, process, or free form. The typed fields therefore route independent prompt modules:
 
@@ -32,20 +32,20 @@ Effort changes the process, not merely the number or intensity of adjectives:
 
 | Effort | Silent workflow |
 | --- | --- |
-| `quick` | Draft, one integrated sanity check, mechanical preflight, render |
-| `standard` | Draft, material/form check, playability/notation-readiness check, repair clear problems, preflight, render |
-| `careful` | Plan and draft, separate domain passes, global integration audit, substantive revision, preflight, render |
-| `exhaustive` | Plan and draft, all domain audits, substantive revision, a second audit of the revised whole, preflight, render |
+| `quick` | Draft, macro sanity check, combined local/playability sanity check, mechanical preflight, render; backtrack only for clear failures |
+| `standard` | Draft, macro → meso → local → performance review, backtrack after substantive repairs, preflight, render |
+| `careful` | Plan and draft, all four layers explicitly, mandatory scope-aware backtracking until convergence, preflight, render |
+| `exhaustive` | All four layers with scope-aware backtracking, convergence, a final holistic audit of the revised whole, preflight, render |
 
 For `careful` and `exhaustive`, the first draft is explicitly disposable: phrases, accompaniment, harmony, rhythm, orchestration, transitions, or complete sections may be rewritten. `standard` also repairs clear substantive defects; `quick` stays proportionate to a rapid request.
 
 The output separates three concerns:
 
 1. `guidance` tells the model what to compose for the selected profile.
-2. `review` asks what characteristic failures to find in that particular result. Its form, style, pitch, rhythm, texture, and instrument criteria are routed only from selectors present in the brief; integration depth comes from `effort`. It includes “technically correct but mediocre” tests at higher effort while interpreting repetition, non-functional harmony, parallel motion, and other features through the declared idiom.
+2. `review` asks what characteristic failures to find in that particular result and exposes them as `macro`, `meso`, `local`, `performance`, and (for exhaustive work) `finalHolisticAudit`. Form, style, pitch, rhythm, texture, and instrument tables remain the routing sources, but each selected criterion is placed at the coarsest useful layer instead of becoming an independent domain audit. It includes “technically correct but mediocre” tests at higher effort while interpreting repetition, non-functional harmony, parallel motion, and other features through the declared idiom.
 3. `guidance.preflight` checks mechanical ABC/playback consistency: headers, voices, measures, accidentals, tuplets, ties, repeats, clefs, transposition, voice kinds, tempo, instruments, and abcjs compatibility.
 
-Musical review occurs silently inside the prompt returned by `prepare_composition`, before mechanical preflight. It does not create a separate `review_composition` tool or add server state. `renderHints` still carries tempo, meter, and typed voice kinds forward mechanically.
+Musical review occurs silently inside the prompt returned by `prepare_composition`, before mechanical preflight. The model may descend only when the current layer has no substantive defect. A repair sends it back to the highest earlier layer reasonably affected, never less than one layer for `careful`/`exhaustive`; structural rewrites return to macro. The loop ends when the musical layers converge, not when a checklist has been traversed once. `exhaustive` then performs a `FINAL HOLISTIC AUDIT` before the separate preflight. This does not create a separate `review_composition` tool or add server state. `renderHints` still carries tempo, meter, and typed voice kinds forward mechanically.
 
 This is a rubric, not an “automatic genius” switch. It should reduce random-note output, contradictory instructions, and stylistic category errors, but no text-only validator can hear the result. Musical quality still depends on model capability, requested scope, and iteration with the listener.
 
