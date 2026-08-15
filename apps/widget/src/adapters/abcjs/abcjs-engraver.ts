@@ -14,7 +14,19 @@ import { AbcjsPlaybackSource } from "./abcjs-playback-source";
 import { pitchesForVoices } from "./abcjs-voice-pitches";
 import { scoreStaffWidth } from "../../application/score-layout";
 
+interface SelectionRange {
+  readonly start: number;
+  readonly end: number;
+}
+
+type HighlightableTune = ABCJS.TuneObject & {
+  readonly engraver?: {
+    rangeHighlight?: (start: number, end: number) => void;
+  };
+};
+
 export class AbcjsEngraver implements Engraver {
+  private selectedRange: SelectionRange | undefined;
   constructor(
     private readonly target: HTMLElement,
     private readonly audioTarget: HTMLElement,
@@ -36,6 +48,9 @@ export class AbcjsEngraver implements Engraver {
     await Promise.resolve();
     signal.throwIfAborted();
 
+    const preserveSelection = options.includePlayback === false;
+    if (!preserveSelection) this.selectedRange = undefined;
+
     const availableWidth = this.target.clientWidth;
     const staffWidth = scoreStaffWidth(
       availableWidth,
@@ -49,7 +64,14 @@ export class AbcjsEngraver implements Engraver {
       paddingright: 32,
       clickListener: (abcElement) => {
         if (typeof abcElement.startChar === "number") {
-          this.callbacks.onScoreSelection([abcElement.startChar]);
+          const start = abcElement.startChar;
+          const end = typeof abcElement.endChar === "number"
+            && abcElement.endChar > start
+            ? abcElement.endChar
+            : start + 1;
+
+          this.selectedRange = { start, end };
+          this.callbacks.onScoreSelection([start]);
         }
       },
       staffwidth: staffWidth,
@@ -68,6 +90,16 @@ export class AbcjsEngraver implements Engraver {
     if (tunes.length !== 1) {
       this.clear();
       throw new Error("Expected exactly one engraved tune.");
+    }
+
+    centerStaffSystems(this.target);
+
+    if (preserveSelection && this.selectedRange) {
+      const tune = tunes[0] as HighlightableTune;
+      tune.engraver?.rangeHighlight?.(
+        this.selectedRange.start,
+        this.selectedRange.end,
+      );
     }
 
     const bpm = snapshot.document.tempo?.bpm ?? 96;
@@ -98,4 +130,51 @@ export class AbcjsEngraver implements Engraver {
   clear(): void {
     this.target.replaceChildren();
   }
+}
+
+function centerStaffSystems(target: HTMLElement): void {
+  const svg = target.querySelector<SVGSVGElement>("svg");
+  if (!svg) return;
+
+  const viewBox = svg.viewBox.baseVal;
+  const svgWidth = viewBox.width;
+
+  if (!(svgWidth > 0)) return;
+
+  const targetCenterX = viewBox.x + svgWidth / 2;
+
+  const wrappers = svg.querySelectorAll<SVGGElement>(
+    ".abcjs-staff-wrapper",
+  );
+
+  wrappers.forEach((wrapper) => {
+    const staffs = [
+      ...wrapper.querySelectorAll<SVGGraphicsElement>(".abcjs-staff"),
+    ];
+
+    if (staffs.length === 0) return;
+
+    const boxes = staffs.map((staff) => staff.getBBox());
+
+    const left = Math.min(...boxes.map((box) => box.x));
+    const right = Math.max(
+      ...boxes.map((box) => box.x + box.width),
+    );
+
+    if (!(right > left)) return;
+
+    const staffCenterX = (left + right) / 2;
+    const offset = targetCenterX - staffCenterX;
+
+    wrapper.dataset.abcodaCenterX = String(offset);
+
+    if (Math.abs(offset) < 0.01) {
+      wrapper.removeAttribute("transform");
+    } else {
+      wrapper.setAttribute(
+        "transform",
+        `translate(${offset} 0)`,
+      );
+    }
+  });
 }

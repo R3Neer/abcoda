@@ -125,7 +125,7 @@ body {
   position: relative;
   min-height: 12rem;
   overflow: visible;
-  padding-block: 1rem;
+  padding-block: 1rem 2.5rem;
 }
 
 .score-cursor {
