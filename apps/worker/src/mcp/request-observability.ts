@@ -23,21 +23,25 @@ export interface McpRequestObservability {
   readonly now?: () => number;
 }
 
-interface MetaCapableResult {
-  readonly _meta?: Record<string, unknown>;
-}
-
-export interface ObservedToolExecution<Result extends MetaCapableResult> {
+export interface ObservedToolExecution<Result extends object> {
   readonly result: Result;
   readonly outcome: McpToolOutcome;
   readonly failed?: boolean;
 }
 
-export function observeMcpTool<Result extends MetaCapableResult>(
+function resultMeta(result: object): Record<string, unknown> {
+  if (!("_meta" in result)) return {};
+  const meta = (result as { readonly _meta?: unknown })._meta;
+  return typeof meta === "object" && meta !== null
+    ? meta as Record<string, unknown>
+    : {};
+}
+
+export function observeMcpTool<Result extends object>(
   observability: McpRequestObservability | undefined,
   toolName: McpToolName,
   execute: () => ObservedToolExecution<Result>,
-): Result {
+): Result & { readonly _meta?: Record<string, unknown> } {
   const now = observability?.now ?? Date.now;
   const startedAt = now();
   const execution = execute();
@@ -55,7 +59,7 @@ export function observeMcpTool<Result extends MetaCapableResult>(
     return {
       ...execution.result,
       _meta: {
-        ...execution.result._meta,
+        ...resultMeta(execution.result),
         "abcoda/requestId": observability.requestId,
       },
     };
