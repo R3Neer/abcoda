@@ -48,6 +48,7 @@ export const diagnosticSchema = z.object({
     "ABC_TUNE_REFERENCE_INVALID",
     "ABC_VOICE_ID_INVALID",
     "ABC_SOURCE_EMPTY",
+    "ABC_TRANSPOSITION_FAILED",
   ]),
   severity: z.enum(["info", "warning", "error"]),
   message: z.string().min(1),

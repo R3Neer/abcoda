@@ -108,4 +108,32 @@ describe("DraftSessionController", () => {
     });
     expect(applied.at(-1)).toMatchObject({ status: "success", snapshot: { revision: 9 } });
   });
+
+  it("keeps transposition as a reviewable draft operation and reports failures", () => {
+    const draft = new DraftSessionController(
+      { evaluate: vi.fn() },
+      () => undefined,
+      () => undefined,
+      { transpose: (abc, semitones) => `${abc}\n% transposed ${semitones}` },
+    );
+    draft.adoptHostSnapshot(snapshot(1, "X:1\nK:C\nC|]"));
+    draft.transpose(2);
+    expect(draft.snapshot()).toMatchObject({
+      status: "dirty",
+      draft: "X:1\nK:C\nC|]\n% transposed 2",
+      lastGood: { revision: 1 },
+    });
+
+    const unavailable = new DraftSessionController(
+      { evaluate: vi.fn() },
+      () => undefined,
+      () => undefined,
+    );
+    unavailable.adoptHostSnapshot(snapshot(1, "X:1\nK:C\nC|]"));
+    unavailable.transpose(2);
+    expect(unavailable.snapshot()).toMatchObject({
+      status: "invalid",
+      diagnostics: [{ code: "ABC_TRANSPOSITION_FAILED" }],
+    });
+  });
 });

@@ -26,7 +26,8 @@ export type DiagnosticCode =
   | "ABC_MULTIPLE_TUNES_UNSUPPORTED"
   | "ABC_TUNE_REFERENCE_INVALID"
   | "ABC_VOICE_ID_INVALID"
-  | "ABC_SOURCE_EMPTY";
+  | "ABC_SOURCE_EMPTY"
+  | "ABC_TRANSPOSITION_FAILED";
 
 export interface Diagnostic {
   readonly code: DiagnosticCode;

@@ -9,6 +9,10 @@ export interface DraftEvaluator {
   evaluate(abc: string, revision: number, signal: AbortSignal): Promise<EvaluateScoreResultDto>;
 }
 
+export interface DraftTransformer {
+  transpose(abc: string, semitones: number): string;
+}
+
 interface DraftContext {
   readonly original: ScoreSnapshotDto;
   readonly lastGood: ScoreSnapshotDto;
@@ -30,6 +34,7 @@ export class DraftSessionController {
     private readonly evaluator: DraftEvaluator,
     private readonly onState: (state: DraftSessionState) => void,
     private readonly onApplied: (result: EvaluateScoreResultDto) => void,
+    private readonly transformer?: DraftTransformer,
   ) {
     this.emit();
   }
@@ -111,6 +116,27 @@ export class DraftSessionController {
           code: "ABC_SOURCE_EMPTY",
           severity: "error",
           message: error instanceof Error ? error.message : "Draft validation failed.",
+        }],
+      };
+      this.emit();
+    }
+  }
+
+  transpose(semitones: number): void {
+    const context = this.requiredContext();
+    try {
+      if (!this.transformer) throw new Error("Score transposition is unavailable.");
+      const transformed = this.transformer.transpose(context.draft, semitones);
+      this.edit(transformed);
+    } catch (error) {
+      this.cancelEvaluation();
+      this.state = {
+        status: "invalid",
+        ...context,
+        diagnostics: [{
+          code: "ABC_TRANSPOSITION_FAILED",
+          severity: "error",
+          message: error instanceof Error ? error.message : "The draft could not be transposed.",
         }],
       };
       this.emit();
