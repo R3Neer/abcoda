@@ -98,6 +98,86 @@ describe("DraftSessionController", () => {
     vi.useRealTimers();
   });
 
+  it("applies explicit transposition commands without waiting for the editor debounce", async () => {
+    vi.useFakeTimers();
+
+    const evaluate = vi.fn(
+      (
+        abc: string,
+        revision: number,
+      ) =>
+        Promise.resolve<EvaluateScoreResultDto>({
+          status: "success",
+          snapshot: snapshot(
+            revision,
+            abc,
+          ),
+        }),
+    );
+
+    const draft =
+      new DraftSessionController(
+        { evaluate },
+        () => undefined,
+        () => undefined,
+        {
+          transpose: (
+            abc,
+            semitones,
+          ) =>
+            `${abc}\n% score ${semitones}`,
+
+          transposeVoice: (
+            abc,
+            voiceId,
+            semitones,
+          ) =>
+            `${abc}\n% voice ${voiceId} ${semitones}`,
+        },
+        700,
+      );
+
+    draft.adoptHostSnapshot(
+      snapshot(
+        1,
+        "X:1\nK:C\nC|]",
+      ),
+    );
+
+    draft.transpose(2);
+
+    // No clock advancement: evaluation starts immediately.
+    expect(evaluate).toHaveBeenCalledOnce();
+    expect(evaluate).toHaveBeenLastCalledWith(
+      "X:1\nK:C\nC|]\n% score 2",
+      2,
+      expect.any(AbortSignal),
+    );
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    draft.transposeVoice(
+      "default",
+      -3,
+    );
+
+    expect(evaluate).toHaveBeenCalledTimes(2);
+    expect(evaluate).toHaveBeenLastCalledWith(
+      "X:1\nK:C\nC|]\n% score 2\n% voice default -3",
+      3,
+      expect.any(AbortSignal),
+    );
+
+    // There must not be a delayed second application waiting
+    // behind the explicit commands.
+    await vi.advanceTimersByTimeAsync(700);
+
+    expect(evaluate).toHaveBeenCalledTimes(2);
+
+    vi.useRealTimers();
+  });
+
   it("restores valid and invalid versions from one history", async () => {
     const evaluator: DraftEvaluator = {
       evaluate: vi.fn((abc: string, revision: number) => abc === "bad"
@@ -181,39 +261,7 @@ describe("DraftSessionController", () => {
     expect(applied.at(-1)).toMatchObject({ status: "success", snapshot: { revision: 9 } });
   });
 
-  it("keeps transposition as a reviewable draft operation and reports failures", () => {
-    const draft = new DraftSessionController(
-      { evaluate: vi.fn() },
-      () => undefined,
-      () => undefined,
-      {
-        transpose: (abc, semitones) =>
-          `${abc}\n% transposed ${semitones}`,
-        transposeVoice: (abc, voiceId, semitones) =>
-          `${abc}\n% voice ${voiceId} transposed ${semitones}`,
-      },
-    );
-    draft.adoptHostSnapshot(snapshot(1, "X:1\nK:C\nC|]"));
-    draft.transpose(2);
-    expect(draft.snapshot()).toMatchObject({
-      status: "dirty",
-      draft: "X:1\nK:C\nC|]\n% transposed 2",
-      lastGood: { revision: 1 },
-    });
-
-    draft.transposeVoice(
-      "default",
-      -3,
-    );
-
-    expect(draft.snapshot()).toMatchObject({
-      status: "dirty",
-      draft:
-        "X:1\nK:C\nC|]\n% transposed 2"
-        + "\n% voice default transposed -3",
-      lastGood: { revision: 1 },
-    });
-
+  it("reports unavailable transposition operations as draft errors", () => {
     const unavailable = new DraftSessionController(
       { evaluate: vi.fn() },
       () => undefined,

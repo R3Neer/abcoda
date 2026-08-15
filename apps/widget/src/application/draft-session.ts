@@ -166,6 +166,10 @@ export class DraftSessionController {
       if (!this.transformer) throw new Error("Score transposition is unavailable.");
       const transformed = this.transformer.transpose(context.draft, semitones);
       this.edit(transformed);
+
+      // Transposition is an explicit command, not free-form typing.
+      // Do not make the user wait for the editor debounce.
+      void this.apply();
     } catch (error) {
       this.cancelEvaluation();
       this.state = {
@@ -202,6 +206,10 @@ export class DraftSessionController {
         );
 
       this.edit(transformed);
+
+      // Like score-wide transposition, this is a complete discrete
+      // operation and can be validated/rendered immediately.
+      void this.apply();
     } catch (error) {
       this.cancelEvaluation();
       this.state = {
