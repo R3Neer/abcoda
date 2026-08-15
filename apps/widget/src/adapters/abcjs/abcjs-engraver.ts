@@ -19,7 +19,7 @@ interface SelectionRange {
   readonly end: number;
 }
 
-type HighlightableTune = ABCJS.TuneObject & {
+type HighlightableTune = {
   readonly engraver?: {
     rangeHighlight?: (start: number, end: number) => void;
   };
@@ -96,7 +96,7 @@ export class AbcjsEngraver implements Engraver {
     }
 
     if (preserveSelection && this.selectedRange) {
-      const tune = tunes[0] as HighlightableTune;
+      const tune = tunes[0] as unknown as HighlightableTune;
       tune.engraver?.rangeHighlight?.(
         this.selectedRange.start,
         this.selectedRange.end,
@@ -132,4 +132,3 @@ export class AbcjsEngraver implements Engraver {
     this.target.replaceChildren();
   }
 }
-
