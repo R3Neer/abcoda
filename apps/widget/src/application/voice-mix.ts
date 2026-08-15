@@ -21,6 +21,11 @@ export interface VoiceMixSnapshot {
   readonly voices: readonly VoiceMixEntry[];
 }
 
+export interface InitialVoiceMix {
+  readonly instruments?: Readonly<Record<string, InstrumentId>>;
+  readonly mutedVoices?: readonly string[];
+}
+
 export interface VoiceMixPlaybackSource {
   create(mix: VoiceMixSnapshot): Promise<PlaybackEngine>;
 }
@@ -39,18 +44,26 @@ export class VoiceMixController {
     };
   }
 
-  adoptVoices(revision: number, voices: readonly MixableVoice[]): void {
+  adoptVoices(
+    revision: number,
+    voices: readonly MixableVoice[],
+    initial: InitialVoiceMix = {},
+  ): void {
     const previous = new Map(this.state.voices.map((voice) => [voice.id, voice]));
+    const initiallyMuted = new Set(initial.mutedVoices);
     this.state = {
       revision,
       voices: voices.map((voice) => {
         const existing = previous.get(voice.id);
+        const requested = initial.instruments?.[voice.id];
         return {
           ...voice,
           instrument: existing && isInstrumentCompatible(voice.kind, existing.instrument)
             ? existing.instrument
+            : requested && isInstrumentCompatible(voice.kind, requested)
+              ? requested
             : defaultInstrument(voice.kind),
-          muted: existing?.muted ?? false,
+          muted: existing?.muted ?? initiallyMuted.has(voice.id),
         };
       }),
     };

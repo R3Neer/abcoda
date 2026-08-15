@@ -4,7 +4,7 @@ import type {
   HostPresentationContext,
 } from "../../application/host-bridge";
 
-export type LaboratoryScenario = "ready" | "mixed" | "invalid" | "malformed" | "race" | "invalid-after-ready";
+export type LaboratoryScenario = "ready" | "legacy" | "mixed" | "invalid" | "malformed" | "race" | "invalid-after-ready";
 
 const laboratoryResult = {
   status: "success",
@@ -47,6 +47,18 @@ const invalidResult = {
     severity: "error",
     message: "ABCoda v2 accepts exactly one complete tune per request.",
   }],
+} as const;
+
+const legacyResult = {
+  ...laboratoryResult,
+  presentation: {
+    tempo: 112,
+    instruments: { RH: "cello" },
+    mutedVoices: ["LH"],
+    loop: true,
+    title: "Legacy presentation",
+    preferredMeasuresPerLine: 3,
+  },
 } as const;
 
 const mixedResult = {
@@ -95,6 +107,8 @@ export class StandaloneHostBridge implements HostBridge {
     handlers.onContext(this.context);
     if (this.scenario === "invalid") {
       handlers.onResult(invalidResult);
+    } else if (this.scenario === "legacy") {
+      handlers.onResult(legacyResult);
     } else if (this.scenario === "mixed") {
       handlers.onResult(mixedResult);
     } else if (this.scenario === "invalid-after-ready") {

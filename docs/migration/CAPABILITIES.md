@@ -9,7 +9,7 @@
 |---|---|---|---|---|
 | CAP-01 | Brief tipado de composición | characterized | `tests/composition-plan.test.ts`, `tests/mcp.test.ts` | Golden contract v2. |
 | CAP-02 | Guía por estilo, forma, dificultad e instrumentos | characterized | 34 pruebas de composition plan y golden prompts | Comparador de reglas y `rulesVersion`. |
-| CAP-03 | ABC suministrado directamente | characterized | `tests/mcp.test.ts`, corpus de caracterización | Contrato `EvaluateScore`. |
+| CAP-03 | ABC suministrado directamente | partial | `EvaluateScore` v2 y adaptador de entrada schema 1 conservan fuente, tipos de voz y preferencias de presentación | Ejecutar workerd/Playwright del adaptador y comparar normalización legacy. |
 | CAP-04 | Normalización y diagnósticos mecánicos | partial | Diagnósticos v2 tipados con rangos; codec extrae voces, percusión, metro, tonalidad y tempo básico | Eventos/compases, variantes ABC y comparador contra corpus. |
 | CAP-05 | Grabado multivoz | partial | abcjs en tests Node y widget construido | Prueba en navegador y screenshots. |
 | CAP-06 | Play, pause, rewind y loop | partial | Engine diferido conectado y controles sticky; estados/race probados y controles E2E móvil/escritorio | Audición humana, finalización natural y continuidad real. |

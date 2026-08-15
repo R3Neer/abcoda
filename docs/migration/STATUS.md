@@ -12,7 +12,7 @@
 | 2. Contratos y modelo canónico | in progress | `ScoreDocument` representa voces tipadas, metro, tonalidad, tempo de negra, fuente y snapshot revisionado. |
 | 3. Codec y diagnósticos | in progress | Scanner conservador extrae semántica de cabeceras y percusión con rangos; no es todavía el codec ABC completo. |
 | 4. Casos de uso | in progress | `EvaluateScore` implementado detrás de `ScoreCodec`. |
-| 5. MCP y Worker seguro | in progress | Herramientas separadas `validate_score`/`render_score`, recurso UI, health, límites HTTP, CORS por allowlist y tests workerd. Falta compatibilidad schema 1. |
+| 5. MCP y Worker seguro | in progress | Herramientas separadas `validate_score`/`render_score`, recurso UI, health, límites HTTP y CORS por allowlist. El adaptador schema 1 preserva preferencias como presentación v2; falta ejecutar su prueba workerd bloqueada por el runner. |
 | 6. Shell y bridge | in progress | `HostBridge` aísla resultados, teardown, tema y safe areas. `DomWidgetView` posee el DOM; Playwright cubre estados, reemplazo válido→inválido y recorridos móvil/escritorio. |
 | 7. Grabado | in progress | Adaptador abcjs estático comprobado en escritorio y 390 px. |
 | 8. Reproducción | in progress | Engine diferido, transporte, tempo canónico, timeline, cursor y click-to-seek. Falta audición humana. |

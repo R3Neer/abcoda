@@ -5,6 +5,7 @@ import type { LaboratoryScenario } from "./standalone-host-bridge";
 
 const scenarios = new Set<LaboratoryScenario>([
   "ready",
+  "legacy",
   "mixed",
   "invalid",
   "malformed",

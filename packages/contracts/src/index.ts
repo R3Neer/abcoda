@@ -55,6 +55,45 @@ export const diagnosticSchema = z.object({
   range: sourceRangeSchema.optional(),
 });
 
+export const instrumentIdSchema = z.enum([
+  "acoustic_grand_piano",
+  "bright_acoustic_piano",
+  "church_organ",
+  "acoustic_guitar_nylon",
+  "acoustic_bass",
+  "violin",
+  "viola",
+  "cello",
+  "contrabass",
+  "string_ensemble_1",
+  "choir_aahs",
+  "trumpet",
+  "trombone",
+  "french_horn",
+  "soprano_sax",
+  "alto_sax",
+  "tenor_sax",
+  "oboe",
+  "english_horn",
+  "bassoon",
+  "clarinet",
+  "piccolo",
+  "flute",
+  "recorder",
+  "standard_drum_kit",
+]);
+
+export const scorePresentationSchema = z.object({
+  tempo: z.number().int().min(20).max(300).optional(),
+  instruments: z.record(z.string(), instrumentIdSchema).default({}),
+  mutedVoices: z.array(z.string()).default([]),
+  loop: z.boolean().default(false),
+  title: z.string().max(120).optional(),
+  preferredMeasuresPerLine: z.number().int().min(1).max(8).optional(),
+});
+
+export type ScorePresentationDto = z.infer<typeof scorePresentationSchema>;
+
 export const scoreSnapshotSchema = z.object({
   schemaVersion: z.literal(2),
   revision: z.number().int().min(0),
@@ -85,6 +124,7 @@ export const evaluateScoreResultSchema = z.object({
   status: z.enum(["success", "invalid"]),
   snapshot: scoreSnapshotSchema.optional(),
   diagnostics: z.array(diagnosticSchema).optional(),
+  presentation: scorePresentationSchema.optional(),
 }).superRefine((result, context) => {
   if (result.status === "success" && !result.snapshot) {
     context.addIssue({
@@ -107,6 +147,41 @@ export type EvaluateScoreResultDto = z.infer<typeof evaluateScoreResultSchema>;
 export const presentScoreRequestSchema = z.object({
   schemaVersion: z.literal(2).default(2),
   snapshot: scoreSnapshotSchema,
+  presentation: scorePresentationSchema.optional(),
 });
 
 export type PresentScoreRequest = z.infer<typeof presentScoreRequestSchema>;
+
+const legacyInstrumentIdSchema = z.union([
+  instrumentIdSchema.exclude(["standard_drum_kit"]),
+  z.literal("percussion"),
+]);
+
+export const legacyRenderScoreRequestSchema = z.object({
+  schemaVersion: z.literal(1).default(1),
+  abc: z.string().min(1).max(65_536),
+  playback: z.object({
+    tempo: z.number().int().min(20).max(300).default(96),
+    instruments: z.record(z.string(), legacyInstrumentIdSchema).default({}),
+    mutedVoices: z.array(z.string()).default([]),
+    loop: z.boolean().default(false),
+  }).default({ tempo: 96, instruments: {}, mutedVoices: [], loop: false }),
+  notation: z.object({
+    voiceKinds: z.record(
+      z.string(),
+      z.enum(["pitched", "unpitched_percussion"]),
+    ).default({}),
+  }).default({ voiceKinds: {} }),
+  display: z.object({
+    title: z.string().max(120).optional(),
+    coloredVoices: z.boolean().default(false),
+    preferredMeasuresPerLine: z.number().int().min(1).max(8).optional(),
+  }).default({ coloredVoices: false }),
+}).passthrough();
+
+export type LegacyRenderScoreRequest = z.infer<typeof legacyRenderScoreRequestSchema>;
+
+export const renderScoreToolInputSchema = z.union([
+  presentScoreRequestSchema,
+  legacyRenderScoreRequestSchema,
+]);

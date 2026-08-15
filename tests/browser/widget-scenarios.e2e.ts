@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 
 const cases = [
   { scenario: "ready", state: "ready", status: "Revision 1 ready", error: "" },
+  { scenario: "legacy", state: "ready", status: "Revision 1 ready", error: "" },
   { scenario: "mixed", state: "ready", status: "Revision 1 ready", error: "" },
   {
     scenario: "invalid",
@@ -64,6 +65,17 @@ test("playback controls adopt score tempo and remain operable without starting a
   await tempo.fill("110");
   await tempo.dispatchEvent("change");
   await expect(page.locator("#tempo-value")).toHaveText("110 BPM");
+});
+
+test("schema 1 presentation preferences survive the v2 widget boundary", async ({ page }) => {
+  await page.goto("/?scenario=legacy");
+  await expect(page.locator("#score-title")).toHaveText("Legacy presentation");
+  await expect(page.locator("#tempo-value")).toHaveText("112 BPM");
+  await expect(page.locator("#loop")).toHaveAttribute("aria-pressed", "true");
+  const rightHand = page.locator(".voice-mix-row").filter({ hasText: "RH" });
+  const leftHand = page.locator(".voice-mix-row").filter({ hasText: "LH" });
+  await expect(rightHand.locator("select")).toHaveValue("cello");
+  await expect(leftHand.locator('input[type="checkbox"]')).toBeChecked();
 });
 
 test("invalid scores never expose active playback controls", async ({ page }) => {

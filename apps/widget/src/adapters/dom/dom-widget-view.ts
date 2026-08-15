@@ -4,6 +4,10 @@ import type { ScoreSessionState } from "../../application/score-session";
 import type { VoiceMixSnapshot } from "../../application/voice-mix";
 import type { DraftSessionState } from "../../application/draft-session";
 import type { VoiceRangeAssessment } from "../../application/voice-range";
+import type {
+  ScorePresentationDto,
+  ScoreSnapshotDto,
+} from "../../../../../packages/contracts/src/index";
 import {
   instrumentsForVoice,
   type InstrumentId,
@@ -34,6 +38,7 @@ export class DomWidgetView {
   readonly audioTarget: HTMLElement;
 
   private readonly status: HTMLOutputElement;
+  private readonly scoreTitle: HTMLElement;
   private readonly error: HTMLElement;
   private readonly playbackButton: HTMLButtonElement;
   private readonly rewindButton: HTMLButtonElement;
@@ -57,6 +62,7 @@ export class DomWidgetView {
     this.scoreTarget = this.required("score");
     this.audioTarget = this.required("abcjs-audio");
     this.status = this.required("status");
+    this.scoreTitle = this.required("score-title");
     this.error = this.required("error");
     this.playbackButton = this.required("playback");
     this.rewindButton = this.required("rewind");
@@ -80,6 +86,13 @@ export class DomWidgetView {
       "transpose-up",
       "transpose-up-octave",
     ].map((id) => this.required<HTMLButtonElement>(id));
+  }
+
+  showPresentation(
+    presentation: ScorePresentationDto | undefined,
+    snapshot: ScoreSnapshotDto,
+  ): void {
+    this.scoreTitle.textContent = presentation?.title ?? snapshot.document.title ?? "ABCoda";
   }
 
   showScore(state: ScoreSessionState): void {

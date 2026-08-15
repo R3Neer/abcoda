@@ -14,7 +14,10 @@ import {
 import { PlaybackMixCoordinator } from "./application/playback-mix-coordinator";
 import { DraftSessionController } from "./application/draft-session";
 import { LocalScoreEvaluator } from "./adapters/local/local-score-evaluator";
-import { evaluateScoreResultSchema } from "../../../packages/contracts/src/index";
+import {
+  evaluateScoreResultSchema,
+  type ScorePresentationDto,
+} from "../../../packages/contracts/src/index";
 import { assessVoiceRanges } from "./application/voice-range";
 
 const view = new DomWidgetView();
@@ -30,6 +33,7 @@ const playbackMix = new PlaybackMixCoordinator(playback, (message) => {
   void playback.fail(message);
 });
 let voicePitches: Readonly<Record<string, readonly number[]>> = {};
+let hostPresentation: ScorePresentationDto | undefined;
 
 const mix = new VoiceMixController((state) => {
   view.showMix(state, assessVoiceRanges(state, voicePitches));
@@ -53,12 +57,15 @@ const controller = new ScoreSessionController(
     }
     view.showScore(state);
   },
-  (snapshot, engraving) => {
+  (snapshot, engraving, resultPresentation) => {
+    const presentation = resultPresentation ?? hostPresentation;
     if (engraving.timeline) cursor.setTimeline(engraving.timeline);
-    const tempo = snapshot.document.tempo?.bpm ?? 96;
+    const tempo = presentation?.tempo ?? snapshot.document.tempo?.bpm ?? 96;
+    if (presentation) playback.setLoop(presentation.loop);
     voicePitches = engraving.voicePitches ?? {};
     playbackMix.adoptSource(engraving.playbackSource, tempo);
-    mix.adoptVoices(snapshot.revision, snapshot.document.voices);
+    mix.adoptVoices(snapshot.revision, snapshot.document.voices, presentation);
+    view.showPresentation(presentation, snapshot);
   },
 );
 const draft = new DraftSessionController(
@@ -74,8 +81,10 @@ const runtime = new WidgetRuntime(
   (result) => {
     const parsed = evaluateScoreResultSchema.safeParse(result);
     if (parsed.success && parsed.data.status === "success" && parsed.data.snapshot) {
+      hostPresentation = parsed.data.presentation;
       draft.adoptHostSnapshot(parsed.data.snapshot);
     } else {
+      hostPresentation = undefined;
       draft.dispose();
     }
   },

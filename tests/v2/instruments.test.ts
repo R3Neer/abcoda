@@ -3,12 +3,18 @@ import {
   defaultInstrument,
   instrumentCatalog,
   instrumentDefinition,
+  instrumentIds,
   instrumentRangeFit,
   instrumentsForVoice,
   isInstrumentCompatible,
 } from "../../packages/domain/src/index";
+import { instrumentIdSchema } from "../../packages/contracts/src/index";
 
 describe("instrument policy", () => {
+  it("keeps the wire contract synchronized with the domain catalog", () => {
+    expect(instrumentIdSchema.options).toEqual(instrumentIds);
+  });
+
   it("offers only instruments compatible with the voice notation kind", () => {
     expect(instrumentsForVoice("unpitched_percussion").map(({ id }) => id)).toEqual([
       "standard_drum_kit",

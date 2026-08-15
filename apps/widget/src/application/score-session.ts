@@ -1,5 +1,6 @@
 import {
   evaluateScoreResultSchema,
+  type ScorePresentationDto,
   type ScoreSnapshotDto,
 } from "../../../../packages/contracts/src/index";
 import type { ScoreTimeline } from "./score-timeline";
@@ -12,7 +13,11 @@ export interface EngravingResult {
 }
 
 export interface Engraver {
-  render(snapshot: ScoreSnapshotDto, signal: AbortSignal): Promise<EngravingResult>;
+  render(
+    snapshot: ScoreSnapshotDto,
+    presentation: ScorePresentationDto | undefined,
+    signal: AbortSignal,
+  ): Promise<EngravingResult>;
   clear(): void;
 }
 
@@ -35,6 +40,7 @@ export class ScoreSessionController {
     private readonly onEngraved: (
       snapshot: ScoreSnapshotDto,
       result: EngravingResult,
+      presentation: ScorePresentationDto | undefined,
     ) => void = () => undefined,
   ) {
     this.onState({ status: "booting" });
@@ -78,9 +84,9 @@ export class ScoreSessionController {
     this.onState({ status: "loading", revision: snapshot.revision });
 
     try {
-      const result = await this.engraver.render(snapshot, effect.signal);
+      const result = await this.engraver.render(snapshot, parsed.data.presentation, effect.signal);
       if (effect.signal.aborted || snapshot.revision !== this.activeRevision) return;
-      this.onEngraved(snapshot, result);
+      this.onEngraved(snapshot, result, parsed.data.presentation);
       this.onState({ status: "ready", snapshot });
     } catch (error) {
       if (effect.signal.aborted || snapshot.revision !== this.activeRevision) return;

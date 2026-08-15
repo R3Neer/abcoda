@@ -1,6 +1,9 @@
 import ABCJS from "abcjs";
 import type { Engraver, EngravingResult } from "../../application/score-session";
-import type { ScoreSnapshotDto } from "../../../../../packages/contracts/src/index";
+import type {
+  ScorePresentationDto,
+  ScoreSnapshotDto,
+} from "../../../../../packages/contracts/src/index";
 import { timelineForTune } from "./abcjs-timeline";
 import type { PlaybackTimingCallback } from "../../application/score-cursor";
 import { AbcjsPlaybackSource } from "./abcjs-playback-source";
@@ -17,7 +20,11 @@ export class AbcjsEngraver implements Engraver {
     },
   ) {}
 
-  async render(snapshot: ScoreSnapshotDto, signal: AbortSignal): Promise<EngravingResult> {
+  async render(
+    snapshot: ScoreSnapshotDto,
+    presentation: ScorePresentationDto | undefined,
+    signal: AbortSignal,
+  ): Promise<EngravingResult> {
     signal.throwIfAborted();
     await Promise.resolve();
     signal.throwIfAborted();
@@ -27,7 +34,17 @@ export class AbcjsEngraver implements Engraver {
       responsive: "resize",
       add_classes: true,
       expandToWidest: true,
+      foregroundColor: "currentColor",
       staffwidth: availableWidth > 0 ? Math.max(280, availableWidth - 32) : 720,
+      ...(presentation?.preferredMeasuresPerLine === undefined
+        ? {}
+        : {
+            wrap: {
+              preferredMeasuresPerLine: presentation.preferredMeasuresPerLine,
+              minSpacing: 1.7,
+              maxSpacing: 2.8,
+            },
+          }),
     });
     signal.throwIfAborted();
 

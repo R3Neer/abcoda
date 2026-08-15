@@ -41,7 +41,7 @@ describe("v2 widget score session", () => {
   it("publishes only the newest engraving revision", async () => {
     const first = deferred();
     const second = deferred();
-    const render = vi.fn<Engraver["render"]>((_snapshot, signal) => {
+    const render = vi.fn<Engraver["render"]>((_snapshot, _presentation, signal) => {
       const call = render.mock.calls.length;
       const pending = call === 1 ? first : second;
       return new Promise<EngravingResult>((resolve, reject) => {

@@ -12,7 +12,10 @@ import {
 import {
   evaluateScoreRequestSchema,
   evaluateScoreResultSchema,
-  presentScoreRequestSchema,
+  legacyRenderScoreRequestSchema,
+  renderScoreToolInputSchema,
+  type LegacyRenderScoreRequest,
+  type ScorePresentationDto,
   type ScoreSnapshotDto,
   versions,
   widgetResourceUri,
@@ -26,6 +29,40 @@ import {
 import type { WidgetArtifact } from "../assets/widget-artifact";
 
 export type WidgetLoader = () => Promise<WidgetArtifact>;
+
+function legacyPresentation(input: LegacyRenderScoreRequest): ScorePresentationDto {
+  return {
+    tempo: input.playback.tempo,
+    instruments: Object.fromEntries(
+      Object.entries(input.playback.instruments).map(([voiceId, instrument]) => [
+        voiceId,
+        instrument === "percussion" ? "standard_drum_kit" : instrument,
+      ]),
+    ),
+    mutedVoices: input.playback.mutedVoices,
+    loop: input.playback.loop,
+    ...(input.display.title === undefined ? {} : { title: input.display.title }),
+    ...(input.display.preferredMeasuresPerLine === undefined
+      ? {}
+      : { preferredMeasuresPerLine: input.display.preferredMeasuresPerLine }),
+  };
+}
+
+function applyLegacyVoiceKinds(
+  snapshot: ScoreSnapshot,
+  voiceKinds: LegacyRenderScoreRequest["notation"]["voiceKinds"],
+): ScoreSnapshot {
+  return {
+    ...snapshot,
+    document: {
+      ...snapshot.document,
+      voices: snapshot.document.voices.map((voice) => ({
+        ...voice,
+        kind: voiceKinds[voice.id] ?? voice.kind,
+      })),
+    },
+  };
+}
 
 function toDomainSnapshot(snapshot: ScoreSnapshotDto): ScoreSnapshot {
   return {
@@ -122,7 +159,7 @@ export function createV2McpServer(loadWidget?: WidgetLoader): McpServer {
         title: "Render an interactive ABC score",
         description:
           "Present a score snapshot returned by validate_score. The source is re-evaluated before presentation and the result remains useful when the host ignores the UI.",
-        inputSchema: presentScoreRequestSchema,
+        inputSchema: renderScoreToolInputSchema,
         outputSchema: evaluateScoreResultSchema,
         annotations: {
           readOnlyHint: true,
@@ -139,15 +176,26 @@ export function createV2McpServer(loadWidget?: WidgetLoader): McpServer {
       },
       (rawInput) => {
         try {
-          const input = presentScoreRequestSchema.parse(rawInput);
-          const result = presentScore.execute({ snapshot: toDomainSnapshot(input.snapshot) });
+          const input = renderScoreToolInputSchema.parse(rawInput);
+          const result = input.schemaVersion === 1
+            ? evaluateScore.execute({ abc: input.abc, revision: 0 })
+            : presentScore.execute({ snapshot: toDomainSnapshot(input.snapshot) });
+          const adapted = input.schemaVersion === 1 && result.status === "success"
+            ? {
+                ...result,
+                snapshot: applyLegacyVoiceKinds(result.snapshot, input.notation.voiceKinds),
+                presentation: legacyPresentation(legacyRenderScoreRequestSchema.parse(input)),
+              }
+            : input.schemaVersion === 2 && input.presentation !== undefined
+              ? { ...result, presentation: input.presentation }
+              : result;
           return {
-            structuredContent: result,
+            structuredContent: adapted,
             content: [
               {
                 type: "text" as const,
-                text: result.status === "success"
-                  ? `Prepared revision ${result.snapshot.revision} for interactive presentation.`
+                text: adapted.status === "success"
+                  ? `Prepared revision ${adapted.snapshot.revision} for interactive presentation${input.schemaVersion === 1 ? " through the schema 1 compatibility adapter" : ""}.`
                   : "The score could not be presented because validation failed.",
               },
             ],

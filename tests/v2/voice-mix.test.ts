@@ -2,6 +2,29 @@ import { describe, expect, it } from "vitest";
 import { VoiceMixController } from "../../apps/widget/src/application/voice-mix";
 
 describe("VoiceMixController", () => {
+  it("adopts compatible host defaults without overriding later local choices", () => {
+    const mix = new VoiceMixController(() => undefined);
+    mix.adoptVoices(
+      1,
+      [
+        { id: "LEAD", kind: "pitched" },
+        { id: "DR", kind: "unpitched_percussion" },
+      ],
+      {
+        instruments: { LEAD: "cello", DR: "standard_drum_kit" },
+        mutedVoices: ["DR"],
+      },
+    );
+    mix.setInstrument("LEAD", "violin");
+    mix.adoptVoices(2, [{ id: "LEAD", kind: "pitched" }], {
+      instruments: { LEAD: "cello" },
+    });
+
+    expect(mix.snapshot().voices).toEqual([
+      { id: "LEAD", kind: "pitched", instrument: "violin", muted: false },
+    ]);
+  });
+
   it("creates compatible defaults and retains voice-local choices by stable id", () => {
     const states: unknown[] = [];
     const mix = new VoiceMixController((state) => states.push(state));
