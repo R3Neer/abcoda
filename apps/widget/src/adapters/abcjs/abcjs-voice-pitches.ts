@@ -10,18 +10,21 @@ export interface VoicePitchAnalysis {
   readonly targetsByVoice: Readonly<Record<string, readonly VoicePitchTarget[]>>;
 }
 
+type TuneWithSelectables = ABCJS.TuneObject & {
+  readonly engraver?: {
+    readonly selectables?: readonly ABCJS.Selectable[];
+  };
+};
+
 export function analyzeVoicePitches(
   tune: ABCJS.TuneObject,
   voiceIds: readonly string[],
   qpm: number,
 ): VoicePitchAnalysis {
   const tracks = tune.setUpAudio({ qpm, chordsOff: true }).tracks;
-  const visualVoices = typeof tune.makeVoicesArray === "function"
-    ? tune.makeVoicesArray()
-    : [];
-
   const pitchesByVoice: Record<string, readonly number[]> = {};
-  const targetsByVoice: Record<string, readonly VoicePitchTarget[]> = {};
+  const targetsByVoice: Record<string, VoicePitchTarget[]> = {};
+  const pitchesByVoiceAndStart = new Map<string, Map<number, Set<number>>>();
 
   voiceIds.forEach((voiceId, index) => {
     const track = tracks[index] ?? [];
@@ -32,6 +35,7 @@ export function analyzeVoicePitches(
     pitchesByVoice[voiceId] = [
       ...new Set(noteEvents.map((event) => event.pitch)),
     ];
+    targetsByVoice[voiceId] = [];
 
     const pitchesByStartChar = new Map<number, Set<number>>();
     for (const event of noteEvents) {
@@ -40,25 +44,33 @@ export function analyzeVoicePitches(
       pitches.add(event.pitch);
       pitchesByStartChar.set(event.startChar, pitches);
     }
-
-    targetsByVoice[voiceId] = (visualVoices[index] ?? []).flatMap((selectable) => {
-      const abcElement = selectable.absEl.abcelem;
-      if (
-        abcElement.el_type !== "note"
-        || typeof abcElement.startChar !== "number"
-      ) {
-        return [];
-      }
-
-      const pitches = pitchesByStartChar.get(abcElement.startChar);
-      if (!pitches || pitches.size === 0) return [];
-
-      return [{
-        element: selectable.svgEl,
-        pitches: [...pitches],
-      }];
-    });
+    pitchesByVoiceAndStart.set(voiceId, pitchesByStartChar);
   });
+
+  const selectables = (tune as TuneWithSelectables).engraver?.selectables ?? [];
+  for (const selectable of selectables) {
+    const abcElement = selectable.absEl.abcelem;
+    if (
+      abcElement.el_type !== "note"
+      || typeof abcElement.startChar !== "number"
+    ) {
+      continue;
+    }
+
+    const voiceIndex = voiceIndexFromClass(
+      selectable.svgEl.getAttribute("class") ?? "",
+    );
+    const voiceId = voiceIndex === undefined ? undefined : voiceIds[voiceIndex];
+    if (!voiceId) continue;
+
+    const pitches = pitchesByVoiceAndStart.get(voiceId)?.get(abcElement.startChar);
+    if (!pitches || pitches.size === 0) continue;
+
+    targetsByVoice[voiceId]?.push({
+      element: selectable.svgEl,
+      pitches: [...pitches],
+    });
+  }
 
   return { pitchesByVoice, targetsByVoice };
 }
@@ -69,4 +81,11 @@ export function pitchesForVoices(
   qpm: number,
 ): Readonly<Record<string, readonly number[]>> {
   return analyzeVoicePitches(tune, voiceIds, qpm).pitchesByVoice;
+}
+
+function voiceIndexFromClass(className: string): number | undefined {
+  const match = className.match(/(?:^|\s)abcjs-v(\d+)(?:\s|$)/);
+  if (!match) return undefined;
+  const index = Number(match[1]);
+  return Number.isInteger(index) && index >= 0 ? index : undefined;
 }
