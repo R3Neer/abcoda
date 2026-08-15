@@ -31,7 +31,7 @@ export default {
 
     if (url.pathname === "/health") {
       return withCors(
-        Response.json({ name: "ABCoda", version: "0.6.0", status: "ok", runtime: "cloudflare-worker", mcp: "/mcp" }),
+        Response.json({ name: "ABCoda", version: "0.7.0", status: "ok", runtime: "cloudflare-worker", mcp: "/mcp" }),
       );
     }
 

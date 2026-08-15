@@ -29,7 +29,16 @@ import {
   type VisibleTimingEvent,
 } from "./cursor";
 import { DeferredAudioBackend, type SynthControllerLike } from "./deferred-audio";
-import { applyInstruments, instrumentForVoiceKind, voiceKindForInstrument } from "./music";
+import {
+  applyInstruments,
+  instrumentForVoiceKind,
+  instrumentFromLabel,
+  instrumentLabel,
+  pitchesByVoice,
+  playbackTuneForInstruments,
+  rangeFit,
+  voiceKindForInstrument,
+} from "./music";
 import { decodeStandaloneScore, encodeStandaloneScore } from "./standalone";
 import { hiddenSynthVisualOptions } from "./synth-options";
 import { TransportController, type TransportState } from "./transport";
@@ -53,10 +62,11 @@ const sample: RenderScoreOutput = {
   },
 };
 
-const app = new App({ name: "ABCoda score", version: "0.4.0" });
+const app = new App({ name: "ABCoda score", version: "0.5.0" });
 const byId = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const scoreElement = byId<HTMLElement>("score");
 const notice = byId<HTMLElement>("notice");
+const noticeMessage = byId<HTMLElement>("notice-message");
 const tempo = byId<HTMLInputElement>("tempo");
 const tempoOutput = byId<HTMLOutputElement>("tempo-output");
 const playbackButton = byId<HTMLButtonElement>("playback-toggle");
@@ -72,6 +82,8 @@ const transposeDown = byId<HTMLButtonElement>("transpose-down");
 const transposeUp = byId<HTMLButtonElement>("transpose-up");
 const transposeReset = byId<HTMLButtonElement>("transpose-reset");
 const transposeOutput = byId<HTMLOutputElement>("transpose-output");
+const fullscreenButton = byId<HTMLButtonElement>("fullscreen");
+const instrumentOptions = byId<HTMLDataListElement>("instrument-options");
 
 let payload: RenderScoreOutput | undefined;
 let visualTune: ABCJS.TuneObject | undefined;
@@ -87,6 +99,13 @@ let initialAbc = "";
 let transposeOffset = 0;
 let codeView = false;
 let pitchedKeys: Record<string, string> = {};
+let voicePitches: Record<string, number[]> = {};
+
+instrumentOptions.replaceChildren(...instrumentNames.map((instrument) => {
+  const option = document.createElement("option");
+  option.value = instrumentLabel(instrument);
+  return option;
+}));
 
 class ScoreCursor {
   private line: SVGLineElement | undefined;
@@ -196,10 +215,12 @@ type ChatGptBridge = {
 const getChatGpt = () => (window as Window & { openai?: ChatGptBridge }).openai;
 
 function showNotice(message: string, error = false): void {
-  notice.textContent = message;
+  noticeMessage.textContent = message;
   notice.hidden = message.length === 0;
   notice.classList.toggle("error", error);
 }
+
+byId<HTMLButtonElement>("notice-dismiss").addEventListener("click", () => showNotice(""));
 
 type HostVisualContext = Pick<
   McpUiHostContext,
@@ -210,7 +231,10 @@ function applyHostContext(context: HostVisualContext): void {
   if (context.theme) applyDocumentTheme(context.theme);
   if (context.styles?.variables) applyHostStyleVariables(context.styles.variables);
   if (context.styles?.css?.fonts) applyHostFonts(context.styles.css.fonts);
-  if (context.displayMode) document.documentElement.dataset.displayMode = context.displayMode;
+  if (context.displayMode) {
+    document.documentElement.dataset.displayMode = context.displayMode;
+    fullscreenButton.hidden = context.displayMode === "fullscreen";
+  }
 
   const dimensions = context.containerDimensions;
   const height = dimensions && "height" in dimensions
@@ -246,7 +270,7 @@ function updateTransport(state: TransportState): void {
   playbackButton.setAttribute("aria-pressed", String(state.playing));
   playbackButton.setAttribute("aria-label", starting ? "Preparing audio" : state.playing ? "Pause" : "Play");
   playbackButton.setAttribute("aria-busy", String(starting));
-  playbackIcon.textContent = starting ? "…" : state.playing ? "Ⅱ" : "▶";
+  playbackIcon.dataset.state = starting ? "loading" : state.playing ? "pause" : "play";
   playbackLabel.textContent = starting ? "Loading…" : state.playing ? "Pause" : "Play";
   loopButton.setAttribute("aria-pressed", String(state.loop));
   tempo.disabled = state.busy;
@@ -274,7 +298,7 @@ function refreshCursorEvents(): void {
 
 const cursorControl: ABCJS.CursorControl = {
   onStart: () => {
-    if (notice.textContent === "Tap Play to enable audio.") showNotice("");
+    if (noticeMessage.textContent === "Tap Play to enable audio.") showNotice("");
     transport.playbackStarted();
   },
   onFinished: () => {
@@ -323,7 +347,7 @@ async function runConfigurationQueue(): Promise<void> {
       const selectedMutes = new Set(mutedVoices);
       if (!score || !tune) break;
 
-      await playbackBackend.configure(tune, {
+      await playbackBackend.configure(playbackTuneForInstruments(tune, voiceIds, selectedInstruments), {
         qpm: score.score.playback.tempo,
         midiTranspose: 0,
         soundFontVolumeMultiplier: 3,
@@ -332,7 +356,7 @@ async function runConfigurationQueue(): Promise<void> {
           applyInstruments(sequence, voiceIds, selectedInstruments, selectedMutes),
       });
       appliedConfiguration = revision;
-      if (notice.hidden || notice.textContent === "Tap Play to enable audio.") {
+      if (notice.hidden || noticeMessage.textContent === "Tap Play to enable audio.") {
         showNotice("Tap Play to enable audio.");
       }
     }
@@ -368,11 +392,11 @@ function outputWithAbc(abc: string, warnings: string[] = []): RenderScoreOutput 
   };
 }
 
-function commitAbcEdit(abc: string, message: string): void {
+function commitAbcEdit(abc: string, message?: string): void {
   sourceAbc = abc;
   transposeOffset = 0;
   updateTransposeOutput();
-  const next = outputWithAbc(abc, [message]);
+  const next = outputWithAbc(abc, message ? [message] : []);
   if (next) void render(next, { preserveEditState: true });
 }
 
@@ -390,10 +414,19 @@ function changeVoiceKind(voiceId: string, kind: VoiceKind): void {
     instruments[voiceId] ?? "acoustic_grand_piano",
   );
   const abc = setVoiceKind(payload.score.abc, voiceId, kind, pitchedKeys[voiceId]);
-  const explanation = kind === "unpitched_percussion"
-    ? `${voiceId} now uses percussion clef, K:none, and the percussion sample map; existing note positions were preserved.`
-    : `${voiceId} now uses pitched treble notation in the score key; existing note letters were preserved and should be reviewed.`;
-  commitAbcEdit(abc, explanation);
+  commitAbcEdit(abc);
+}
+
+function applyInstrumentRangeState(input: HTMLInputElement, voiceId: string, instrument: InstrumentName): void {
+  const result = rangeFit(voicePitches[voiceId] ?? [], instrument);
+  input.dataset.rangeFit = result.fit;
+  input.removeAttribute("aria-invalid");
+  if (result.fit === "outside") input.setAttribute("aria-invalid", "true");
+  input.title = result.fit === "partial"
+    ? `${result.outside} distinct pitch${result.outside === 1 ? " is" : "es are"} outside the typical ${instrumentLabel(instrument)} range (${result.range.label}).`
+    : result.fit === "outside"
+      ? `No score pitches fall inside the typical ${instrumentLabel(instrument)} range (${result.range.label}).`
+      : `Typical range: ${result.range.label}.`;
 }
 
 function renderMixer(): void {
@@ -409,6 +442,7 @@ function renderMixer(): void {
     name.textContent = voiceId;
 
     const kindSelect = document.createElement("select");
+    kindSelect.className = "notation-select";
     kindSelect.setAttribute("aria-label", `Notation type for ${voiceId}`);
     const currentKind = voiceKindFor(voiceId);
     (["pitched", "unpitched_percussion"] as const).forEach((kind) => {
@@ -420,18 +454,28 @@ function renderMixer(): void {
     });
     kindSelect.addEventListener("change", () => changeVoiceKind(voiceId, kindSelect.value as VoiceKind));
 
-    const instrumentSelect = document.createElement("select");
-    instrumentSelect.setAttribute("aria-label", `Instrument for ${voiceId}`);
-    instrumentNames.forEach((instrument) => {
-      const option = document.createElement("option");
-      option.value = instrument;
-      option.textContent = instrument === "percussion" ? "standard drum kit" : instrument.replaceAll("_", " ");
-      option.selected = (instruments[voiceId] ?? "acoustic_grand_piano") === instrument;
-      instrumentSelect.append(option);
-    });
-    instrumentSelect.addEventListener("change", () => {
-      const selected = instrumentSelect.value as InstrumentName;
+    const instrumentInput = document.createElement("input");
+    instrumentInput.type = "text";
+    instrumentInput.className = "instrument-combobox";
+    instrumentInput.setAttribute("list", "instrument-options");
+    instrumentInput.setAttribute("role", "combobox");
+    instrumentInput.setAttribute("aria-autocomplete", "list");
+    instrumentInput.setAttribute("aria-label", `Instrument for ${voiceId}`);
+    const currentInstrument = instruments[voiceId] ?? "acoustic_grand_piano";
+    instrumentInput.value = instrumentLabel(currentInstrument);
+    applyInstrumentRangeState(instrumentInput, voiceId, currentInstrument);
+    instrumentInput.addEventListener("input", () => instrumentInput.setCustomValidity(""));
+    instrumentInput.addEventListener("change", () => {
+      const selected = instrumentFromLabel(instrumentInput.value);
+      if (!selected) {
+        instrumentInput.setCustomValidity("Choose an instrument from the list.");
+        instrumentInput.reportValidity();
+        instrumentInput.value = instrumentLabel(instruments[voiceId] ?? "acoustic_grand_piano");
+        return;
+      }
+      instrumentInput.value = instrumentLabel(selected);
       instruments[voiceId] = selected;
+      applyInstrumentRangeState(instrumentInput, voiceId, selected);
       const requiredKind = voiceKindForInstrument(selected);
       if (voiceKindFor(voiceId) !== requiredKind) {
         changeVoiceKind(voiceId, requiredKind);
@@ -452,7 +496,7 @@ function renderMixer(): void {
       requestAudioConfiguration();
     });
     muteLabel.append(checkbox, "Mute");
-    row.append(name, kindSelect, instrumentSelect, muteLabel);
+    row.append(name, kindSelect, instrumentInput, muteLabel);
     container.append(row);
   });
 }
@@ -497,6 +541,11 @@ async function render(
   if (!visualTune) {
     showNotice("The score could not be rendered.", true);
     return;
+  }
+  try {
+    voicePitches = pitchesByVoice(visualTune, output.voiceIds, output.score.playback.tempo);
+  } catch {
+    voicePitches = {};
   }
   renderMixer();
   requestAudioConfiguration();
@@ -653,11 +702,13 @@ mixer.addEventListener("toggle", () => {
   requestAnimationFrame(() => mixer.scrollIntoView({ block: "nearest", behavior: "smooth" }));
 });
 
-byId<HTMLButtonElement>("fullscreen").addEventListener("click", async () => {
+fullscreenButton.addEventListener("click", async () => {
   try {
     const bridge = getChatGpt();
     if (bridge?.requestDisplayMode) await bridge.requestDisplayMode({ mode: "fullscreen" });
     else await app.requestDisplayMode({ mode: "fullscreen" });
+    document.documentElement.dataset.displayMode = "fullscreen";
+    fullscreenButton.hidden = true;
   } catch { /* optional host capability */ }
 });
 

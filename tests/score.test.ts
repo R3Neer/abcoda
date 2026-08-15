@@ -1,7 +1,29 @@
+import ABCJS from "abcjs";
 import { describe, expect, it } from "vitest";
 import { instrumentNames, renderScoreInputSchema } from "../shared/score";
 import { abcTitle, extractVoiceIds } from "../shared/voices";
-import { applyInstruments, instrumentForVoiceKind, voiceKindForInstrument } from "../web/src/music";
+import {
+  applyInstrumentPrograms,
+  applyInstruments,
+  instrumentForVoiceKind,
+  instrumentFromLabel,
+  instrumentLabel,
+  pitchesByVoice,
+  playbackTuneForInstruments,
+  rangeFit,
+  voiceKindForInstrument,
+} from "../web/src/music";
+
+const mixed = `X:1
+T:Mixed
+M:4/4
+L:1/4
+V:P clef=treble
+V:D clef=bass
+K:C
+%%score { P D }
+[V:P] C D E F|]
+[V:D] C D E F|]`;
 
 describe("score contract", () => {
   it("fills lightweight playback defaults", () => {
@@ -75,5 +97,48 @@ describe("client music helpers", () => {
     applyInstruments(tracks, ["RH", "LH"], { RH: "flute", LH: "cello" }, new Set(["RH"]));
     expect(tracks[0]?.[0]).toMatchObject({ instrument: "flute", volume: 0 });
     expect(tracks[1]?.[0]).toMatchObject({ instrument: "cello", volume: 90 });
+  });
+
+  it("sets MIDI programs before abcjs gathers SoundFont samples", () => {
+    const audio = {
+      tracks: [
+        [{ cmd: "program", instrument: 0 }, { cmd: "note", instrument: 0, pitch: 60 }],
+        [{ cmd: "program", instrument: 0 }, { cmd: "note", instrument: 0, pitch: 48 }],
+      ],
+      totalDuration: 1,
+    } as ABCJS.AudioTracks;
+    applyInstrumentPrograms(audio, ["RH", "LH"], { RH: "violin", LH: "cello" });
+    expect(audio.tracks[0]?.filter((event) => event.cmd !== "text").map((event) => event.instrument)).toEqual([40, 40]);
+    expect(audio.tracks[1]?.filter((event) => event.cmd !== "text").map((event) => event.instrument)).toEqual([42, 42]);
+  });
+
+  it("wraps the tune so selected instruments are present during audio setup", () => {
+    const tune = ABCJS.parseOnly(mixed)[0]!;
+    const playbackTune = playbackTuneForInstruments(tune, ["P", "D"], { P: "violin", D: "cello" });
+    const tracks = playbackTune.setUpAudio({ qpm: 96 }).tracks;
+    expect(tracks[0]?.find((event) => event.cmd === "note")?.instrument).toBe(40);
+    expect(tracks[1]?.find((event) => event.cmd === "note")?.instrument).toBe(42);
+  });
+
+  it("reports full, partial, and completely missing instrument ranges", () => {
+    expect(rangeFit([60, 72], "violin").fit).toBe("inside");
+    expect(rangeFit([54, 60, 106], "violin")).toMatchObject({ fit: "partial", inside: 1, outside: 2 });
+    expect(rangeFit([20, 30], "violin").fit).toBe("outside");
+    expect(rangeFit([], "violin").fit).toBe("empty");
+  });
+
+  it("uses searchable human labels while accepting canonical instrument names", () => {
+    expect(instrumentLabel("acoustic_grand_piano")).toBe("acoustic grand piano");
+    expect(instrumentLabel("percussion")).toBe("Standard drum kit");
+    expect(instrumentFromLabel("Acoustic Grand Piano")).toBe("acoustic_grand_piano");
+    expect(instrumentFromLabel("clarinet")).toBe("clarinet");
+    expect(instrumentFromLabel("not an instrument")).toBeUndefined();
+  });
+
+  it("extracts the sounding pitches of each abcjs voice for range checks", () => {
+    const tune = ABCJS.parseOnly(mixed)[0]!;
+    const pitches = pitchesByVoice(tune, ["P", "D"], 96);
+    expect(pitches.P).toEqual(expect.arrayContaining([60, 62, 64, 65]));
+    expect(pitches.D).toEqual(expect.arrayContaining([60, 62, 64, 65]));
   });
 });
