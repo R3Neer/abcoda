@@ -38,12 +38,14 @@ describe("DraftSessionController", () => {
       lastGood: { revision: 5, document: { source: { text: "X:1\nK:C\nD|]" } } },
     });
     expect(applied).toHaveLength(1);
+    expect(draft.snapshot()).toMatchObject({ history: [{ id: "original", status: "original" }] });
+    expect(draft.commit("Main idea")).toBe(true);
     expect(draft.snapshot()).toMatchObject({
       history: [
         { id: "original", status: "original" },
-        { id: "revision-5", status: "valid" },
+        { id: "commit-1", label: "Main idea", status: "valid" },
       ],
-      currentVersionId: "revision-5",
+      currentVersionId: "commit-1",
     });
   });
 
@@ -64,9 +66,13 @@ describe("DraftSessionController", () => {
       draft: "K:C\nC|]",
       lastGood: { revision: 1 },
       diagnostics: [{ message: "missing X" }],
+      history: [{ status: "original" }],
+    });
+    expect(draft.commit("Broken experiment")).toBe(true);
+    expect(draft.snapshot()).toMatchObject({
       history: [
         { status: "original" },
-        { status: "invalid", abc: "K:C\nC|]" },
+        { id: "commit-1", label: "Broken experiment", status: "invalid", abc: "K:C\nC|]" },
       ],
     });
   });
@@ -88,6 +94,7 @@ describe("DraftSessionController", () => {
     await vi.advanceTimersByTimeAsync(1);
     expect(evaluate).toHaveBeenCalledOnce();
     expect(evaluate).toHaveBeenCalledWith("second", 2, expect.any(AbortSignal));
+    expect(draft.snapshot()).toMatchObject({ history: [{ id: "original" }] });
     vi.useRealTimers();
   });
 
@@ -105,14 +112,25 @@ describe("DraftSessionController", () => {
     draft.adoptHostSnapshot(snapshot(1, "original"));
     draft.edit("valid");
     await draft.apply();
+    expect(draft.commit("Valid take")).toBe(true);
     draft.edit("bad");
     await draft.apply();
+    expect(draft.commit("Broken take")).toBe(true);
 
-    draft.restoreVersion("attempt-3");
+    draft.restoreVersion("commit-2");
     expect(draft.snapshot()).toMatchObject({ status: "invalid", draft: "bad" });
-    draft.restoreVersion("revision-2");
+    draft.restoreVersion("commit-1");
     expect(draft.snapshot()).toMatchObject({ status: "clean", draft: "valid" });
     expect(applied.at(-1)).toMatchObject({ snapshot: { revision: 4 } });
+  });
+
+  it("refuses blank commits and drafts that have not rendered yet", () => {
+    const draft = new DraftSessionController({ evaluate: vi.fn() }, () => undefined, () => undefined);
+    draft.adoptHostSnapshot(snapshot(1, "original"));
+    expect(draft.commit("  ")).toBe(false);
+    draft.edit("pending");
+    expect(draft.commit("Too soon")).toBe(false);
+    expect(draft.snapshot()).toMatchObject({ history: [{ id: "original" }] });
   });
 
   it("does not let a stale validation overwrite a newer draft", async () => {

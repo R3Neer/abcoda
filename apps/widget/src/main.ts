@@ -108,6 +108,7 @@ const unbindVoiceMix = view.bindVoiceMix({
 const unbindDraft = view.bindDraft({
   edit: (text) => draft.edit(text),
   restoreVersion: (id) => draft.restoreVersion(id),
+  commit: (label) => draft.commit(label),
   transpose: (semitones) => draft.transpose(semitones),
 });
 void runtime.start().catch((cause: unknown) => {

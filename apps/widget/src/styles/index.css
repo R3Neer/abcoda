@@ -24,6 +24,15 @@
   box-sizing: border-box;
 }
 
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 :where(button, select, input, textarea, summary):focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
@@ -306,6 +315,14 @@ body {
   font-weight: 650;
 }
 
+.editor-tools {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
 .version-picker {
   position: relative;
 }
@@ -323,6 +340,49 @@ body {
   font-size: 0.75rem;
   font-weight: 650;
   list-style: none;
+}
+
+.commit-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 2.25rem;
+  padding: 0.35rem 0.65rem;
+  border: 1px solid var(--control-border);
+  border-radius: 999px;
+  color: CanvasText;
+  background: var(--control-bg);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 650;
+}
+
+.commit-form {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.commit-form input {
+  width: min(10rem, 28vw);
+  min-height: 2.25rem;
+  padding-inline: 0.65rem;
+  border: 1px solid var(--control-border);
+  border-radius: 999px;
+  color: CanvasText;
+  background: Canvas;
+  font: 0.75rem ui-sans-serif, system-ui, sans-serif;
+}
+
+.commit-form .icon-button {
+  width: 2.25rem;
+  min-width: 2.25rem;
+  min-height: 2.25rem;
+}
+
+:where(.commit-button, .commit-form)[hidden] {
+  display: none;
 }
 
 .version-picker > summary::-webkit-details-marker {
@@ -536,6 +596,18 @@ body {
 
   .tempo {
     flex-basis: 100%;
+  }
+
+  .editor-toolbar {
+    align-items: flex-start;
+  }
+
+  .editor-tools {
+    flex-wrap: wrap;
+  }
+
+  .commit-form input {
+    width: 7.5rem;
   }
 
 }

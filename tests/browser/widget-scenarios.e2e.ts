@@ -221,7 +221,12 @@ test("invalid local edits keep the last rendered score and remain in version his
   await expect(page.locator("#status")).toHaveText("Revision 1 ready");
   await expect(page.locator("body")).toHaveAttribute("data-state", "ready");
   const invalidVersion = page.locator('#version-history button[data-version-status="invalid"]');
+  await expect(invalidVersion).toHaveCount(0);
+  await page.locator("#begin-commit").click();
+  await page.locator("#commit-message").fill("Broken experiment");
+  await page.locator("#submit-commit").click();
   await expect(invalidVersion).toHaveCount(1);
+  await expect(invalidVersion).toContainText("Broken experiment");
 
   await page.locator("#version-picker > summary").click();
   await page.locator('#version-history button[data-version-id="original"]').click();
@@ -242,6 +247,12 @@ test("valid local edits create revisions and original restore stays monotonic", 
   await expect(page.locator("#status")).toHaveText("Revision 2 ready");
   await expect(page.locator("#editor-state")).toHaveText("Revision 2 saved");
   await expect(page.locator("#score")).toContainText("Locally edited title");
+  await expect(page.locator("#version-history button")).toHaveCount(1);
+  await page.locator("#begin-commit").click();
+  await page.locator("#commit-message").fill("Edited title");
+  await page.locator("#submit-commit").click();
+  await expect(page.locator("#version-history button")).toHaveCount(2);
+  await expect(page.locator("#version-history")).toContainText("Edited title");
 
   await page.locator("#version-picker > summary").click();
   await page.locator('#version-history button[data-version-id="original"]').click();
@@ -272,6 +283,9 @@ test("version history opens and closes with hover", async ({ page }) => {
   await page.goto("/?scenario=ready");
   await page.locator("#editor > summary").click();
   await page.locator("#version-picker > summary").hover();
+  await expect(page.locator("#version-picker")).toHaveAttribute("open", "");
+  await page.locator("#version-history").hover();
+  await page.waitForTimeout(250);
   await expect(page.locator("#version-picker")).toHaveAttribute("open", "");
   await page.locator("#abc-draft").hover();
   await expect(page.locator("#version-picker")).not.toHaveAttribute("open", "");
@@ -339,6 +353,8 @@ test("primary controls follow a visible and operable keyboard path", async ({ pa
   await expect(page.locator("#version-picker > summary")).toBeFocused();
   await page.keyboard.press("Tab");
   await expect(page.locator('#version-history button[data-version-id="original"]')).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(page.locator("#begin-commit")).toBeFocused();
   await page.keyboard.press("Tab");
   await expect(page.locator("#abc-draft")).toBeFocused();
 });

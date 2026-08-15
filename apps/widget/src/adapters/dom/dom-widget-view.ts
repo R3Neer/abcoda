@@ -28,6 +28,7 @@ export interface VoiceMixActions {
 export interface DraftActions {
   readonly edit: (draft: string) => void;
   readonly restoreVersion: (id: string) => void;
+  readonly commit: (label: string) => boolean;
   readonly transpose: (semitones: number) => void;
 }
 
@@ -53,12 +54,17 @@ export class DomWidgetView {
   private readonly draftDiagnostics: HTMLElement;
   private readonly versionHistory: HTMLElement;
   private readonly versionPicker: HTMLDetailsElement;
+  private readonly beginCommitButton: HTMLButtonElement;
+  private readonly commitForm: HTMLFormElement;
+  private readonly commitMessage: HTMLInputElement;
+  private readonly submitCommitButton: HTMLButtonElement;
   private readonly copyDraftButton: HTMLButtonElement;
   private readonly copyIcon: SVGElement;
   private readonly copiedIcon: SVGElement;
   private readonly copyStatus: HTMLOutputElement;
   private readonly transposeButtons: readonly HTMLButtonElement[];
   private copyResetTimer: ReturnType<typeof setTimeout> | undefined;
+  private draftStatus: DraftSessionState["status"] = "unavailable";
 
   constructor(private readonly documentObject: Document = document) {
     this.scoreTarget = this.required("score");
@@ -81,6 +87,10 @@ export class DomWidgetView {
     this.draftDiagnostics = this.required("draft-diagnostics");
     this.versionHistory = this.required("version-history");
     this.versionPicker = this.required("version-picker");
+    this.beginCommitButton = this.required("begin-commit");
+    this.commitForm = this.required("commit-form");
+    this.commitMessage = this.required("commit-message");
+    this.submitCommitButton = this.required("submit-commit");
     this.copyDraftButton = this.required("copy-draft");
     this.copyIcon = this.requiredInside(this.copyDraftButton, ".copy-icon");
     this.copiedIcon = this.requiredInside(this.copyDraftButton, ".copied-icon");
@@ -196,6 +206,7 @@ export class DomWidgetView {
   }
 
   showDraft(state: DraftSessionState): void {
+    this.draftStatus = state.status;
     this.editor.hidden = state.status === "unavailable";
     if (state.status === "unavailable") return;
     if (this.draftInput.value !== state.draft) this.draftInput.value = state.draft;
@@ -207,6 +218,7 @@ export class DomWidgetView {
           ? "Saving…"
           : "Not applied";
     const busy = state.status === "validating";
+    this.updateCommitSubmit();
     this.editor.toggleAttribute("aria-busy", busy);
     this.versionHistory.replaceChildren(...state.history.map((version) => {
       const button = this.documentObject.createElement("button");
@@ -300,8 +312,17 @@ export class DomWidgetView {
       actions.restoreVersion(button.dataset.versionId);
       this.versionPicker.open = false;
     };
-    const openVersions = () => { this.versionPicker.open = true; };
+    let versionCloseTimer: ReturnType<typeof setTimeout> | undefined;
+    const openVersions = () => {
+      if (versionCloseTimer) clearTimeout(versionCloseTimer);
+      versionCloseTimer = undefined;
+      this.versionPicker.open = true;
+    };
     const closeVersions = () => { this.versionPicker.open = false; };
+    const scheduleVersionClose = () => {
+      if (versionCloseTimer) clearTimeout(versionCloseTimer);
+      versionCloseTimer = setTimeout(closeVersions, 180);
+    };
     const keepVersionsOpen = (event: MouseEvent) => {
       event.preventDefault();
       openVersions();
@@ -309,6 +330,27 @@ export class DomWidgetView {
     const closeVersionsAfterFocus = (event: FocusEvent) => {
       const next = event.relatedTarget;
       if (!(next instanceof Node) || !this.versionPicker.contains(next)) closeVersions();
+    };
+    const beginCommit = () => {
+      this.beginCommitButton.hidden = true;
+      this.commitForm.hidden = false;
+      this.commitMessage.focus();
+      this.updateCommitSubmit();
+    };
+    const updateCommit = () => this.updateCommitSubmit();
+    const submitCommit = (event: SubmitEvent) => {
+      event.preventDefault();
+      if (!actions.commit(this.commitMessage.value)) return;
+      this.commitMessage.value = "";
+      this.commitForm.hidden = true;
+      this.beginCommitButton.hidden = false;
+    };
+    const cancelCommit = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      this.commitMessage.value = "";
+      this.commitForm.hidden = true;
+      this.beginCommitButton.hidden = false;
+      this.beginCommitButton.focus();
     };
     const transposeListeners = this.transposeButtons.map((button) => {
       const transpose = () => actions.transpose(Number(button.dataset.semitones));
@@ -319,24 +361,40 @@ export class DomWidgetView {
     this.versionHistory.addEventListener("click", restoreVersion);
     this.copyDraftButton.addEventListener("click", copy);
     this.versionPicker.addEventListener("pointerenter", openVersions);
-    this.versionPicker.addEventListener("pointerleave", closeVersions);
+    this.versionPicker.addEventListener("pointerleave", scheduleVersionClose);
+    this.versionHistory.addEventListener("pointerenter", openVersions);
     this.versionPicker.addEventListener("focusin", openVersions);
     this.versionPicker.addEventListener("focusout", closeVersionsAfterFocus);
     this.versionPicker.querySelector("summary")?.addEventListener("click", keepVersionsOpen);
+    this.beginCommitButton.addEventListener("click", beginCommit);
+    this.commitMessage.addEventListener("input", updateCommit);
+    this.commitMessage.addEventListener("keydown", cancelCommit);
+    this.commitForm.addEventListener("submit", submitCommit);
     return () => {
       this.draftInput.removeEventListener("input", edit);
       this.versionHistory.removeEventListener("click", restoreVersion);
       this.copyDraftButton.removeEventListener("click", copy);
       this.versionPicker.removeEventListener("pointerenter", openVersions);
-      this.versionPicker.removeEventListener("pointerleave", closeVersions);
+      this.versionPicker.removeEventListener("pointerleave", scheduleVersionClose);
+      this.versionHistory.removeEventListener("pointerenter", openVersions);
       this.versionPicker.removeEventListener("focusin", openVersions);
       this.versionPicker.removeEventListener("focusout", closeVersionsAfterFocus);
       this.versionPicker.querySelector("summary")?.removeEventListener("click", keepVersionsOpen);
+      this.beginCommitButton.removeEventListener("click", beginCommit);
+      this.commitMessage.removeEventListener("input", updateCommit);
+      this.commitMessage.removeEventListener("keydown", cancelCommit);
+      this.commitForm.removeEventListener("submit", submitCommit);
+      if (versionCloseTimer) clearTimeout(versionCloseTimer);
       if (this.copyResetTimer) clearTimeout(this.copyResetTimer);
       for (const { button, transpose } of transposeListeners) {
         button.removeEventListener("click", transpose);
       }
     };
+  }
+
+  private updateCommitSubmit(): void {
+    const stable = this.draftStatus === "clean" || this.draftStatus === "invalid";
+    this.submitCommitButton.disabled = !stable || this.commitMessage.value.trim().length === 0;
   }
 
   private async copyDraft(): Promise<void> {

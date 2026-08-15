@@ -38,6 +38,7 @@ export type DraftSessionState =
 export class DraftSessionController {
   private state: DraftSessionState = { status: "unavailable" };
   private nextRevision = 1;
+  private nextCommit = 1;
   private generation = 0;
   private evaluation: AbortController | undefined;
   private autoApplyTimer: ReturnType<typeof setTimeout> | undefined;
@@ -68,6 +69,7 @@ export class DraftSessionController {
   adoptHostSnapshot(snapshot: ScoreSnapshotDto): void {
     this.cancelEvaluation();
     this.nextRevision = Math.max(this.nextRevision, snapshot.revision + 1);
+    this.nextCommit = 1;
     this.state = {
       status: "clean",
       original: snapshot,
@@ -116,39 +118,22 @@ export class DraftSessionController {
       if (evaluation.signal.aborted || generation !== this.generation) return;
       this.evaluation = undefined;
       if (result.status === "success" && result.snapshot) {
-        const version: DraftVersion = {
-          id: `revision-${revision}`,
-          label: `Version ${revision}`,
-          status: "valid",
-          abc: result.snapshot.document.source.text,
-          snapshot: result.snapshot,
-          diagnostics: [],
-        };
         this.state = {
           status: "clean",
           original: context.original,
           lastGood: result.snapshot,
           draft: result.snapshot.document.source.text,
-          history: appendVersion(context.history, version),
-          currentVersionId: version.id,
+          history: context.history,
         };
         this.emit();
         this.onApplied(result);
         return;
       }
       const diagnostics = result.diagnostics ?? [];
-      const version: DraftVersion = {
-        id: `attempt-${revision}`,
-        label: `Attempt ${revision}`,
-        status: "invalid",
-        abc: context.draft,
-        diagnostics,
-      };
       this.state = {
         status: "invalid",
         ...context,
-        history: appendVersion(context.history, version),
-        currentVersionId: version.id,
+        history: context.history,
         diagnostics,
       };
       this.emit();
@@ -160,18 +145,10 @@ export class DraftSessionController {
         severity: "error",
         message: error instanceof Error ? error.message : "Draft validation failed.",
       }];
-      const version: DraftVersion = {
-        id: `attempt-${revision}`,
-        label: `Attempt ${revision}`,
-        status: "invalid",
-        abc: context.draft,
-        diagnostics,
-      };
       this.state = {
         status: "invalid",
         ...context,
-        history: appendVersion(context.history, version),
-        currentVersionId: version.id,
+        history: context.history,
         diagnostics,
       };
       this.emit();
@@ -266,6 +243,38 @@ export class DraftSessionController {
     this.onApplied({ status: "success", snapshot: restored });
   }
 
+  commit(label: string): boolean {
+    if (this.state.status === "unavailable" || this.state.status === "dirty" || this.state.status === "validating") {
+      return false;
+    }
+    const name = label.trim();
+    if (!name) return false;
+    const context = this.requiredContext();
+    const id = `commit-${this.nextCommit++}`;
+    const version: DraftVersion = this.state.status === "invalid"
+      ? {
+          id,
+          label: name,
+          status: "invalid",
+          abc: context.draft,
+          diagnostics: this.state.diagnostics,
+        }
+      : {
+          id,
+          label: name,
+          status: "valid",
+          abc: context.draft,
+          snapshot: context.lastGood,
+          diagnostics: [],
+        };
+    const history = [...context.history, version];
+    this.state = this.state.status === "invalid"
+      ? { status: "invalid", ...context, history, currentVersionId: id, diagnostics: this.state.diagnostics }
+      : { status: "clean", ...context, history, currentVersionId: id };
+    this.emit();
+    return true;
+  }
+
   dispose(): void {
     this.cancelEvaluation();
     this.state = { status: "unavailable" };
@@ -302,14 +311,6 @@ export class DraftSessionController {
   private emit(): void {
     this.onState(this.snapshot());
   }
-}
-
-function appendVersion(history: readonly DraftVersion[], version: DraftVersion): readonly DraftVersion[] {
-  const previous = history.at(-1);
-  if (previous?.abc === version.abc && previous.status === version.status) {
-    return [...history.slice(0, -1), version];
-  }
-  return [...history, version];
 }
 
 function lastMatchingVersionId(history: readonly DraftVersion[], abc: string): string | undefined {
