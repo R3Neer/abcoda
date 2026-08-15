@@ -94,8 +94,8 @@ export interface ScoreDocument {
   readonly source: AbcSource;
 }
 
-/** Compact projection exchanged with MCP hosts and reconstructed from ABC. */
-export interface ScoreSnapshotDocument {
+/** Compact internal projection reconstructed from the canonical ABC document. */
+export interface ScoreProjection {
   readonly tuneId: TuneId;
   readonly title?: string;
   readonly meter?: string;
@@ -113,10 +113,10 @@ export interface ScoreVoiceSummary {
   readonly kind: VoiceKind;
 }
 
-export interface ScoreSnapshot {
-  readonly schemaVersion: 2;
+/** Application/domain state. External schema versions are mapped at adapters. */
+export interface RevisionedScore {
   readonly revision: RevisionId;
-  readonly document: ScoreSnapshotDocument;
+  readonly document: ScoreProjection;
   readonly diagnostics: readonly Diagnostic[];
 }
 
