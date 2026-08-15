@@ -7,6 +7,23 @@ function score(abc: string, overrides: Record<string, unknown> = {}) {
   return renderScoreInputSchema.parse({ abc, ...overrides });
 }
 
+const generatedComposition = {
+  styleFamily: "classical",
+  formFamily: "period",
+  form: "parallel period",
+  measures: 8,
+  meter: "4/4",
+  tempo: 96,
+  rhythmicFeel: "straight",
+  pitchFramework: "tonal_functional",
+  pitchLanguage: "C major",
+  texture: "melody_accompaniment",
+  difficulty: "beginner",
+  effort: "standard",
+  intent: "study",
+  ensemble: [{ voiceId: "default", instrument: "piano", family: "keyboard", role: "melody", kind: "pitched" }],
+} as const;
+
 describe("ABC mechanical normalization", () => {
   it("aligns the printed quarter-note tempo with playback", () => {
     const input = score("X:1\nT:Tempo\nM:4/4\nL:1/8\nQ:\"Andante\" 1/8=144\nK:C\nC8|]", {
@@ -70,6 +87,27 @@ describe("ABC mechanical normalization", () => {
 });
 
 describe("ABC contract lint", () => {
+  it("warns when a generated run of short notes has no beams at all", () => {
+    const abc = "X:1\nT:Unbeamed\nM:4/4\nL:1/8\nQ:1/4=96\nK:C\nC D E F G A B c|]";
+    const result = normalizeAndLintScore(score(abc, { composition: generatedComposition }));
+    expect(result.warnings).toEqual(expect.arrayContaining([
+      expect.stringContaining("four or more consecutive eighth-or-shorter notes with no beam grouping"),
+    ]));
+    expect(result.score.abc).toContain("C D E F G A B c|]");
+  });
+
+  it("accepts deliberate ABC beam groups and does not rewrite them", () => {
+    const abc = "X:1\nT:Beamed\nM:4/4\nL:1/8\nQ:1/4=96\nK:C\nCDEF GABc|]";
+    const result = normalizeAndLintScore(score(abc, { composition: generatedComposition }));
+    expect(result.warnings.join(" ")).not.toContain("no beam grouping");
+    expect(result.score.abc).toContain("CDEF GABc|]");
+  });
+
+  it("does not critique beaming in user-supplied ABC without a composition brief", () => {
+    const abc = "X:1\nT:Syllabic source\nM:2/4\nL:1/8\nQ:1/4=80\nK:C\nC D E F|]";
+    expect(normalizeAndLintScore(score(abc)).warnings.join(" ")).not.toContain("no beam grouping");
+  });
+
   it("warns about missing descriptive headers without rejecting a render", () => {
     const result = normalizeAndLintScore(score("X:1\nK:C\nCDEF|"));
     expect(result.warnings).toContain("ABC header T: is missing.");

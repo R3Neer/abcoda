@@ -61,6 +61,12 @@ Safe automatic changes currently include:
 
 Warnings cover missing core score headers, duplicate header voice declarations, unknown voice IDs in tool configuration, missing/unknown `%%score` voices, differences between brief and rendered tempo/meter/voices/kinds, and abcjs parser warnings. Musical taste is never emitted as a parser error.
 
+### Beam grouping
+
+ABC uses whitespace as notation, not merely source formatting: adjacent eighth-or-shorter note tokens are beamed together, while spaces split a beam group. `prepare_composition` therefore instructs the model to encode groups deliberately and to make them expose the prevailing metre: simple-beat or accepted submeasure groupings, dotted beats in compound metre, and explicit subdivisions in additive/irregular metre.
+
+This is not a universal “beam everything” rule. Rests, barlines, metric and phrase boundaries, syllabic vocal notation, historical practice, and deliberate syncopation can require separation or exceptional grouping. The linter consequently does not rewrite whitespace. For generated music carrying a composition brief, it only warns when it finds a run of at least four consecutive eighth-or-shorter pitched events with no beam at all; supplied ABC without a brief is left aesthetically unjudged.
+
 ## Verification policy
 
 The suite includes representative “golden” profiles and a pairwise coverage matrix. It validates every option individually and all style×form, style×pitch, style×rhythm, and style×texture pairs (576 combinations). Pairwise coverage proves that every selectable combination assembles a typed, bounded, complete prompt without missing modules; it does not prove the aesthetic success of every possible piece. Tool discovery is separately tested with direct, indirect, and negative examples documented in `GOLDEN_PROMPTS.md`.
@@ -70,7 +76,10 @@ The suite includes representative “golden” profiles and a pairwise coverage 
 - OpenAI, [Build an MCP server](https://developers.openai.com/apps-sdk/build/mcp-server): MCP server instructions, tool metadata, resources, CSP, and versioned widget URIs.
 - OpenAI, [Optimize Metadata](https://developers.openai.com/apps-sdk/guides/optimize-metadata): focused “use this when” descriptions, parameter documentation, and direct/indirect/negative golden-prompt evaluation.
 - ABC notation, [ABC 2.1 standard](https://abcnotation.com/wiki/abc%3Astandard%3Av2.1): information fields, tempo, voices, clefs, `K:none`, rhythm, ties, tuplets, repeats, and playback conventions.
+- ABC notation, [ABC 2.1 beams](https://abcnotation.com/wiki/abc%3Astandard%3Av2.1#beams): whitespace splits beam groups, while backticks can improve source readability without breaking a beam.
 - abcjs, [ABC notation support](https://docs.abcjs.net/overview/abc-notation) and [synthesized sound](https://docs.abcjs.net/audio/synthesized-sound): supported notation and client-side playback behaviour.
+- MuseScore Studio Handbook, [Beams](https://handbook.musescore.org/notation/rhythm-meter-and-measures/beams), and Dorico, [Beam grouping according to meters](https://www.steinberg.help/r/dorico-se/6.1/en/dorico/topics/notation_reference/notation_reference_beaming/notation_reference_beaming_according_to_meter_c.html): beams communicate rhythmic grouping and vary with simple, compound, and irregular metres.
+- LilyPond, [Beams](https://lilypond.org/doc/v2.25/Documentation/notation/beams): meter-dependent defaults, historical alternatives in triple metre, exceptional beaming over rests, and vocal practice.
 - Open Music Theory, [table of contents](https://openmusictheory.github.io/contents.html): fundamentals, model composition, harmony, form, pop/rock, and post-tonal theory.
 - Open Music Theory, [Introduction to strict voice-leading](https://openmusictheory.github.io/speciesIntro.html): distinction among voice-leading, harmony, and form, and the pedagogical status of strict counterpoint.
 - Open Music Theory, [Harmonic syntax: the idealized phrase](https://openmusictheory.github.io/harmonicSyntax1.html), [Classical cadence types](https://openmusictheory.github.io/cadenceTypes.html), [The sentence](https://openmusictheory.github.io/sentence.html), and [The period](https://openmusictheory.github.io/period.html): common-practice phrase and cadence models.

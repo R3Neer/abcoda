@@ -1,3 +1,4 @@
+import ABCJS from "abcjs";
 import type { RenderScoreInput } from "./score.js";
 import { extractVoiceIds } from "./voices.js";
 
@@ -87,6 +88,44 @@ function scoreDirectiveVoiceIds(abc: string): string[] {
   return [...directive.matchAll(/[A-Za-z0-9_.-]+/g)].map((match) => match[0]);
 }
 
+type ParsedBeamNote = ABCJS.VoiceItemNote & { startBeam?: true; endBeam?: true };
+
+function hasSuspiciousUnbeamedRun(abc: string): boolean {
+  const runIsSuspicious = (runLength: number, containsBeam: boolean) => runLength >= 4 && !containsBeam;
+
+  for (const tune of ABCJS.parseOnly(abc)) {
+    for (const line of tune.lines) {
+      for (const staff of line.staff ?? []) {
+        for (const voice of staff.voices ?? []) {
+          let runLength = 0;
+          let containsBeam = false;
+          for (const item of voice) {
+            if (item.el_type === "bar") {
+              if (runIsSuspicious(runLength, containsBeam)) return true;
+              runLength = 0;
+              containsBeam = false;
+              continue;
+            }
+            if (item.el_type !== "note") continue;
+            const note = item as ParsedBeamNote;
+            const beamablePitchedEvent = note.duration > 0 && note.duration <= 1 / 8 && (note.pitches?.length ?? 0) > 0;
+            if (beamablePitchedEvent) {
+              runLength += 1;
+              containsBeam ||= note.startBeam === true || note.endBeam === true;
+            } else {
+              if (runIsSuspicious(runLength, containsBeam)) return true;
+              runLength = 0;
+              containsBeam = false;
+            }
+          }
+          if (runIsSuspicious(runLength, containsBeam)) return true;
+        }
+      }
+    }
+  }
+  return false;
+}
+
 function lintMetadata(score: RenderScoreInput): string[] {
   const warnings: string[] = [];
   const voiceIds = extractVoiceIds(score.abc);
@@ -123,6 +162,10 @@ function lintMetadata(score: RenderScoreInput): string[] {
     if (scoreVoices.length > 0 && !scoreVoices.includes(id)) {
       warnings.push(`Voice ${id} is omitted from %%score and may not be engraved.`);
     }
+  }
+
+  if (score.composition && hasSuspiciousUnbeamedRun(score.abc)) {
+    warnings.push("ABC contains four or more consecutive eighth-or-shorter notes with no beam grouping. Whitespace breaks beams in ABC; review grouping against the meter. Separate flags can still be intentional for syllabic vocal, historical, phrasing, or other explicit notation reasons.");
   }
 
   return warnings;

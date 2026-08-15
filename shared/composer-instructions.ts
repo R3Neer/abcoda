@@ -9,5 +9,5 @@ Use original material. For named composers or artists, use only high-level trait
 
 Musical review tests material, form, idiom, pitch, rhythm, texture, instruments, integration, and expressive playability. Mechanical preflight tests ABC/playback consistency. Renderer warnings do not measure musical quality; abcjs acceptance does not prove it.
 
-For render_score, supply complete ABC without Markdown fences. Keep X/T/M/L/Q/K, V:/%%score identifiers, bar durations, clefs, transposition, repeats, final bars, playback tempo, instruments, and notation.voiceKinds consistent. Use the percussion instrument and intentional General MIDI percussion pitches for unpitched voices. The current player approximates performance through General MIDI and does not provide nuanced piano pedal.
+For render_score, supply complete ABC without Markdown fences. Keep X/T/M/L/Q/K, V:/%%score identifiers, bar durations, meter-aware beam grouping, clefs, transposition, repeats, final bars, playback tempo, instruments, and notation.voiceKinds consistent. In ABC, spaces break beams: omit them inside intended eighth-or-shorter groups and retain them at deliberate beam boundaries. Use the percussion instrument and intentional General MIDI percussion pitches for unpitched voices. The current player approximates performance through General MIDI and does not provide nuanced piano pedal.
 `.trim();

@@ -565,7 +565,10 @@ function reviewSection(brief: CompositionBrief): CompositionPlanOutput["review"]
     form: formReviewGuidance[brief.formFamily],
     style: styleReviewGuidance[brief.styleFamily],
     pitch: pitchReviewGuidance[brief.pitchFramework],
-    rhythm: rhythmReviewGuidance[brief.rhythmicFeel],
+    rhythm: [
+      ...rhythmReviewGuidance[brief.rhythmicFeel],
+      "Inspect the engraved beam groups, not only the durations: beams must reveal the prevailing beat/subdivision, spaces in ABC must split groups deliberately, and an all-unbeamed run of eighth-or-shorter notes requires a musical reason rather than source-code formatting.",
+    ],
     texture: textureReviewGuidance[brief.texture],
     instruments: families.flatMap((family) => instrumentReviewGuidance[family]),
     integration: effortPlan.integration,
@@ -580,6 +583,7 @@ function notationSection(brief: CompositionBrief): string[] {
     "Begin X:1, T:, M:, L:, Q:, then V: declarations and finish the header with the first K:. For multiple voices add %%score, complete simultaneous bars, and end voices together with |].",
     percussion.length > 0 ? `Set notation.voiceKinds for ${percussion.join(", ")} to unpitched_percussion and select playback instrument percussion; ABCoda will enforce percussion clef, voice-local K:none, and the General MIDI percussion sample map. Choose staff pitches as deliberate GM percussion mappings rather than arbitrary melody notes.` : "Use notation.voiceKinds={} unless an explicitly unpitched percussion voice is added.",
     transposing.length > 0 ? `Apply explicit ABC transpose= values for ${transposing.map((voice) => `${voice.voiceId}=${voice.transpositionSemitones}`).join(", ")}; verify written and sounding ranges separately.` : "Keep notation at concert pitch unless exact instrument convention requires a written transposing part.",
+    "Encode beams deliberately: in ABC, adjacent eighth-or-shorter note tokens without spaces share a beam, while whitespace breaks the beam. Use no spaces inside an intended group and spaces between groups; backticks may improve ABC readability without breaking a beam. Group by the audible meter—simple beats or accepted submeasure groups, dotted beats in compound meter, and the declared subdivision in additive/irregular meter. Do not beam indiscriminately across rests, barlines, or meaningful metric/phrasing boundaries; syllabic vocal and historically specific practices may justify separate flags.",
     "Use valid abcjs-compatible durations, rests, chords, tuplets, ties, slurs, repeats, endings, fields, clefs, decorations, and bar lines. Do not invent directives or promise unavailable playback nuance.",
   ];
 }
@@ -641,7 +645,7 @@ export function buildCompositionPlan(brief: CompositionBrief): CompositionPlanOu
     notation: notationSection(brief),
     preflight: [
       "Verify X/T/M/L/Q/K order, V:/%%score IDs, clefs and transposition, bar durations, pickups, accidentals, tuplets, ties, repeats/endings, final bars, voiceKinds, tempo, and instruments.",
-      "Check that every simultaneous voice has complete bars, declared IDs match playback/notation maps, percussion uses intentional GM mappings, and the final ABC is abcjs-compatible.",
+      "Check that every simultaneous voice has complete bars, declared IDs match playback/notation maps, percussion uses intentional GM mappings, beam grouping is encoded through deliberate ABC whitespace, and the final ABC is abcjs-compatible.",
       "If render_score reports substantive mechanical warnings, repair the ABC and render once more. Parser acceptance proves syntax compatibility, not musical quality.",
     ],
   };

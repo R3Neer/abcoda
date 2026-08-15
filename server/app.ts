@@ -37,7 +37,7 @@ export function validateAbc(abc: string): string[] {
 
 export function createAbcodaServer(loadWidget: WidgetLoader): McpServer {
   const server = new McpServer(
-    { name: "ABCoda", version: "0.5.0" },
+    { name: "ABCoda", version: "0.5.1" },
     { instructions: abcodaComposerInstructions },
   );
 
@@ -85,7 +85,7 @@ export function createAbcodaServer(loadWidget: WidgetLoader): McpServer {
     {
       title: "Render interactive music score",
       description:
-        "Use this to render complete abcjs-compatible ABC with interactive playback, score transposition, an editable ABC source view, and safe pitched/percussion voice switching. For newly composed or arranged music, call prepare_composition first and pass its same brief as composition. For user-supplied ABC, composition may be omitted. Validate bar durations, ranges, clefs, transposition, voice IDs, and tempo; mark unpitched voices in notation.voiceKinds and use the percussion playback instrument.",
+        "Use this to render complete abcjs-compatible ABC with interactive playback, score transposition, an editable ABC source view, and safe pitched/percussion voice switching. For newly composed or arranged music, call prepare_composition first and pass its same brief as composition. For user-supplied ABC, composition may be omitted. Validate bar durations, meter-aware beam grouping, ranges, clefs, transposition, voice IDs, and tempo; mark unpitched voices in notation.voiceKinds and use the percussion playback instrument.",
       inputSchema: renderScoreInputSchema,
       outputSchema: renderScoreOutputSchema,
       annotations: {

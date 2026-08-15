@@ -314,6 +314,14 @@ describe("effort-aware musical review", () => {
     expect(result.prompt.indexOf("REVIEW — GLOBAL INTEGRATION")).toBeLessThan(result.prompt.indexOf("MECHANICAL ABC PREFLIGHT"));
   });
 
+  it("encodes meter-aware beams through deliberate ABC whitespace", () => {
+    const result = plan({ meter: "6/8", rhythmicFeel: "dance_pattern" });
+    expect(result.guidance.notation.join(" ")).toContain("whitespace breaks the beam");
+    expect(result.guidance.notation.join(" ")).toContain("dotted beats in compound meter");
+    expect(result.review.rhythm.join(" ")).toContain("Inspect the engraved beam groups");
+    expect(result.guidance.preflight.join(" ")).toContain("beam grouping is encoded through deliberate ABC whitespace");
+  });
+
   it("keeps compatibility notes and emits schema v3", () => {
     const result = plan({
       styleFamily: "atonal_post_tonal",
