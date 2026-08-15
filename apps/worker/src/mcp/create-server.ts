@@ -39,6 +39,11 @@ import {
 
 export type WidgetLoader = () => Promise<WidgetArtifact>;
 
+const widgetResourceCsp = {
+  connectDomains: ["https://paulrosen.github.io"],
+  resourceDomains: [],
+};
+
 function legacyPresentation(input: LegacyRenderScoreRequest): ScorePresentationDto {
   return {
     tempo: input.playback.tempo,
@@ -240,7 +245,7 @@ export function createV2McpServer(
         mimeType: RESOURCE_MIME_TYPE,
         _meta: {
           ui: {
-            csp: { connectDomains: [], resourceDomains: [] },
+            csp: widgetResourceCsp,
             prefersBorder: false,
           },
           "openai/widgetDescription": "Interactive music notation for a validated ABC score.",
@@ -257,7 +262,7 @@ export function createV2McpServer(
             _meta: {
               "abcoda/artifactHash": artifact.manifest.artifactHash,
               ui: {
-                csp: { connectDomains: [], resourceDomains: [] },
+                csp: widgetResourceCsp,
                 prefersBorder: false,
               },
               "openai/widgetDescription": "Interactive music notation for a validated ABC score.",
