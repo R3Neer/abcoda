@@ -1,4 +1,5 @@
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
+import { versions } from "@abcoda/contracts";
 import { loadWidgetArtifact } from "./assets/widget-artifact";
 import {
   boundRequestBody,
@@ -6,6 +7,10 @@ import {
   withCors,
 } from "./http/security";
 import { createV2McpServer } from "./mcp/create-server";
+import type {
+  McpRequestObservability,
+  McpToolObservation,
+} from "./mcp/request-observability";
 
 const allowedMethods: Readonly<Record<string, ReadonlySet<string>>> = {
   "/health": new Set(["GET", "OPTIONS"]),
@@ -25,6 +30,31 @@ function requestContext(request: Request): RequestContext {
     method: request.method,
     path: new URL(request.url).pathname,
     startedAt: Date.now(),
+  };
+}
+
+function versionedLogFields() {
+  return {
+    timestamp: new Date().toISOString(),
+    appVersion: versions.appVersion,
+    schemaVersion: versions.schemaVersion,
+    rulesVersion: versions.rulesVersion,
+  } as const;
+}
+
+function logMcpObservation(observation: McpToolObservation): void {
+  const event = {
+    ...versionedLogFields(),
+    ...observation,
+  };
+  if (observation.event === "mcp.tool.failed") console.error(event);
+  else console.log(event);
+}
+
+function mcpObservability(context: RequestContext): McpRequestObservability {
+  return {
+    requestId: context.id,
+    emit: logMcpObservation,
   };
 }
 
@@ -52,7 +82,11 @@ function methodNotAllowed(methods: ReadonlySet<string>): Response {
   );
 }
 
-async function handleRequest(request: Request, env: Env): Promise<Response> {
+async function handleRequest(
+  request: Request,
+  env: Env,
+  context: RequestContext,
+): Promise<Response> {
   const boundary = validateRequestBoundary(request, env);
   if (boundary.rejection) return withCors(boundary.rejection, boundary.origin);
 
@@ -94,7 +128,10 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
   const bounded = await boundRequestBody(request);
   if (bounded instanceof Response) return withCors(bounded, boundary.origin);
 
-  const server = createV2McpServer(() => loadWidgetArtifact(env, request.url));
+  const server = createV2McpServer(
+    () => loadWidgetArtifact(env, request.url),
+    mcpObservability(context),
+  );
   const transport = new WebStandardStreamableHTTPServerTransport({
     enableJsonResponse: true,
   });
@@ -107,8 +144,9 @@ export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const context = requestContext(request);
     try {
-      const response = finalizeResponse(await handleRequest(request, env), context);
+      const response = finalizeResponse(await handleRequest(request, env, context), context);
       console.log({
+        ...versionedLogFields(),
         event: "request.completed",
         requestId: context.id,
         method: context.method,
@@ -119,12 +157,13 @@ export default {
       return response;
     } catch (error) {
       console.error({
+        ...versionedLogFields(),
         event: "request.failed",
         requestId: context.id,
         method: context.method,
         path: context.path,
         durationMs: Date.now() - context.startedAt,
-        error: error instanceof Error ? error.message : "Unknown error",
+        errorType: error instanceof Error ? error.name : "unknown",
       });
       return finalizeResponse(
         Response.json(
