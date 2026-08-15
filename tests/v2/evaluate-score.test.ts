@@ -1,13 +1,13 @@
 import fs from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { CanonicalAbcCodec } from "../../packages/abc-codec/src/index";
-import { EvaluateScore } from "../../packages/application/src/index";
+import { CanonicalAbcCodec } from "@abcoda/abc-codec";
+import { EvaluateScore } from "@abcoda/application";
 import {
   createBuildManifest,
   evaluateScoreRequestSchema,
   versions,
-} from "../../packages/contracts/src/index";
+} from "@abcoda/contracts";
 
 const readFixture = (name: string) =>
   fs.readFile(
@@ -20,7 +20,7 @@ const readFixture = (name: string) =>
 describe("architecture v2 first vertical slice", () => {
   const evaluate = new EvaluateScore(new CanonicalAbcCodec());
 
-  it("turns one ABC tune into a revisioned domain snapshot", async () => {
+  it("turns one ABC tune into a protocol-neutral revisioned score", async () => {
     const request = evaluateScoreRequestSchema.parse({
       abc: await readFixture("multi-voice"),
       revision: 7,
@@ -29,8 +29,7 @@ describe("architecture v2 first vertical slice", () => {
     const result = evaluate.execute(request);
     expect(result).toMatchObject({
       status: "success",
-      snapshot: {
-        schemaVersion: 2,
+      score: {
         revision: 7,
         document: {
           tuneId: "1",
@@ -57,7 +56,7 @@ describe("architecture v2 first vertical slice", () => {
 
     expect(result).toMatchObject({
       status: "success",
-      snapshot: {
+      score: {
         document: {
           key: "none",
           tempo: { beatUnit: "quarter", bpm: 100 },
@@ -74,9 +73,9 @@ describe("architecture v2 first vertical slice", () => {
       revision: 11,
     });
 
-    expect(absent).toMatchObject({ status: "success", snapshot: { document: {} } });
-    expect(absent.status === "success" && absent.snapshot.document.tempo).toBeUndefined();
-    expect(unsupported.status === "success" && unsupported.snapshot.document.tempo).toBeUndefined();
+    expect(absent).toMatchObject({ status: "success", score: { document: {} } });
+    expect(absent.status === "success" && absent.score.document.tempo).toBeUndefined();
+    expect(unsupported.status === "success" && unsupported.score.document.tempo).toBeUndefined();
   });
 
   it("rejects a tunebook instead of merging voices across tunes", async () => {
