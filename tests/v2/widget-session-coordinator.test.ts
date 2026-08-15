@@ -110,10 +110,11 @@ function harness() {
       totalDurationMs: 1000,
       events: [{
         timeMs: 0,
-        durationMs: 1000,
         measure: 1,
         line: 0,
         x: 10,
+        y: 20,
+        height: 12,
         sourceOffsets: [20],
       }],
     },
