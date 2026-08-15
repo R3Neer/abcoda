@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+// Temporary deterministic refactor runner for ARCH-05.
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const sourcePath = path.join(root, "packages/composition/src/index.ts");
 const source = fs.readFileSync(sourcePath, "utf8");
