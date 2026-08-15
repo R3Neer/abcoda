@@ -1,234 +1,68 @@
 import "./styles/index.css";
 import "./styles/ranges.css";
 import { AbcjsEngraver } from "./adapters/abcjs/abcjs-engraver";
-import { CanonicalDraftTransformer } from "./adapters/local/canonical-draft-transformer";
-import { DomWidgetView } from "./adapters/dom/dom-widget-view";
-import { applyVoiceRangePresentation } from "./adapters/dom/dom-range-presentation";
 import { DomScoreCursor } from "./adapters/dom/dom-score-cursor";
+import { applyVoiceRangePresentation } from "./adapters/dom/dom-range-presentation";
+import { DomWidgetView } from "./adapters/dom/dom-widget-view";
 import { createHostBridge } from "./adapters/host/create-host-bridge";
-import { WidgetRuntime } from "./application/host-bridge";
-import { PlaybackSessionController } from "./application/playback-session";
-import { ScoreSessionController } from "./application/score-session";
-import { ScoreCursorController } from "./application/score-cursor";
-import {
-  VoiceMixController,
-} from "./application/voice-mix";
-import { PlaybackMixCoordinator } from "./application/playback-mix-coordinator";
-import { DraftSessionController } from "./application/draft-session";
+import { CanonicalDraftTransformer } from "./adapters/local/canonical-draft-transformer";
 import { LocalScoreEvaluator } from "./adapters/local/local-score-evaluator";
-import {
-  evaluateScoreResultSchema,
-  type ScorePresentationDto,
-} from "@abcoda/contracts";
-import { assessVoiceRanges } from "./application/voice-range";
-import { scoreStaffWidth } from "./application/score-layout";
+import { WidgetSessionCoordinator } from "./application/widget-session-coordinator";
 
 const view = new DomWidgetView();
-const cursorView = new DomScoreCursor(view.scoreViewport);
-const cursor = new ScoreCursorController(cursorView);
-let cursorBaseTempo = 96;
-const playback = new PlaybackSessionController(96, 96, false, (state) => {
-  view.showPlayback(state);
-  cursor.setTempoRatio(state.tempo / cursorBaseTempo);
-  cursor.setPlaying(
-    (state.status === "ready" || state.status === "transitioning")
-      && state.mode === "playing",
-  );
+const session = new WidgetSessionCoordinator({
+  view,
+  cursorView: new DomScoreCursor(view.scoreViewport),
+  createEngraver: (callbacks) => new AbcjsEngraver(
+    view.scoreTarget,
+    view.audioTarget,
+    callbacks,
+  ),
+  hostBridge: createHostBridge(),
+  draftEvaluator: new LocalScoreEvaluator(),
+  draftTransformer: new CanonicalDraftTransformer(),
+  getViewportWidth: () => view.scoreViewport.clientWidth,
+  presentVoiceRanges: (assessments) => {
+    applyVoiceRangePresentation(document, assessments);
+  },
+  initialViewportWidth: view.scoreViewport.clientWidth,
 });
-const playbackMix = new PlaybackMixCoordinator(playback, (message) => {
-  void playback.fail(message);
-});
-let voicePitches: Readonly<Record<string, readonly number[]>> = {};
-let hostPresentation: ScorePresentationDto | undefined;
-let cursorRevision = -1;
-let renderedStaffWidth: number | undefined;
-let activePreferredMeasuresPerLine: number | undefined;
-
-const engraver = new AbcjsEngraver(view.scoreTarget, view.audioTarget, {
-  onPlaybackStarted: () => cursor.setPlaying(true),
-  onPlaybackFinished: () => {
-    const looping = playback.snapshot().loop;
-    cursor.playbackFinished(looping);
-    playback.playbackFinished();
-  },
-  onPlaybackEvent: (event) => cursor.onPlaybackEvent(event),
-  onScoreSelection: (sourceOffsets) => {
-    const progress = cursor.seekSourceOffsets(sourceOffsets);
-    if (progress !== undefined) playback.seek(progress);
-  },
-});
-
-const mix = new VoiceMixController((state) => {
-  const rangeAssessments = assessVoiceRanges(state, voicePitches);
-  view.showMix(state, rangeAssessments);
-  applyVoiceRangePresentation(document, rangeAssessments);
-  engraver.showVoiceRanges(state);
-  void playbackMix.apply(state);
-});
-const controller = new ScoreSessionController(
-  engraver,
-  (state) => {
-    if (state.status === "loading") {
-      voicePitches = {};
-      playbackMix.clear();
-      void playback.dispose();
-    }
-
-    if (
-      state.status === "invalid"
-      || state.status === "failed"
-    ) {
-      voicePitches = {};
-      playbackMix.clear();
-      mix.adoptVoices(0, []);
-      void playback.dispose();
-    }
-
-    view.showScore(state);
-  },
-  (snapshot, engraving, resultPresentation, reason) => {
-    const presentation = resultPresentation ?? hostPresentation;
-    if (engraving.timeline) {
-      cursor.setTimeline(engraving.timeline, cursorRevision === snapshot.revision);
-      cursorRevision = snapshot.revision;
-    }
-
-    activePreferredMeasuresPerLine = presentation?.preferredMeasuresPerLine;
-    renderedStaffWidth = scoreStaffWidth(
-      view.scoreViewport.clientWidth,
-      activePreferredMeasuresPerLine,
-    );
-
-    if (reason === "reflow") {
-      engraver.showVoiceRanges(mix.snapshot());
-      return;
-    }
-
-    const scoreTempo = snapshot.document.tempo?.bpm ?? 96;
-    const effectiveTempo = presentation?.tempo ?? scoreTempo;
-    cursorBaseTempo = scoreTempo;
-    if (presentation) playback.setLoop(presentation.loop);
-    voicePitches = engraving.voicePitches ?? {};
-    playbackMix.adoptSource(engraving.playbackSource, scoreTempo, effectiveTempo);
-    mix.adoptVoices(snapshot.revision, snapshot.document.voices, presentation);
-    view.showPresentation(presentation, snapshot);
-  },
-);
-const draft = new DraftSessionController(
-  new LocalScoreEvaluator(),
-  (state) => view.showDraft(state),
-  (result) => { void controller.receive(result); },
-  new CanonicalDraftTransformer(),
-  700,
-);
-const runtime = new WidgetRuntime(
-  controller,
-  createHostBridge(),
-  (context) => view.applyHostContext(context),
-  (result) => {
-    const parsed = evaluateScoreResultSchema.safeParse(result);
-    if (parsed.success && parsed.data.status === "success" && parsed.data.snapshot) {
-      // A host result is a new score/session boundary. Local instrument
-      // and mute choices must not leak into a different composition.
-      mix.adoptVoices(
-        parsed.data.snapshot.revision,
-        [],
-      );
-
-      hostPresentation = parsed.data.presentation;
-      draft.adoptHostSnapshot(parsed.data.snapshot);
-    } else {
-      hostPresentation = undefined;
-      draft.dispose();
-    }
-  },
-);
-let reflowTimer: ReturnType<typeof setTimeout> | undefined;
-let observedScoreWidth = view.scoreViewport.clientWidth;
 
 const resizeObserver = new ResizeObserver((entries) => {
-  const width = entries.at(-1)?.contentRect.width ?? view.scoreViewport.clientWidth;
-
-  // Ignore height-only changes caused by engraving itself.
-  if (Math.abs(width - observedScoreWidth) < 0.5) return;
-  observedScoreWidth = width;
-
-  // CSS is scaling/recentring the existing SVG immediately. Keep the cursor
-  // attached to the same musical point while that geometry changes.
-  cursor.refreshGeometry();
-
-  if (renderedStaffWidth === undefined) return;
-
-  const nextStaffWidth = scoreStaffWidth(
-    width,
-    activePreferredMeasuresPerLine,
+  session.viewportChanged(
+    entries.at(-1)?.contentRect.width ?? view.scoreViewport.clientWidth,
   );
-
-  // Wide-window changes often don't alter the actual staff layout at all.
-  if (Math.abs(nextStaffWidth - renderedStaffWidth) < 0.5) {
-    if (reflowTimer) clearTimeout(reflowTimer);
-    reflowTimer = undefined;
-    return;
-  }
-
-  if (reflowTimer) clearTimeout(reflowTimer);
-
-  reflowTimer = setTimeout(() => {
-    reflowTimer = undefined;
-
-    const stableStaffWidth = scoreStaffWidth(
-      view.scoreViewport.clientWidth,
-      activePreferredMeasuresPerLine,
-    );
-
-    if (
-      renderedStaffWidth !== undefined
-      && Math.abs(stableStaffWidth - renderedStaffWidth) < 0.5
-    ) {
-      cursor.refreshGeometry();
-      return;
-    }
-
-    void controller.reflow();
-  }, 320);
 });
-
 resizeObserver.observe(view.scoreViewport);
+
 const unbindPlayback = view.bindPlayback({
-  togglePlayback: () => { void playback.togglePlayback(); },
-  rewind: () => { playback.rewind(); cursor.rewind(); },
-  toggleLoop: () => playback.setLoop(!playback.snapshot().loop),
-  setTempo: (tempo) => { void playback.setTempo(tempo); },
+  togglePlayback: () => session.togglePlayback(),
+  rewind: () => session.rewind(),
+  toggleLoop: () => session.toggleLoop(),
+  setTempo: (tempo) => session.setTempo(tempo),
 });
 const unbindVoiceMix = view.bindVoiceMix({
-  setInstrument: (voiceId, instrument) => mix.setInstrument(voiceId, instrument),
-  setMuted: (voiceId, muted) => mix.setMuted(voiceId, muted),
+  setInstrument: (voiceId, instrument) => {
+    session.setInstrument(voiceId, instrument);
+  },
+  setMuted: (voiceId, muted) => session.setMuted(voiceId, muted),
   transposeVoice: (voiceId, semitones) => {
-    draft.transposeVoice(
-      voiceId,
-      semitones,
-    );
+    session.transposeVoice(voiceId, semitones);
   },
 });
 const unbindDraft = view.bindDraft({
-  edit: (text) => draft.edit(text),
-  restoreVersion: (id) => draft.restoreVersion(id),
-  commit: (label) => draft.commit(label),
-  transpose: (semitones) => draft.transpose(semitones),
+  edit: (text) => session.editDraft(text),
+  restoreVersion: (id) => session.restoreDraftVersion(id),
+  commit: (label) => session.commitDraft(label),
+  transpose: (semitones) => session.transposeScore(semitones),
 });
-void runtime.start().catch((cause: unknown) => {
-  const message = cause instanceof Error ? cause.message : "Could not connect to the host.";
-  view.showScore({ status: "failed", message });
-});
+
+void session.start();
 
 window.addEventListener("pagehide", () => {
   resizeObserver.disconnect();
-  if (reflowTimer) clearTimeout(reflowTimer);
   unbindPlayback();
   unbindVoiceMix();
   unbindDraft();
-  playbackMix.clear();
-  void playback.dispose();
-  draft.dispose();
-  void runtime.dispose();
+  session.dispose();
 }, { once: true });
