@@ -10,6 +10,9 @@ function presentationContext(context: ReturnType<App["getHostContext"]>): HostPr
   return {
     ...(context.theme === undefined ? {} : { theme: context.theme }),
     ...(context.displayMode === undefined ? {} : { displayMode: context.displayMode }),
+    ...(context.safeAreaInsets === undefined
+      ? {}
+      : { safeAreaInsets: context.safeAreaInsets }),
   };
 }
 

@@ -7,6 +7,12 @@ export interface HostBridgeHandlers {
 export interface HostPresentationContext {
   readonly theme?: "light" | "dark";
   readonly displayMode?: "inline" | "fullscreen" | "pip";
+  readonly safeAreaInsets?: {
+    readonly top: number;
+    readonly right: number;
+    readonly bottom: number;
+    readonly left: number;
+  };
 }
 
 export interface HostBridge {

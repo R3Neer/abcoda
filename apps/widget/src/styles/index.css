@@ -19,13 +19,17 @@
 
 body {
   margin: 0;
-  min-width: 20rem;
+  min-width: 0;
 }
 
 .shell {
   width: min(100%, 72rem);
   margin: 0 auto;
-  padding: 1rem;
+  padding:
+    calc(1rem + var(--host-safe-top, 0px))
+    calc(1rem + var(--host-safe-right, 0px))
+    calc(1rem + var(--host-safe-bottom, 0px))
+    calc(1rem + var(--host-safe-left, 0px));
 }
 
 .header {

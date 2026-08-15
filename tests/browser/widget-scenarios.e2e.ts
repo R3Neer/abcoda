@@ -15,6 +15,12 @@ const cases = [
     error: "The host supplied an invalid score snapshot.",
   },
   { scenario: "race", state: "ready", status: "Revision 3 ready", error: "" },
+  {
+    scenario: "invalid-after-ready",
+    state: "invalid",
+    status: "Invalid result",
+    error: "ABCoda v2 accepts exactly one complete tune per request.",
+  },
 ] as const;
 
 for (const scenario of cases) {
@@ -64,4 +70,21 @@ test("invalid scores never expose active playback controls", async ({ page }) =>
   await expect(page.locator("#playback")).toBeDisabled();
   await expect(page.locator("#rewind")).toBeDisabled();
   await expect(page.locator("#loop")).toBeDisabled();
+});
+
+test("a late invalid result tears down playback from the previous score", async ({ page }) => {
+  await page.goto("/?scenario=invalid-after-ready");
+  await expect(page.locator("body")).toHaveAttribute("data-state", "invalid");
+  await expect(page.locator("#playback")).toBeDisabled();
+  await expect(page.locator("#tempo")).toHaveValue("84");
+});
+
+test("host safe-area insets are applied without horizontal overflow", async ({ page }) => {
+  await page.goto("/?safeTop=11&safeRight=7&safeBottom=19&safeLeft=5");
+  const root = page.locator("html");
+  await expect(root).toHaveCSS("--host-safe-top", "11px");
+  await expect(root).toHaveCSS("--host-safe-right", "7px");
+  await expect(root).toHaveCSS("--host-safe-bottom", "19px");
+  await expect(root).toHaveCSS("--host-safe-left", "5px");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });

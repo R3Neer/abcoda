@@ -4,7 +4,7 @@ import type {
   HostPresentationContext,
 } from "../../application/host-bridge";
 
-export type LaboratoryScenario = "ready" | "invalid" | "malformed" | "race";
+export type LaboratoryScenario = "ready" | "invalid" | "malformed" | "race" | "invalid-after-ready";
 
 const laboratoryResult = {
   status: "success",
@@ -40,6 +40,15 @@ K:C
   },
 } as const;
 
+const invalidResult = {
+  status: "invalid",
+  diagnostics: [{
+    code: "ABC_MULTIPLE_TUNES_UNSUPPORTED",
+    severity: "error",
+    message: "ABCoda v2 accepts exactly one complete tune per request.",
+  }],
+} as const;
+
 export class StandaloneHostBridge implements HostBridge {
   private readonly timers = new Set<number>();
 
@@ -51,14 +60,10 @@ export class StandaloneHostBridge implements HostBridge {
   connect(handlers: HostBridgeHandlers): Promise<void> {
     handlers.onContext(this.context);
     if (this.scenario === "invalid") {
-      handlers.onResult({
-        status: "invalid",
-        diagnostics: [{
-          code: "ABC_MULTIPLE_TUNES_UNSUPPORTED",
-          severity: "error",
-          message: "ABCoda v2 accepts exactly one complete tune per request.",
-        }],
-      });
+      handlers.onResult(invalidResult);
+    } else if (this.scenario === "invalid-after-ready") {
+      handlers.onResult(laboratoryResult);
+      this.schedule(() => handlers.onResult(invalidResult), 80);
     } else if (this.scenario === "malformed") {
       handlers.onResult({ status: "success", snapshot: null });
     } else if (this.scenario === "race") {

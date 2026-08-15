@@ -20,7 +20,7 @@
 | CAP-11 | Percusión inmune a transposición tonal | characterized | lint, edit y score tests | Invariante de dominio v2. |
 | CAP-12 | Editar, copiar, aplicar y restaurar | partial | tests de markup y funciones | E2E de revisiones y diagnóstico. |
 | CAP-13 | Cursor y seek por compás | partial | `tests/cursor.test.ts` y transport | Reloj, reflow y click/touch en navegador. |
-| CAP-14 | Tema del host y layout móvil | partial | Contexto neutral `HostPresentationContext`, temas explícitos y E2E móvil/escritorio | Safe areas, dimensiones del contenedor y matriz de hosts reales. |
+| CAP-14 | Tema del host y layout móvil | partial | Contexto neutral, temas/safe areas explícitos, sin mínimo rígido y E2E móvil/escritorio | Dimensiones declaradas del contenedor y matriz de hosts reales. |
 | CAP-15 | Transporte siempre accesible | partial | markup y CSS | Screenshots y teclado en viewports límite. |
 | CAP-16 | Demo independiente | implemented | Host simulado v2 y ocho recorridos Playwright móvil/escritorio | Paridad funcional al completar controles interactivos. |
 | CAP-17 | Operación stateless | characterized | inspección de Worker/servidor | Pruebas de aislamiento en runtime. |
@@ -33,12 +33,12 @@
 | FIX-01 | CORS permisivo y sin validación Origin/Host | implemented | Worker runtime rechaza origen/host no autorizado; falta preview real. |
 | FIX-02 | Tunebooks múltiples mezclan voces y render | implemented | v2 devuelve diagnóstico específico y no crea snapshot. |
 | FIX-03 | Resultados asíncronos obsoletos | implemented | Unit tests de revisión/cancelación y escenario browser `race` termina en la revisión más nueva. |
-| FIX-04 | `main.ts` concentra responsabilidades | open | Límites de imports y store/effects separados. |
+| FIX-04 | `main.ts` concentra responsabilidades | implemented | Composition root pequeño; DOM, host, grabado, reproducción y estados viven en adaptadores/controladores separados con límites de imports. |
 | FIX-05 | Sin pruebas reales Worker/browser | implemented | Suites workerd y Playwright móvil/escritorio forman parte de `check:browser` en CI. |
 | FIX-06 | Dominio, URI y versiones manuales | partial | Manifiesto v2 compartido por health y MCP; falta artifact hash del recurso UI. |
 | FIX-07 | abcjs completo importado en servidor | implemented | Bundle Worker v2 comprobado sin `abcjs`, `SynthController` ni `renderAbc`. |
 | FIX-08 | Sin lint/no-floating-promises | implemented | ESLint tipado forma parte de `npm run check`. |
-| FIX-09 | Errores UI dispersos | partial | Estados inválido, malformed y fallo de grabado centralizados; falta recuperación interactiva. |
+| FIX-09 | Errores UI dispersos | partial | Estados centralizados y reemplazo válido→inválido desmonta audio/controles; falta recuperación mediante edición. |
 | FIX-10 | UX evaluada tarde | partial | Laboratorio y escenarios E2E por corte; faltan snapshots y pruebas de interacción/audio. |
 
 ## Regla de mantenimiento
