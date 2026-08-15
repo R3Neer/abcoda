@@ -19,6 +19,7 @@ const allowedInternalDependencies: Readonly<Record<string, readonly string[]>> =
   application: ["domain"],
   "abc-codec": ["application", "domain"],
   contracts: [],
+  composition: [],
 };
 
 const allowedExternalDependencies: Readonly<Record<string, readonly string[]>> = {
@@ -26,6 +27,7 @@ const allowedExternalDependencies: Readonly<Record<string, readonly string[]>> =
   application: [],
   "abc-codec": [],
   contracts: ["zod/v4"],
+  composition: ["zod/v4"],
 };
 
 function sourceFiles(directory: string): string[] {

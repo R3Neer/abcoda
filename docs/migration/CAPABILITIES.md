@@ -7,8 +7,8 @@
 
 | ID | Capacidad | Estado inicial | Evidencia actual | Próxima evidencia requerida |
 |---|---|---|---|---|
-| CAP-01 | Brief tipado de composición | characterized | `tests/composition-plan.test.ts`, `tests/mcp.test.ts` | Golden contract v2. |
-| CAP-02 | Guía por estilo, forma, dificultad e instrumentos | characterized | 34 pruebas de composition plan y golden prompts | Comparador de reglas y `rulesVersion`. |
+| CAP-01 | Brief tipado de composición | partial | Política única en `@abcoda/composition`; `prepare_composition` está registrado en Worker v2 y conserva schema de reglas 4 | Ejecutar contrato workerd v2 bloqueado por el runner. |
+| CAP-02 | Guía por estilo, forma, dificultad e instrumentos | partial | Servidores legacy y v2 comparten el mismo ensamblador puro y las mismas instrucciones, sin duplicar tablas musicales | Ejecutar corpus/golden completo y añadir comparador explícito de `rulesVersion`. |
 | CAP-03 | ABC suministrado directamente | partial | `EvaluateScore` v2 y adaptador de entrada schema 1 conservan fuente, tipos de voz y preferencias de presentación | Ejecutar workerd/Playwright del adaptador y comparar normalización legacy. |
 | CAP-04 | Normalización y diagnósticos mecánicos | partial | Diagnósticos v2 tipados con rangos; codec extrae voces, percusión, metro, tonalidad y tempo básico | Eventos/compases, variantes ABC y comparador contra corpus. |
 | CAP-05 | Grabado multivoz | partial | abcjs en tests Node y widget construido | Prueba en navegador y screenshots. |

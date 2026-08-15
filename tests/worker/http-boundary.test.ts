@@ -223,6 +223,11 @@ describe("ABCoda v2 Worker HTTP boundary", () => {
       result: {
         tools: [
           {
+            name: "prepare_composition",
+            annotations: { readOnlyHint: true, destructiveHint: false },
+            outputSchema: { type: "object" },
+          },
+          {
             name: "validate_score",
             annotations: { readOnlyHint: true, destructiveHint: false },
             outputSchema: {
@@ -237,6 +242,50 @@ describe("ABCoda v2 Worker HTTP boundary", () => {
             },
           },
         ],
+      },
+    });
+
+    const composition = await rpcRequest({
+      jsonrpc: "2.0",
+      id: 21,
+      method: "tools/call",
+      params: {
+        name: "prepare_composition",
+        arguments: {
+          styleFamily: "classical",
+          styleDetail: "late eighteenth-century chamber idiom",
+          formFamily: "period",
+          form: "parallel period with a varied consequent",
+          measures: 8,
+          meter: "4/4",
+          tempo: 96,
+          rhythmicFeel: "straight",
+          pitchFramework: "tonal_functional",
+          pitchLanguage: "C major with a half cadence and authentic close",
+          texture: "melody_accompaniment",
+          difficulty: "intermediate",
+          effort: "standard",
+          intent: "performance",
+          ensemble: [{
+            voiceId: "P1",
+            instrument: "piano",
+            family: "keyboard",
+            role: "melody",
+            kind: "pitched",
+          }],
+        },
+      },
+    });
+    expect(composition.status).toBe(200);
+    await expect(composition.json()).resolves.toMatchObject({
+      jsonrpc: "2.0",
+      id: 21,
+      result: {
+        structuredContent: {
+          schemaVersion: 4,
+          brief: { styleFamily: "classical", effort: "standard" },
+          renderHints: { tempo: 96, meter: "4/4", voiceKinds: { P1: "pitched" } },
+        },
       },
     });
 

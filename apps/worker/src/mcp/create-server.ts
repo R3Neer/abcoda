@@ -6,6 +6,12 @@ import {
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { BaselineAbcCodec } from "../../../../packages/abc-codec/src/index";
 import {
+  abcodaComposerInstructions,
+  buildCompositionPlan,
+  compositionBriefSchema,
+  compositionPlanOutputSchema,
+} from "../../../../packages/composition/src/index";
+import {
   EvaluateScore,
   PresentScore,
 } from "../../../../packages/application/src/index";
@@ -103,12 +109,52 @@ function toDomainSnapshot(snapshot: ScoreSnapshotDto): ScoreSnapshot {
 }
 
 export function createV2McpServer(loadWidget?: WidgetLoader): McpServer {
-  const server = new McpServer({
-    name: "ABCoda",
-    version: versions.appVersion,
-  });
+  const server = new McpServer(
+    {
+      name: "ABCoda",
+      version: versions.appVersion,
+    },
+    { instructions: abcodaComposerInstructions },
+  );
   const evaluateScore = new EvaluateScore(new BaselineAbcCodec());
   const presentScore = new PresentScore(evaluateScore);
+
+  registerAppTool(
+    server,
+    "prepare_composition",
+    {
+      title: "Prepare a composition brief",
+      description:
+        "Use when composing or arranging new music. Return a typed, rules-versioned generation and silent-review plan. Do not use merely to render ABC supplied by the user.",
+      inputSchema: compositionBriefSchema,
+      outputSchema: compositionPlanOutputSchema,
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+      _meta: {
+        "openai/toolInvocation/invoking": "Planning the composition…",
+        "openai/toolInvocation/invoked": "Composition plan ready",
+      },
+    },
+    (rawInput) => {
+      try {
+        const result = buildCompositionPlan(compositionBriefSchema.parse(rawInput));
+        return {
+          structuredContent: result,
+          content: [{ type: "text" as const, text: result.prompt }],
+        };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Invalid composition brief.";
+        return {
+          isError: true,
+          content: [{ type: "text" as const, text: `Could not prepare composition: ${message}` }],
+        };
+      }
+    },
+  );
 
   registerAppTool(
     server,
