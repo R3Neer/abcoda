@@ -12,6 +12,9 @@ import {
   instrumentsForVoice,
   type InstrumentId,
 } from "../../../../../packages/domain/src/index";
+import {
+  createTransposeControl,
+} from "../../components/transpose-control";
 
 export interface PlaybackActions {
   readonly togglePlayback: () => void;
@@ -64,7 +67,7 @@ export class DomWidgetView {
   private readonly copyIcon: SVGElement;
   private readonly copiedIcon: SVGElement;
   private readonly copyStatus: HTMLOutputElement;
-  private readonly transposeButtons: readonly HTMLButtonElement[];
+  private readonly globalTranspose: HTMLElement;
   private copyResetTimer: ReturnType<typeof setTimeout> | undefined;
   private draftStatus: DraftSessionState["status"] = "unavailable";
 
@@ -99,12 +102,7 @@ export class DomWidgetView {
     this.copyIcon = this.requiredInside(this.copyDraftButton, ".copy-icon");
     this.copiedIcon = this.requiredInside(this.copyDraftButton, ".copied-icon");
     this.copyStatus = this.required("copy-status");
-    this.transposeButtons = [
-      "transpose-down-octave",
-      "transpose-down",
-      "transpose-up",
-      "transpose-up-octave",
-    ].map((id) => this.required<HTMLButtonElement>(id));
+    this.globalTranspose = this.required("global-transpose");
   }
 
   showPresentation(
@@ -198,6 +196,19 @@ export class DomWidgetView {
       row.appendChild(name);
       row.appendChild(select);
       row.appendChild(mute);
+
+      const voiceTranspose = createTransposeControl(
+        this.documentObject,
+        {
+          label: "Transpose",
+          ariaLabel: `voice ${voice.id}`,
+          disabled: true,
+          title: "Per-voice transposition is not enabled yet.",
+        },
+      );
+      voiceTranspose.element.classList.add("voice-transpose");
+      row.appendChild(voiceTranspose.element);
+
       const assessment = assessments.find((candidate) => candidate.voiceId === voice.id);
       if (assessment?.message) {
         const warning = this.documentObject.createElement("p");
@@ -381,11 +392,20 @@ export class DomWidgetView {
     const cancelCommitWithKeyboard = (event: KeyboardEvent) => {
       if (event.key === "Escape") closeCommit();
     };
-    const transposeListeners = this.transposeButtons.map((button) => {
-      const transpose = () => actions.transpose(Number(button.dataset.semitones));
-      button.addEventListener("click", transpose);
-      return { button, transpose };
-    });
+
+    const transposeControl = createTransposeControl(
+      this.documentObject,
+      {
+        label: "Transpose score",
+        ariaLabel: "score",
+        onTranspose: actions.transpose,
+      },
+    );
+
+    this.globalTranspose.replaceChildren(
+      transposeControl.element,
+    );
+
     this.draftInput.addEventListener("input", edit);
     this.versionHistory.addEventListener("click", restoreVersion);
     this.copyDraftButton.addEventListener("click", copy);
@@ -417,9 +437,9 @@ export class DomWidgetView {
       this.cancelCommitButton.removeEventListener("click", closeCommit);
       if (versionCloseTimer) clearTimeout(versionCloseTimer);
       if (this.copyResetTimer) clearTimeout(this.copyResetTimer);
-      for (const { button, transpose } of transposeListeners) {
-        button.removeEventListener("click", transpose);
-      }
+
+      transposeControl.dispose();
+      this.globalTranspose.replaceChildren();
     };
   }
 

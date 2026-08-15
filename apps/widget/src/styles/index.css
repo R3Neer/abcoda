@@ -516,22 +516,98 @@ body {
   gap: 0.5rem;
 }
 
-.transpose-controls {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.4rem;
+.global-transpose {
+  justify-self: start;
 }
 
-.transpose-controls span {
-  margin-inline-end: 0.25rem;
+.voice-transpose {
+  grid-column: 2 / -1;
+  grid-row: 2;
+}
+
+.transpose-control {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.transpose-control-label {
   color: color-mix(in srgb, CanvasText 70%, transparent);
   font-size: 0.75rem;
   font-weight: 650;
+  white-space: nowrap;
 }
 
-.editor-actions button,
-.transpose-controls button {
+.transpose-stepper {
+  display: inline-grid;
+  grid-template-columns: 2.15rem minmax(3.7rem, auto) 2.15rem;
+  align-items: stretch;
+  overflow: hidden;
+  border: 1px solid var(--control-border);
+  border-radius: 999px;
+  background: var(--control-bg);
+}
+
+.transpose-step-button {
+  min-width: 0;
+  min-height: 2.15rem;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  color: CanvasText;
+  background: transparent;
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.transpose-step-value {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.12rem;
+  min-height: 2.15rem;
+  padding-inline: 0.35rem;
+  border-inline: 1px solid var(--control-border);
+  background: Canvas;
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.transpose-step-input {
+  width: 2rem;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  color: CanvasText;
+  background: transparent;
+  text-align: right;
+  font: inherit;
+  font-weight: 700;
+  appearance: textfield;
+}
+
+.transpose-step-input::-webkit-inner-spin-button,
+.transpose-step-input::-webkit-outer-spin-button {
+  margin: 0;
+  appearance: none;
+}
+
+.transpose-step-input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-radius: 0.2rem;
+}
+
+.transpose-control[aria-disabled="true"] .transpose-control-label,
+.transpose-control[aria-disabled="true"] .transpose-step-input {
+  opacity: 0.5;
+}
+
+.editor-actions button {
   min-height: 2.5rem;
   padding-inline: 0.75rem;
   border: 1px solid var(--control-border);
@@ -542,8 +618,7 @@ body {
   cursor: pointer;
 }
 
-.editor-actions button:disabled,
-.transpose-controls button:disabled {
+.editor-actions button:disabled {
   opacity: 0.5;
 }
 
@@ -591,6 +666,13 @@ body {
   flex: 1;
   min-width: 0;
   font-size: 0.8rem;
+}
+
+.transport-divider {
+  width: 1px;
+  height: 1.75rem;
+  margin-inline: 0.2rem;
+  background: color-mix(in srgb, CanvasText 22%, transparent);
 }
 
 .tempo input[type="range"] {

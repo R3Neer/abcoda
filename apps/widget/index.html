@@ -67,13 +67,7 @@
             <output id="copy-status" class="copy-status" aria-live="polite"></output>
           </div>
           <ul id="draft-diagnostics" class="draft-diagnostics" aria-live="polite"></ul>
-          <div class="transpose-controls" role="group" aria-label="Transpose draft">
-            <span>Transpose draft</span>
-            <button id="transpose-down-octave" type="button" data-semitones="-12">−12</button>
-            <button id="transpose-down" type="button" data-semitones="-1">−1</button>
-            <button id="transpose-up" type="button" data-semitones="1">+1</button>
-            <button id="transpose-up-octave" type="button" data-semitones="12">+12</button>
-          </div>
+          <div id="global-transpose" class="global-transpose"></div>
         </div>
       </details>
       <footer class="transport" aria-label="Playback controls">
@@ -88,7 +82,8 @@
           <svg class="control-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M17 1l4 4-4 4V6H7a4 4 0 0 0-4 4v1H1v-1a6 6 0 0 1 6-6h10V1zm6 12v1a6 6 0 0 1-6 6H7v3l-4-4 4-4v3h10a4 4 0 0 0 4-4v-1h2z" /></svg>
         </button>
         <div class="tempo" role="group" aria-label="Tempo">
-          <label for="tempo">Tempo</label>
+          <span class="transport-divider" aria-hidden="true"></span>
+          <label class="sr-only" for="tempo">Tempo</label>
           <input id="tempo" type="range" min="20" max="300" step="1" value="96" disabled aria-label="Tempo slider" />
           <input id="tempo-value" class="tempo-value" type="number" min="20" max="300" step="1" value="96" disabled aria-label="Tempo in BPM" inputmode="numeric" />
           <span aria-hidden="true">BPM</span>
