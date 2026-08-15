@@ -208,7 +208,7 @@ test("clicking an engraved note seeks and places the cursor immediately before i
   expect(Math.abs(cursorBox!.x + cursorBox!.width - noteBox!.x)).toBeLessThan(8);
 });
 
-test("a click near the edge of an engraved note keeps selection and cursor aligned", async ({ page }) => {
+test("a near-note click follows ABCJS selection instead of the previous timing span", async ({ page }) => {
   await page.goto("/?scenario=ready");
   const note = page.locator("#score .abcjs-note").nth(1);
   const noteBox = await note.boundingBox();
@@ -217,10 +217,13 @@ test("a click near the edge of an engraved note keeps selection and cursor align
     noteBox!.x + Math.min(2, noteBox!.width / 2),
     noteBox!.y + noteBox!.height / 2,
   );
-  await expect(note).toHaveClass(/abcjs-note_selected/);
+  const selected = page.locator("#score .abcjs-note_selected");
+  await expect(selected).toHaveCount(1);
+  const selectedBox = await selected.boundingBox();
   const cursorBox = await page.locator(".score-cursor").boundingBox();
+  expect(selectedBox).not.toBeNull();
   expect(cursorBox).not.toBeNull();
-  expect(Math.abs(cursorBox!.x + cursorBox!.width - noteBox!.x)).toBeLessThan(8);
+  expect(Math.abs(cursorBox!.x + cursorBox!.width - selectedBox!.x)).toBeLessThan(8);
 });
 
 test("the cursor returns to the first note when non-looping playback finishes", async ({ page }) => {
