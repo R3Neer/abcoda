@@ -45,7 +45,7 @@ export class DomWidgetView {
   private readonly rewindButton: HTMLButtonElement;
   private readonly loopButton: HTMLButtonElement;
   private readonly tempoInput: HTMLInputElement;
-  private readonly tempoValue: HTMLOutputElement;
+  private readonly tempoValue: HTMLInputElement;
   private readonly mixer: HTMLElement;
   private readonly voiceMix: HTMLElement;
   private readonly editor: HTMLDetailsElement;
@@ -130,6 +130,7 @@ export class DomWidgetView {
     this.rewindButton.disabled = !interactive;
     this.loopButton.disabled = !interactive;
     this.tempoInput.disabled = state.status === "configuring" || state.status === "transitioning";
+    this.tempoValue.disabled = state.status === "configuring" || state.status === "transitioning";
     const playing = (state.status === "ready" || state.status === "transitioning")
       && state.mode === "playing";
     this.playIcon.toggleAttribute("hidden", playing);
@@ -142,7 +143,7 @@ export class DomWidgetView {
     this.loopButton.setAttribute("aria-label", state.loop ? "Disable loop" : "Enable loop");
     this.loopButton.title = state.loop ? "Disable loop" : "Enable loop";
     this.tempoInput.value = String(state.tempo);
-    this.tempoValue.value = `${state.tempo} BPM`;
+    this.tempoValue.value = String(state.tempo);
     if (state.status === "failed") this.showError(state.message);
   }
 
@@ -267,16 +268,38 @@ export class DomWidgetView {
     const togglePlayback = () => actions.togglePlayback();
     const rewind = () => actions.rewind();
     const toggleLoop = () => actions.toggleLoop();
-    const setTempo = () => actions.setTempo(this.tempoInput.valueAsNumber);
+    const previewSliderTempo = () => {
+      this.tempoValue.value = this.tempoInput.value;
+    };
+    const previewTypedTempo = () => {
+      if (this.tempoValue.validity.valid && this.tempoValue.value !== "") {
+        this.tempoInput.value = this.tempoValue.value;
+      }
+    };
+    const setSliderTempo = () => actions.setTempo(this.tempoInput.valueAsNumber);
+    const setTypedTempo = () => {
+      if (!this.tempoValue.validity.valid || this.tempoValue.value === "") {
+        this.tempoValue.value = this.tempoInput.value;
+        return;
+      }
+      this.tempoInput.value = this.tempoValue.value;
+      actions.setTempo(this.tempoValue.valueAsNumber);
+    };
     this.playbackButton.addEventListener("click", togglePlayback);
     this.rewindButton.addEventListener("click", rewind);
     this.loopButton.addEventListener("click", toggleLoop);
-    this.tempoInput.addEventListener("change", setTempo);
+    this.tempoInput.addEventListener("input", previewSliderTempo);
+    this.tempoInput.addEventListener("change", setSliderTempo);
+    this.tempoValue.addEventListener("input", previewTypedTempo);
+    this.tempoValue.addEventListener("change", setTypedTempo);
     return () => {
       this.playbackButton.removeEventListener("click", togglePlayback);
       this.rewindButton.removeEventListener("click", rewind);
       this.loopButton.removeEventListener("click", toggleLoop);
-      this.tempoInput.removeEventListener("change", setTempo);
+      this.tempoInput.removeEventListener("input", previewSliderTempo);
+      this.tempoInput.removeEventListener("change", setSliderTempo);
+      this.tempoValue.removeEventListener("input", previewTypedTempo);
+      this.tempoValue.removeEventListener("change", setTypedTempo);
     };
   }
 

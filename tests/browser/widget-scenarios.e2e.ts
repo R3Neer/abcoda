@@ -56,20 +56,30 @@ test("playback controls adopt score tempo and remain operable without starting a
   const play = page.locator("#playback");
   const loop = page.locator("#loop");
   const tempo = page.locator("#tempo");
+  const tempoValue = page.locator("#tempo-value");
 
   await expect(play).toBeVisible();
   await expect(play).toBeEnabled();
   await expect(play).toHaveAttribute("aria-label", "Play");
   await expect(loop).toHaveAttribute("aria-label", "Enable loop");
-  await expect(page.locator("#tempo-value")).toHaveText("84 BPM");
+  await expect(tempoValue).toHaveValue("84");
   await loop.click();
   await expect(loop).toHaveAttribute("aria-pressed", "true");
   await expect(loop).toHaveAttribute("aria-label", "Disable loop");
   await expect(loop).toHaveCSS("background-color", "rgb(37, 99, 235)");
   await expect(loop).toHaveCSS("color", "rgb(255, 255, 255)");
+  await tempo.fill("109");
+  await expect(tempoValue).toHaveValue("109");
   await tempo.fill("110");
   await tempo.dispatchEvent("change");
-  await expect(page.locator("#tempo-value")).toHaveText("110 BPM");
+  await expect(tempoValue).toHaveValue("110");
+  await tempoValue.fill("126");
+  await expect(tempo).toHaveValue("126");
+  await tempoValue.dispatchEvent("change");
+  await expect(tempo).toHaveValue("126");
+  await tempoValue.fill("");
+  await tempoValue.dispatchEvent("change");
+  await expect(tempoValue).toHaveValue("126");
 });
 
 test("transport orders play before rewind", async ({ page }) => {
@@ -102,7 +112,7 @@ test("piano voices share a full grand-staff brace while unrelated voices do not"
 test("schema 1 presentation preferences survive the v2 widget boundary", async ({ page }) => {
   await page.goto("/?scenario=legacy");
   await expect(page.locator("#score-title")).toHaveText("Legacy presentation");
-  await expect(page.locator("#tempo-value")).toHaveText("112 BPM");
+  await expect(page.locator("#tempo-value")).toHaveValue("112");
   await expect(page.locator("#loop")).toHaveAttribute("aria-pressed", "true");
   await page.locator("#mixer summary").click();
   const rightHand = page.locator(".voice-mix-row").filter({ hasText: "RH" });
@@ -151,7 +161,7 @@ test("voice mixer keeps instrument and mute as independent local preferences", a
   await mute.click();
   await expect(leftHand.locator("button.voice-mute")).toHaveAttribute("aria-pressed", "true");
   await expect(leftHand.locator("button.voice-mute")).toHaveAttribute("aria-label", "Unmute LH");
-  await expect(page.locator("#tempo-value")).toHaveText("84 BPM");
+  await expect(page.locator("#tempo-value")).toHaveValue("84");
   await expect(page.locator("#playback")).toBeEnabled();
 });
 
