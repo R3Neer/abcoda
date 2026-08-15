@@ -16,8 +16,8 @@
 | CAP-07 | Tempo en vivo | partial | Tempo canónico inicial, ratio, carrera y control E2E sin audio | Rebuild abcjs audible y continuidad en navegador. |
 | CAP-08 | Instrumento y mute por voz | implemented-v2 | Estado tipado, carreras unitarias y Playwright móvil/escritorio | Falta audición humana de cambios en reproducción real. |
 | CAP-09 | Compatibilidad y rango instrumental | implemented-v2 | Catálogo de dominio y `tests/v2/instruments.test.ts` | Añadir avisos de tesitura a la UI. |
-| CAP-10 | Transposición de ABC, tonalidad y acordes | characterized | `tests/abc-edit.test.ts` | Operación canónica e inversa. |
-| CAP-11 | Percusión inmune a transposición tonal | characterized | lint, edit y score tests | Invariante de dominio v2. |
+| CAP-10 | Transposición de ABC, tonalidad y acordes | implemented-v2 | Operación de borrador revisable, adaptador abcjs y Playwright móvil/escritorio | Sustituir adaptador por operación canónica al ampliar el codec. |
+| CAP-11 | Percusión inmune a transposición tonal | implemented-v2 | Fixture mixto v2 conserva voz `K:none clef=perc` y sus notas | Añadir escenario visual mixto. |
 | CAP-12 | Editar, copiar, aplicar y restaurar | implemented-v2 | Borrador/último válido/original separados; carreras unitarias y E2E de diagnóstico/revisiones/restauración | Verificar portapapeles dentro del host MCP real. |
 | CAP-13 | Cursor y seek por compás | partial | Timeline neutral, matching por fuente/tiempo, cursor DOM y click-to-seek E2E móvil/escritorio | Movimiento durante audio real, reflow y touch explícito. |
 | CAP-14 | Tema del host y layout móvil | partial | Contexto neutral, temas/safe areas explícitos, sin mínimo rígido y E2E móvil/escritorio | Dimensiones declaradas del contenedor y matriz de hosts reales. |

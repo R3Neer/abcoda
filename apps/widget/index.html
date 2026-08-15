@@ -31,6 +31,13 @@
           <label for="abc-draft">ABC source</label>
           <textarea id="abc-draft" rows="12" spellcheck="false"></textarea>
           <ul id="draft-diagnostics" class="draft-diagnostics" aria-live="polite"></ul>
+          <div class="transpose-controls" role="group" aria-label="Transpose draft">
+            <span>Transpose draft</span>
+            <button id="transpose-down-octave" type="button" data-semitones="-12">−12</button>
+            <button id="transpose-down" type="button" data-semitones="-1">−1</button>
+            <button id="transpose-up" type="button" data-semitones="1">+1</button>
+            <button id="transpose-up-octave" type="button" data-semitones="12">+12</button>
+          </div>
           <div class="editor-actions">
             <button id="apply-draft" type="button">Apply</button>
             <button id="discard-draft" type="button">Last valid</button>

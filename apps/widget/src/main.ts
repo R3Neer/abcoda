@@ -1,5 +1,6 @@
 import "./styles/index.css";
 import { AbcjsEngraver } from "./adapters/abcjs/abcjs-engraver";
+import { AbcjsDraftTransformer } from "./adapters/abcjs/abcjs-draft-transformer";
 import { DomWidgetView } from "./adapters/dom/dom-widget-view";
 import { DomScoreCursor } from "./adapters/dom/dom-score-cursor";
 import { createHostBridge } from "./adapters/host/create-host-bridge";
@@ -60,6 +61,7 @@ const draft = new DraftSessionController(
   new LocalScoreEvaluator(),
   (state) => view.showDraft(state),
   (result) => { void controller.receive(result); },
+  new AbcjsDraftTransformer(),
 );
 const runtime = new WidgetRuntime(
   controller,
@@ -89,6 +91,7 @@ const unbindDraft = view.bindDraft({
   apply: () => { void draft.apply(); },
   restoreLastGood: () => draft.restoreLastGood(),
   restoreOriginal: () => draft.restoreOriginal(),
+  transpose: (semitones) => draft.transpose(semitones),
 });
 const unbindSeek = cursorView.bindSeek((x, y) => {
   const progress = cursor.seekPoint(x, y);

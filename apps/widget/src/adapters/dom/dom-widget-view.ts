@@ -25,6 +25,7 @@ export interface DraftActions {
   readonly apply: () => void;
   readonly restoreLastGood: () => void;
   readonly restoreOriginal: () => void;
+  readonly transpose: (semitones: number) => void;
 }
 
 export class DomWidgetView {
@@ -49,6 +50,7 @@ export class DomWidgetView {
   private readonly restoreOriginalButton: HTMLButtonElement;
   private readonly copyDraftButton: HTMLButtonElement;
   private readonly copyStatus: HTMLOutputElement;
+  private readonly transposeButtons: readonly HTMLButtonElement[];
 
   constructor(private readonly documentObject: Document = document) {
     this.scoreTarget = this.required("score");
@@ -71,6 +73,12 @@ export class DomWidgetView {
     this.restoreOriginalButton = this.required("restore-original");
     this.copyDraftButton = this.required("copy-draft");
     this.copyStatus = this.required("copy-status");
+    this.transposeButtons = [
+      "transpose-down-octave",
+      "transpose-down",
+      "transpose-up",
+      "transpose-up-octave",
+    ].map((id) => this.required<HTMLButtonElement>(id));
   }
 
   showScore(state: ScoreSessionState): void {
@@ -159,6 +167,7 @@ export class DomWidgetView {
       && state.lastGood.revision === state.original.revision
     );
     this.copyDraftButton.disabled = busy;
+    for (const button of this.transposeButtons) button.disabled = busy;
     this.draftDiagnostics.replaceChildren(...(
       state.status === "invalid" ? state.diagnostics.map((diagnostic) => {
         const item = this.documentObject.createElement("li");
@@ -221,6 +230,11 @@ export class DomWidgetView {
     const restoreLastGood = () => actions.restoreLastGood();
     const restoreOriginal = () => actions.restoreOriginal();
     const copy = () => { void this.copyDraft(); };
+    const transposeListeners = this.transposeButtons.map((button) => {
+      const transpose = () => actions.transpose(Number(button.dataset.semitones));
+      button.addEventListener("click", transpose);
+      return { button, transpose };
+    });
     this.draftInput.addEventListener("input", edit);
     this.applyDraftButton.addEventListener("click", apply);
     this.discardDraftButton.addEventListener("click", restoreLastGood);
@@ -232,6 +246,9 @@ export class DomWidgetView {
       this.discardDraftButton.removeEventListener("click", restoreLastGood);
       this.restoreOriginalButton.removeEventListener("click", restoreOriginal);
       this.copyDraftButton.removeEventListener("click", copy);
+      for (const { button, transpose } of transposeListeners) {
+        button.removeEventListener("click", transpose);
+      }
     };
   }
 

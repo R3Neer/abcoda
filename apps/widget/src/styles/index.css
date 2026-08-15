@@ -244,7 +244,22 @@ body {
   gap: 0.5rem;
 }
 
-.editor-actions button {
+.transpose-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.transpose-controls span {
+  margin-inline-end: 0.25rem;
+  color: color-mix(in srgb, CanvasText 70%, transparent);
+  font-size: 0.75rem;
+  font-weight: 650;
+}
+
+.editor-actions button,
+.transpose-controls button {
   min-height: 2.5rem;
   padding-inline: 0.75rem;
   border: 1px solid color-mix(in srgb, CanvasText 20%, transparent);
@@ -254,7 +269,8 @@ body {
   font: inherit;
 }
 
-.editor-actions button:disabled {
+.editor-actions button:disabled,
+.transpose-controls button:disabled {
   opacity: 0.5;
 }
 

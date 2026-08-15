@@ -167,3 +167,18 @@ test("copy ABC is an explicit user action with visible feedback", async ({ page,
   await expect(page.locator("#copy-status")).toHaveText("Copied");
   expect((await page.evaluate(() => navigator.clipboard.readText())).replace(/\r\n/g, "\n")).toBe(expected);
 });
+
+test("transposition is reviewable before it creates a new score revision", async ({ page }) => {
+  await page.goto("/?scenario=ready");
+  await page.locator("#editor summary").click();
+  await page.locator("#transpose-up").click();
+
+  await expect(page.locator("#editor-state")).toHaveText("Unsaved changes");
+  await expect(page.locator("#status")).toHaveText("Revision 1 ready");
+  await expect(page.locator("#abc-draft")).toHaveValue(/K:(?:Db|C#)/);
+
+  await page.locator("#apply-draft").click();
+  await expect(page.locator("#status")).toHaveText("Revision 2 ready");
+  await expect(page.locator("#editor-state")).toHaveText("Revision 2 saved");
+  await expect(page.locator("#score")).toContainText("First architecture v2 vertical");
+});
