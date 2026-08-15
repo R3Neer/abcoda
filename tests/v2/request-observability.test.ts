@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  observeMcpTool,
+  startMcpToolObservation,
   type McpToolObservation,
 } from "../../apps/worker/src/mcp/request-observability";
 
@@ -13,22 +13,19 @@ describe("request-scoped MCP observability", () => {
   it("correlates a completed tool result without copying its payload into the event", () => {
     const observations: McpToolObservation[] = [];
     const sensitiveMarker = "X:PRIVATE-MUSIC-MARKER";
-
-    const result = observeMcpTool(
+    const observation = startMcpToolObservation(
       {
         requestId: "request-123",
         emit: (event) => observations.push(event),
         now: clock(100, 125),
       },
       "validate_score",
-      () => ({
-        outcome: "success",
-        result: {
-          structuredContent: { source: sensitiveMarker },
-          content: [{ type: "text" as const, text: sensitiveMarker }],
-        },
-      }),
     );
+
+    const result = observation.complete("success", {
+      structuredContent: { source: sensitiveMarker },
+      content: [{ type: "text" as const, text: sensitiveMarker }],
+    });
 
     expect(result._meta).toEqual({ "abcoda/requestId": "request-123" });
     expect(observations).toEqual([{
@@ -43,23 +40,19 @@ describe("request-scoped MCP observability", () => {
 
   it("emits one failed event and still correlates the mapped error result", () => {
     const observations: McpToolObservation[] = [];
-
-    const result = observeMcpTool(
+    const observation = startMcpToolObservation(
       {
         requestId: "request-failed",
         emit: (event) => observations.push(event),
         now: clock(8, 13),
       },
       "prepare_composition",
-      () => ({
-        outcome: "failure",
-        failed: true,
-        result: {
-          isError: true,
-          content: [{ type: "text" as const, text: "private input-derived detail" }],
-        },
-      }),
     );
+
+    const result = observation.complete("failure", {
+      isError: true,
+      content: [{ type: "text" as const, text: "private input-derived detail" }],
+    }, true);
 
     expect(result._meta).toEqual({ "abcoda/requestId": "request-failed" });
     expect(observations).toEqual([{
