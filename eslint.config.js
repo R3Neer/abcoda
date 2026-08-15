@@ -5,6 +5,8 @@ const v2Files = [
   "apps/**/*.ts",
   "tests/v2/**/*.ts",
   "tests/worker/**/*.ts",
+  "tests/browser/**/*.ts",
+  "playwright.config.ts",
 ];
 
 export default tseslint.config(

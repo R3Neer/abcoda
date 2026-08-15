@@ -20,14 +20,16 @@
     "dev:v2-widget": "vite --config apps/widget/vite.config.ts",
     "dev:worker": "npm run build:widget && wrangler dev",
     "deploy:worker": "npm run build:widget && wrangler deploy",
-    "lint": "eslint packages apps tests/v2 tests/worker",
+    "lint": "eslint packages apps tests/v2 tests/worker tests/browser playwright.config.ts",
     "start": "node dist/server/server/index.js",
     "test": "vitest run",
     "test:v2-worker": "vitest run --config apps/worker/vitest.config.ts",
+    "test:browser": "playwright test",
     "test:watch": "vitest",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.server.json --noEmit && tsc -p tsconfig.test.json --noEmit && tsc -p tsconfig.worker.json --noEmit && npm run typecheck:v2",
     "typecheck:v2": "tsc -p packages/domain/tsconfig.json --noEmit && tsc -p tsconfig.v2.json --noEmit",
-    "check": "npm run lint && npm run typecheck && npm test && npm run build:v2-widget && npm run test:v2-worker && npm run build && npm run build:v2-worker && npm run build:worker"
+    "check": "npm run lint && npm run typecheck && npm test && npm run build:v2-widget && npm run test:v2-worker && npm run build && npm run build:v2-worker && npm run build:worker",
+    "check:browser": "npm run check && npm run test:browser"
   },
   "dependencies": {
     "@modelcontextprotocol/ext-apps": "^1.0.1",
@@ -37,6 +39,7 @@
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.21.3",
+    "@playwright/test": "^1.62.1",
     "@types/node": "^24.3.0",
     "eslint": "^10.8.1",
     "tsx": "^4.20.5",

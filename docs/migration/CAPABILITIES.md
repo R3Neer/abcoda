@@ -22,7 +22,7 @@
 | CAP-13 | Cursor y seek por compás | partial | `tests/cursor.test.ts` y transport | Reloj, reflow y click/touch en navegador. |
 | CAP-14 | Tema del host y layout móvil | partial | código y build del widget | Matriz visual y capacidades de host. |
 | CAP-15 | Transporte siempre accesible | partial | markup y CSS | Screenshots y teclado en viewports límite. |
-| CAP-16 | Demo independiente | partial | `tests/standalone.test.ts`, build | Host simulado oficial v2. |
+| CAP-16 | Demo independiente | implemented | Host simulado v2 y ocho recorridos Playwright móvil/escritorio | Paridad funcional al completar controles interactivos. |
 | CAP-17 | Operación stateless | characterized | inspección de Worker/servidor | Pruebas de aislamiento en runtime. |
 | CAP-18 | Claves, transposición sonora y claves de octava | characterized | tests añadidos en `ae36154` | Modelo canónico y pruebas browser/audio. |
 
@@ -32,14 +32,14 @@
 |---|---|---|---|
 | FIX-01 | CORS permisivo y sin validación Origin/Host | implemented | Worker runtime rechaza origen/host no autorizado; falta preview real. |
 | FIX-02 | Tunebooks múltiples mezclan voces y render | implemented | v2 devuelve diagnóstico específico y no crea snapshot. |
-| FIX-03 | Resultados asíncronos obsoletos | open | Matriz de carreras por revisión y `AbortSignal`. |
+| FIX-03 | Resultados asíncronos obsoletos | implemented | Unit tests de revisión/cancelación y escenario browser `race` termina en la revisión más nueva. |
 | FIX-04 | `main.ts` concentra responsabilidades | open | Límites de imports y store/effects separados. |
-| FIX-05 | Sin pruebas reales Worker/browser | partial | Suite workerd incorporada; falta Playwright en CI. |
+| FIX-05 | Sin pruebas reales Worker/browser | implemented | Suites workerd y Playwright móvil/escritorio forman parte de `check:browser` en CI. |
 | FIX-06 | Dominio, URI y versiones manuales | partial | Manifiesto v2 compartido por health y MCP; falta artifact hash del recurso UI. |
 | FIX-07 | abcjs completo importado en servidor | implemented | Bundle Worker v2 comprobado sin `abcjs`, `SynthController` ni `renderAbc`. |
 | FIX-08 | Sin lint/no-floating-promises | implemented | ESLint tipado forma parte de `npm run check`. |
-| FIX-09 | Errores UI dispersos | open | Estados de error y recuperación probados. |
-| FIX-10 | UX evaluada tarde | open | Laboratorio, escenarios y gates visuales por corte. |
+| FIX-09 | Errores UI dispersos | partial | Estados inválido, malformed y fallo de grabado centralizados; falta recuperación interactiva. |
+| FIX-10 | UX evaluada tarde | partial | Laboratorio y escenarios E2E por corte; faltan snapshots y pruebas de interacción/audio. |
 
 ## Regla de mantenimiento
 
