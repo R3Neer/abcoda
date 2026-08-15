@@ -52,7 +52,14 @@ export class PlaybackSessionController {
   }
 
   captureContinuity(): PlaybackContinuity | undefined {
-    if (!this.engine || this.state.status !== "ready") return undefined;
+    if (
+      !this.engine
+      || (
+        this.state.status !== "ready"
+        && this.state.status !== "transitioning"
+      )
+    ) return undefined;
+
     return {
       progress: clampProgress(this.engine.progress()),
       playing: this.state.mode === "playing",
@@ -115,7 +122,14 @@ export class PlaybackSessionController {
   }
 
   seek(progress: number): void {
-    if (!this.engine || this.state.status !== "ready") return;
+    if (
+      !this.engine
+      || (
+        this.state.status !== "ready"
+        && this.state.status !== "transitioning"
+      )
+    ) return;
+
     this.engine.seek(clampProgress(progress));
   }
 

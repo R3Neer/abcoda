@@ -129,6 +129,115 @@ describe("PlaybackSessionController", () => {
     expect(controller.snapshot()).toMatchObject({ status: "ready", tempo: 84 });
   });
 
+  it("resumes after pause even when loop changes while paused", async () => {
+    const {
+      controller,
+      engine,
+      spies,
+    } = setup();
+
+    await controller.configure(engine, 100);
+
+    await controller.togglePlayback();
+    await controller.togglePlayback();
+
+    controller.setLoop(true);
+
+    expect(spies.play).toHaveBeenCalledOnce();
+    expect(spies.pause).toHaveBeenCalledOnce();
+    expect(spies.setLoop).toHaveBeenLastCalledWith(true);
+
+    await controller.togglePlayback();
+
+    expect(spies.play).toHaveBeenCalledTimes(2);
+    expect(controller.snapshot()).toMatchObject({
+      status: "ready",
+      mode: "playing",
+      loop: true,
+    });
+  });
+
+  it("preserves continuity and accepts score seeks while play is starting", async () => {
+    const {
+      controller,
+      engine,
+      spies,
+    } = setup();
+
+    await controller.configure(engine, 100);
+
+    let release!: () => void;
+
+    spies.play.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        release = resolve;
+      }),
+    );
+
+    const starting =
+      controller.togglePlayback();
+
+    expect(
+      controller.captureContinuity(),
+    ).toEqual({
+      progress: 0.375,
+      playing: true,
+    });
+
+    controller.seek(0.62);
+
+    expect(spies.seek).toHaveBeenLastCalledWith(0.62);
+
+    release();
+    await starting;
+
+    expect(controller.snapshot()).toMatchObject({
+      status: "ready",
+      mode: "playing",
+    });
+  });
+
+  it("accepts a score seek while tempo is being rebuilt", async () => {
+    const {
+      controller,
+      engine,
+      spies,
+    } = setup();
+
+    await controller.configure(engine, 100);
+
+    let release!: () => void;
+
+    spies.setTempoRatio.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        release = resolve;
+      }),
+    );
+
+    const changingTempo =
+      controller.setTempo(120);
+
+    controller.seek(0.71);
+
+    expect(spies.seek).toHaveBeenLastCalledWith(0.71);
+
+    expect(
+      controller.captureContinuity(),
+    ).toEqual({
+      progress: 0.375,
+      playing: false,
+    });
+
+    release();
+    await changingTempo;
+
+    expect(controller.snapshot()).toMatchObject({
+      status: "ready",
+      mode: "paused",
+      tempo: 120,
+    });
+  });
+
   it("turns engine failures into explicit state", async () => {
     const { controller, engine, spies } = setup();
     spies.setTempoRatio.mockRejectedValue(new Error("decode failed"));

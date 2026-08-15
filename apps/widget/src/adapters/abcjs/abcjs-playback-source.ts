@@ -32,11 +32,28 @@ export class AbcjsPlaybackSource implements VoiceMixPlaybackSource {
 
   async create(mix: VoiceMixSnapshot): Promise<AbcjsPlaybackEngine> {
     const synth = new ABCJS.synth.SynthController();
+    let callbacksEnabled = true;
+
     synth.load(this.audioTarget, {
-      onStart: this.callbacks.onPlaybackStarted,
-      onFinished: this.callbacks.onPlaybackFinished,
-      onEvent: (event) => this.callbacks.onPlaybackEvent(callbackTiming(event)),
+      onStart: () => {
+        if (callbacksEnabled) {
+          this.callbacks.onPlaybackStarted();
+        }
+      },
+      onFinished: () => {
+        if (callbacksEnabled) {
+          this.callbacks.onPlaybackFinished();
+        }
+      },
+      onEvent: (event) => {
+        if (callbacksEnabled) {
+          this.callbacks.onPlaybackEvent(
+            callbackTiming(event),
+          );
+        }
+      },
     }, hiddenSynthOptions);
+
     const playback = new AbcjsPlaybackEngine(
       synth as unknown as AbcjsSynthController,
       tuneWithInstrumentPrograms(this.tune, mix),
@@ -48,14 +65,29 @@ export class AbcjsPlaybackSource implements VoiceMixPlaybackSource {
       },
       async () => {
         const context = ABCJS.synth.activeAudioContext();
-        if (context.state !== "running") await context.resume();
+
         if (context.state !== "running") {
-          throw new Error("Audio is blocked by the browser. Press Play again after enabling sound.");
+          await context.resume();
+        }
+
+        if (context.state !== "running") {
+          throw new Error(
+            "Audio is blocked by the browser. Press Play again after enabling sound.",
+          );
         }
       },
+      () => {
+        callbacksEnabled = false;
+      },
     );
-    await playback.initialize();
-    return playback;
+
+    try {
+      await playback.initialize();
+      return playback;
+    } catch (error) {
+      callbacksEnabled = false;
+      throw error;
+    }
   }
 }
 
