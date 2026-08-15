@@ -16,9 +16,9 @@ Los controladores especializados siguen siendo propietarios de su estado local:
 
 El estado que **relaciona** varios de esos subsistemas debe pertenecer a un coordinador explícito. `main.ts` debe limitarse a crear adaptadores, construir el coordinador, enlazar eventos DOM y hacer teardown.
 
-### Actual
+### Actual de partida
 
-`main.ts` contiene y muta directamente:
+`main.ts` contenía y mutaba directamente:
 
 ```text
 cursorBaseTempo
@@ -31,9 +31,9 @@ reflowTimer
 observedScoreWidth
 ```
 
-Además, callbacks de score, playback, mix, engraver, host y ResizeObserver se llaman mutuamente mediante closures sobre esas variables.
+Además, callbacks de score, playback, mix, engraver, host y ResizeObserver se llamaban mutuamente mediante closures sobre esas variables.
 
-No es un monolito comparable al legacy, pero sí existe un **segundo store implícito** en el composition root. El problema no es el número de líneas sino que la propiedad de relaciones importantes no puede probarse sin arrancar todo `main.ts`.
+No era un monolito comparable al legacy, pero sí existía un **segundo store implícito** en el composition root. El problema no era el número de líneas sino que la propiedad de relaciones importantes no podía probarse sin arrancar todo `main.ts`.
 
 ## 2. Decisión de diseño
 
@@ -53,7 +53,6 @@ classDiagram
       -observedScoreWidth
       -reflowTimer
       +receiveHostResult(result)
-      +applyHostContext(context)
       +viewportChanged(width)
       +togglePlayback()
       +rewind()
@@ -88,7 +87,9 @@ classDiagram
 
 ## 3. Construcción sin dependencia de DOM/abcjs
 
-El coordinador vive en `apps/widget/src/application/`. No importa `DomWidgetView`, `AbcjsEngraver`, `document`, `ResizeObserver` ni `window`.
+El coordinador vive en `apps/widget/src/application/`. No importa `DomWidgetView`, `AbcjsEngraver`, `ResizeObserver`, `window` ni el **`document` global del navegador**. Sí puede y debe acceder a `snapshot.document`, que es el documento musical del contrato y no una API DOM.
+
+La independencia se comprueba buscando dependencias tecnológicas concretas o accesos al global del navegador (`window.*`, `globalThis.document`, `document.querySelector`, `document.body`, etc.), nunca prohibiendo la cadena léxica `document` en cualquier contexto.
 
 Recibe puertos estructurales:
 
@@ -111,16 +112,18 @@ Y dependencias ya creadas o factories puras cuando existe circularidad de callba
 
 ### Construcción elegida
 
-El coordinador construirá internamente los controladores de aplicación a partir de:
+El coordinador construye internamente los controladores de aplicación a partir de:
 
 - `view`;
 - `cursorView`;
-- `engraverFactory(callbacks)`;
+- `createEngraver(callbacks)`;
 - `hostBridge`;
 - `draftEvaluator`;
 - `draftTransformer`;
+- `getViewportWidth`;
 - `initialViewportWidth`;
-- opcionalmente funciones `setTimer/clearTimer` para pruebas deterministas.
+- `presentVoiceRanges`, como puerto de presentación;
+- opcionalmente un `SessionTimerDriver` para pruebas deterministas.
 
 El factory de engraver mantiene abcjs fuera de `application`: `main.ts` pasa una closure que instancia `AbcjsEngraver` usando los nodos DOM ya existentes.
 
@@ -156,7 +159,7 @@ sequenceDiagram
 El `ResizeObserver` permanece en `main.ts` porque es una API DOM. Solo observa y pasa el ancho:
 
 ```ts
-coordinator.viewportChanged(width)
+session.viewportChanged(width)
 ```
 
 Toda la política queda dentro del coordinador:
@@ -173,7 +176,7 @@ Toda la política queda dentro del coordinador:
 
 ## 6. Acciones de UI
 
-El coordinador expone métodos finos que delegan al propietario correcto. Ejemplos:
+El coordinador expone métodos finos que delegan al propietario correcto:
 
 ```text
 togglePlayback -> PlaybackSessionController
@@ -221,7 +224,21 @@ Esto permite que `main.ts` haga bindings declarativos sin conocer relaciones int
 - móvil/escritorio;
 - host standalone y MCP Apps.
 
-## 9. Auditoría final
+## 9. Historial del bucle de revisión
+
+### Iteración 1
+
+El primer gate no alcanzó comportamiento: el arnés nuevo incumplía reglas estrictas de lint (`require-await`, métodos no ligados y parámetros no usados). Se clasificó como fallo de implementación de pruebas y se corrigió sin cambiar el diseño.
+
+### Iteración 2
+
+TypeScript detectó que el fixture inventaba `durationMs` en `ScoreTimingEvent`. Se corrigió el fixture para usar la forma real (`timeMs`, `x`, `y`, `height`, `line`, `measure`, `sourceOffsets`). Fallo de implementación de prueba.
+
+### Iteración 3 · vuelta al plan
+
+La prueba arquitectónica prohibía literalmente `document.` y por ello rechazó `snapshot.document`. Esa regla confundía el documento musical con el global DOM. Se vuelve al diseño de §3 y se redefine la restricción correctamente: la capa application no usa el **global DOM**, pero naturalmente sí maneja objetos musicales llamados `document`.
+
+## 10. Auditoría final
 
 Se considerará ARCH-02 cerrado si:
 
@@ -229,6 +246,7 @@ Se considerará ARCH-02 cerrado si:
 - no contiene `setTimeout` de reflow;
 - no calcula rangos, continuidad, tempo base o adopción de mix;
 - `WidgetSessionCoordinator` no importa DOM, abcjs ni adaptadores concretos;
+- no accede a globals DOM aunque pueda manejar `snapshot.document`;
 - cada controlador especializado sigue siendo dueño de su estado;
 - el coordinador solo posee estado transversal identificado en §1;
 - las pruebas permiten verificar esas relaciones sin arrancar DOM;
