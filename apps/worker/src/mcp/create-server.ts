@@ -4,18 +4,18 @@ import {
   registerAppTool,
 } from "@modelcontextprotocol/ext-apps/server";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { CanonicalAbcCodec } from "../../../../packages/abc-codec/src/index";
+import { CanonicalAbcCodec } from "@abcoda/abc-codec";
 import {
   abcodaComposerInstructions,
   buildCompositionPlan,
   compositionBriefSchema,
   compositionPlanOutputSchema,
-} from "../../../../packages/composition/src/index";
+} from "@abcoda/composition";
 import {
   EvaluateScore,
   PrepareComposition,
   PresentScore,
-} from "../../../../packages/application/src/index";
+} from "@abcoda/application";
 import {
   evaluateScoreRequestSchema,
   evaluateScoreResultSchema,
@@ -26,14 +26,14 @@ import {
   type ScoreSnapshotDto,
   versions,
   widgetResourceUri,
-} from "../../../../packages/contracts/src/index";
+} from "@abcoda/contracts";
 import {
   asQuarterNoteBpm,
   asRevisionId,
   asTuneId,
   asVoiceId,
   type ScoreSnapshot,
-} from "../../../../packages/domain/src/index";
+} from "@abcoda/domain";
 import type { WidgetArtifact } from "../assets/widget-artifact";
 
 export type WidgetLoader = () => Promise<WidgetArtifact>;

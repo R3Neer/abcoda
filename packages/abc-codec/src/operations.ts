@@ -3,17 +3,17 @@ import type {
   PlaybackProfile,
   ScoreDocument,
   VoiceId,
-} from "../../domain/src/index";
+} from "@abcoda/domain";
 import type {
   ApplyScoreOperationCommand,
   ScoreOperationExecutor,
-} from "../../application/src/index";
+} from "@abcoda/application";
 import {
   asVoiceId,
   instrumentDefinition,
   isInstrumentCompatible,
   type InstrumentId,
-} from "../../domain/src/index";
+} from "@abcoda/domain";
 import { parseAbc } from "./parser";
 import { validateScore } from "./validation";
 

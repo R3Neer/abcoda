@@ -2,7 +2,7 @@ import ABCJS from "abcjs";
 import {
   classifyInstrumentPitch,
   instrumentDefinition,
-} from "../../../../../packages/domain/src/index";
+} from "@abcoda/domain";
 import type {
   VoiceMixPlaybackSource,
   VoiceMixSnapshot,

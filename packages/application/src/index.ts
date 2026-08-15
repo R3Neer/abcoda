@@ -6,8 +6,8 @@ import type {
   ScoreDocument,
   ScoreOperation,
   ScoreSnapshot,
-} from "../../domain/src/index";
-import { asRevisionId } from "../../domain/src/index";
+} from "@abcoda/domain";
+import { asRevisionId } from "@abcoda/domain";
 
 export interface ScoreCodec {
   decode(source: string): DecodeScoreResult;

@@ -3,5 +3,9 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "exports": "./src/index.ts"
+  "exports": "./src/index.ts",
+  "dependencies": {
+    "@abcoda/application": "0.0.0",
+    "@abcoda/domain": "0.0.0"
+  }
 }

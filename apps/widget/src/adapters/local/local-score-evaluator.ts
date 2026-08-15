@@ -1,6 +1,6 @@
-import { CanonicalAbcCodec } from "../../../../../packages/abc-codec/src/index";
-import { EvaluateScore } from "../../../../../packages/application/src/index";
-import { evaluateScoreResultSchema } from "../../../../../packages/contracts/src/index";
+import { CanonicalAbcCodec } from "@abcoda/abc-codec";
+import { EvaluateScore } from "@abcoda/application";
+import { evaluateScoreResultSchema } from "@abcoda/contracts";
 import type { DraftEvaluator } from "../../application/draft-session";
 
 export class LocalScoreEvaluator implements DraftEvaluator {

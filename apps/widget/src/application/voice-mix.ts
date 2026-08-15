@@ -3,7 +3,7 @@ import {
   isInstrumentCompatible,
   type InstrumentId,
   type VoiceKind,
-} from "../../../../packages/domain/src/index";
+} from "@abcoda/domain";
 import type { PlaybackEngine } from "./playback-session";
 
 export interface MixableVoice {

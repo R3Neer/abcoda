@@ -1,7 +1,7 @@
 import {
   createBuildManifest,
   type BuildManifest,
-} from "../../../../packages/contracts/src/index";
+} from "@abcoda/contracts";
 
 export interface WidgetArtifact {
   readonly html: string;

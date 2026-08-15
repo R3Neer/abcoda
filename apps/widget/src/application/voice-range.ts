@@ -1,7 +1,7 @@
 import {
   assessInstrumentPitches,
   type InstrumentRangeStatus,
-} from "../../../../packages/domain/src/index";
+} from "@abcoda/domain";
 import type { VoiceMixSnapshot } from "./voice-mix";
 
 export type VoiceRangeStatus = InstrumentRangeStatus | "not_applicable";

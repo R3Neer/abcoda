@@ -2,7 +2,7 @@ import {
   evaluateScoreResultSchema,
   type ScorePresentationDto,
   type ScoreSnapshotDto,
-} from "../../../../packages/contracts/src/index";
+} from "@abcoda/contracts";
 import type { ScoreTimeline } from "./score-timeline";
 import type { VoiceMixPlaybackSource } from "./voice-mix";
 

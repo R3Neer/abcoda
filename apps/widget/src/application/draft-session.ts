@@ -1,7 +1,7 @@
 import type {
   EvaluateScoreResultDto,
   ScoreSnapshotDto,
-} from "../../../../packages/contracts/src/index";
+} from "@abcoda/contracts";
 
 type ScoreDiagnosticDto = NonNullable<EvaluateScoreResultDto["diagnostics"]>[number];
 

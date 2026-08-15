@@ -4,7 +4,7 @@ import type {
   ScoreDocument,
   SourcePosition,
   SourceRange,
-} from "../../domain/src/index";
+} from "@abcoda/domain";
 import { addDuration } from "./rational";
 
 function equal(left: RationalDuration, right: RationalDuration): boolean {

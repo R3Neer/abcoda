@@ -1,5 +1,5 @@
-import type { ScoreCodec } from "../../application/src/index";
-import type { DecodeScoreResult, ScoreDocument } from "../../domain/src/index";
+import type { ScoreCodec } from "@abcoda/application";
+import type { DecodeScoreResult, ScoreDocument } from "@abcoda/domain";
 import { parseAbc } from "./parser";
 
 export { parseAbc } from "./parser";

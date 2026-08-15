@@ -19,7 +19,7 @@ import { LocalScoreEvaluator } from "./adapters/local/local-score-evaluator";
 import {
   evaluateScoreResultSchema,
   type ScorePresentationDto,
-} from "../../../packages/contracts/src/index";
+} from "@abcoda/contracts";
 import { assessVoiceRanges } from "./application/voice-range";
 import { scoreStaffWidth } from "./application/score-layout";
 

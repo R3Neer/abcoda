@@ -2,5 +2,13 @@
   "name": "@abcoda/widget",
   "version": "0.0.0",
   "private": true,
-  "type": "module"
+  "type": "module",
+  "dependencies": {
+    "@abcoda/abc-codec": "0.0.0",
+    "@abcoda/application": "0.0.0",
+    "@abcoda/contracts": "0.0.0",
+    "@abcoda/domain": "0.0.0",
+    "@modelcontextprotocol/ext-apps": "^1.0.1",
+    "abcjs": "^6.5.2"
+  }
 }

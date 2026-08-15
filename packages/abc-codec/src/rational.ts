@@ -1,4 +1,4 @@
-import type { RationalDuration } from "../../domain/src/index";
+import type { RationalDuration } from "@abcoda/domain";
 
 function greatestCommonDivisor(left: number, right: number): number {
   let a = Math.abs(left);

@@ -7,11 +7,11 @@ import type { VoiceRangeAssessment } from "../../application/voice-range";
 import type {
   ScorePresentationDto,
   ScoreSnapshotDto,
-} from "../../../../../packages/contracts/src/index";
+} from "@abcoda/contracts";
 import {
   instrumentsForVoice,
   type InstrumentId,
-} from "../../../../../packages/domain/src/index";
+} from "@abcoda/domain";
 import {
   createTransposeControl,
 } from "../../components/transpose-control";

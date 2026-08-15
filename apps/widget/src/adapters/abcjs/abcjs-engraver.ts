@@ -7,10 +7,10 @@ import type {
 import type {
   ScorePresentationDto,
   ScoreSnapshotDto,
-} from "../../../../../packages/contracts/src/index";
+} from "@abcoda/contracts";
 import {
   classifyInstrumentPitch,
-} from "../../../../../packages/domain/src/index";
+} from "@abcoda/domain";
 import { timelineForTune } from "./abcjs-timeline";
 import type { PlaybackTimingCallback } from "../../application/score-cursor";
 import { AbcjsPlaybackSource } from "./abcjs-playback-source";

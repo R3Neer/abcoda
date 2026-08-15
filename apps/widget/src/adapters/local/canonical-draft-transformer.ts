@@ -1,7 +1,7 @@
 import {
   transposeAbc,
   transposeVoiceAbc,
-} from "../../../../../packages/abc-codec/src/index";
+} from "@abcoda/abc-codec";
 import type {
   DraftTransformer,
 } from "../../application/draft-session";

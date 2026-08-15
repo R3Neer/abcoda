@@ -15,7 +15,7 @@ import {
   type SourcePosition,
   type SourceRange,
   type VoiceId,
-} from "../../domain/src/index";
+} from "@abcoda/domain";
 import { addDuration, durationFromSuffix, multiplyDuration, rational } from "./rational";
 import { validateScore } from "./validation";
 
