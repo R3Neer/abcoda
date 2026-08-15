@@ -102,7 +102,7 @@ describe("architecture v2 dependency boundaries", () => {
       for (const specifier of imports(file)) {
         const dependency = internalPackage(file, specifier);
         if (dependency) {
-          dependencies.add(dependency);
+          if (dependency !== packageName) dependencies.add(dependency);
           if (dependency !== packageName && !allowedInternal.includes(dependency)) {
             violations.push(`${packageName} -> ${dependency} (${path.relative(repositoryRoot, file)})`);
           }
