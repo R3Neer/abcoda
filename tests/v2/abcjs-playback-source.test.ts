@@ -15,7 +15,7 @@ const mix: VoiceMixSnapshot = {
 };
 
 describe("abcjs playback source mapping", () => {
-  it("injects MIDI programs before abcjs resolves soundfont samples", () => {
+  it("injects MIDI programs before abcjs resolves soundfont samples without mutating the source tracks", () => {
     const audio = {
       tracks: [
         [{ cmd: "program", instrument: 0 }, { cmd: "note", instrument: 0, pitch: 60 }],
@@ -33,6 +33,8 @@ describe("abcjs playback source mapping", () => {
     ));
     expect(programs[0]).toEqual([40, 40]);
     expect(programs[1]).toEqual([128, 128]);
+    expect(audio.tracks[0]?.map((event) => "instrument" in event ? event.instrument : undefined)).toEqual([0, 0]);
+    expect(audio.tracks[1]?.map((event) => "instrument" in event ? event.instrument : undefined)).toEqual([0, 0]);
   });
 
   it("maps soundfont ids and mute independently for each voice", () => {
@@ -100,6 +102,9 @@ describe("abcjs playback source mapping", () => {
     const notes = configured.tracks[0]?.filter(
       (event): event is ABCJS.AudioTrackNoteItem => event.cmd === "note",
     ) ?? [];
+    const sourceNotes = audio.tracks[0]?.filter(
+      (event): event is ABCJS.AudioTrackNoteItem => event.cmd === "note",
+    ) ?? [];
 
     expect(notes).toHaveLength(3);
     expect(notes.map((event) => event.pitch)).toEqual([84, 86, 84]);
@@ -111,5 +116,8 @@ describe("abcjs playback source mapping", () => {
       startChar: 14,
       endChar: 15,
     });
+    expect(sourceNotes.map((event) => event.pitch)).toEqual([84, 86, 88]);
+    expect(sourceNotes.map((event) => event.volume)).toEqual([80, 80, 80]);
+    expect(sourceNotes.map((event) => event.instrument)).toEqual([0, 0, 0]);
   });
 });
