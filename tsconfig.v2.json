@@ -2,12 +2,19 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "types": ["node", "vite/client", "vitest/globals"],
+    "types": [
+      "node",
+      "vite/client",
+      "vitest/globals",
+      "@cloudflare/vitest-pool-workers/types"
+    ],
     "noEmit": true
   },
   "include": [
     "packages/**/*.ts",
+    "apps/worker/**/*.ts",
     "apps/widget/**/*.ts",
-    "tests/v2/**/*.ts"
+    "tests/v2/**/*.ts",
+    "tests/worker/**/*.ts"
   ]
 }

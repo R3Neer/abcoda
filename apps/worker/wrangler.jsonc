@@ -1,0 +1,19 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "abcoda-v2-preview",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-15",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "../../dist/v2-widget",
+    "binding": "ASSETS",
+    "run_worker_first": ["/mcp", "/health"]
+  },
+  "vars": {
+    "ALLOWED_ORIGINS": "https://chatgpt.com,https://chat.openai.com,http://localhost:5173,http://127.0.0.1:5173"
+  },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  }
+}

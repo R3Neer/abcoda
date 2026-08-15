@@ -68,3 +68,26 @@ export const scoreSnapshotSchema = z.object({
 });
 
 export type ScoreSnapshotDto = z.infer<typeof scoreSnapshotSchema>;
+
+export const evaluateScoreResultSchema = z.object({
+  status: z.enum(["success", "invalid"]),
+  snapshot: scoreSnapshotSchema.optional(),
+  diagnostics: z.array(diagnosticSchema).optional(),
+}).superRefine((result, context) => {
+  if (result.status === "success" && !result.snapshot) {
+    context.addIssue({
+      code: "custom",
+      message: "A successful score evaluation requires a snapshot.",
+      path: ["snapshot"],
+    });
+  }
+  if (result.status === "invalid" && !result.diagnostics) {
+    context.addIssue({
+      code: "custom",
+      message: "An invalid score evaluation requires diagnostics.",
+      path: ["diagnostics"],
+    });
+  }
+});
+
+export type EvaluateScoreResultDto = z.infer<typeof evaluateScoreResultSchema>;

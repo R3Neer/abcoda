@@ -1,10 +1,15 @@
 import tseslint from "typescript-eslint";
 
-const v2Files = ["packages/**/*.ts", "apps/**/*.ts", "tests/v2/**/*.ts"];
+const v2Files = [
+  "packages/**/*.ts",
+  "apps/**/*.ts",
+  "tests/v2/**/*.ts",
+  "tests/worker/**/*.ts",
+];
 
 export default tseslint.config(
   {
-    ignores: ["dist/**", "node_modules/**"],
+    ignores: ["**/dist/**", "node_modules/**", "**/*.d.ts"],
   },
   ...tseslint.configs.recommendedTypeChecked.map((config) => ({
     ...config,

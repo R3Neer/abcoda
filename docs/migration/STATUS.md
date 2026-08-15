@@ -8,10 +8,14 @@
 | Fase | Estado | Evidencia |
 |---|---|---|
 | 0. Congelar y caracterizar | in progress | Baseline reproducido, corpus inicial y contratos legacy. Falta caracterización visual/browser. |
-| 1. Esqueleto y dependencias | in progress | Workspaces, paquetes y app widget v2, ESLint tipado, límites automáticos y detección de ciclos. Falta app Worker v2. |
+| 1. Esqueleto y dependencias | in progress | Workspaces, paquetes, apps Worker/widget, ESLint tipado, límites automáticos y detección de ciclos. |
 | 2. Contratos y modelo canónico | in progress | Primer `ScoreDocument`, snapshot y schemas v2 de request/widget. |
 | 3. Codec y diagnósticos | in progress | Scanner de cabeceras conservador para la primera vertical; no es todavía el codec ABC completo. |
-| 4–11 | pending | No iniciadas. |
+| 4. Casos de uso | in progress | `EvaluateScore` implementado detrás de `ScoreCodec`. |
+| 5. MCP y Worker seguro | in progress | `validate_score`, health, límites HTTP, CORS por allowlist y tests workerd iniciales. |
+| 6. Shell y bridge | in progress | Sesión revisionada y laboratorio standalone; falta bridge MCP Apps. |
+| 7. Grabado | in progress | Adaptador abcjs estático comprobado en escritorio y 390 px. |
+| 8–11 | pending | No iniciadas. |
 
 ## Primer corte vertical
 

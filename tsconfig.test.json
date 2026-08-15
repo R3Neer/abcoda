@@ -6,5 +6,6 @@
     "exactOptionalPropertyTypes": false,
     "noEmit": true
   },
-  "include": ["tests/**/*.ts", "shared/**/*.ts", "server/**/*.ts", "web/**/*.ts"]
+  "include": ["tests/**/*.ts", "shared/**/*.ts", "server/**/*.ts", "web/**/*.ts"],
+  "exclude": ["tests/v2/**/*.ts", "tests/worker/**/*.ts"]
 }

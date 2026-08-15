@@ -30,18 +30,17 @@
 
 | ID | Defecto | Estado | Evidencia de cierre requerida |
 |---|---|---|---|
-| FIX-01 | CORS permisivo y sin validación Origin/Host | open | Worker runtime rechaza origen/host no autorizado. |
-| FIX-02 | Tunebooks múltiples mezclan voces y render | characterized | v2 devuelve diagnóstico específico y no crea snapshot. |
+| FIX-01 | CORS permisivo y sin validación Origin/Host | implemented | Worker runtime rechaza origen/host no autorizado; falta preview real. |
+| FIX-02 | Tunebooks múltiples mezclan voces y render | implemented | v2 devuelve diagnóstico específico y no crea snapshot. |
 | FIX-03 | Resultados asíncronos obsoletos | open | Matriz de carreras por revisión y `AbortSignal`. |
 | FIX-04 | `main.ts` concentra responsabilidades | open | Límites de imports y store/effects separados. |
-| FIX-05 | Sin pruebas reales Worker/browser | open | Suites Worker y Playwright obligatorias en CI. |
-| FIX-06 | Dominio, URI y versiones manuales | characterized | Manifiesto único probado en health, MCP y widget. |
-| FIX-07 | abcjs completo importado en servidor | characterized | Bundle Worker sin módulos de synth/engraving. |
-| FIX-08 | Sin lint/no-floating-promises | open | ESLint obligatorio y CI. |
+| FIX-05 | Sin pruebas reales Worker/browser | partial | Suite workerd incorporada; falta Playwright en CI. |
+| FIX-06 | Dominio, URI y versiones manuales | partial | Manifiesto v2 compartido por health y MCP; falta artifact hash del recurso UI. |
+| FIX-07 | abcjs completo importado en servidor | implemented | Bundle Worker v2 comprobado sin `abcjs`, `SynthController` ni `renderAbc`. |
+| FIX-08 | Sin lint/no-floating-promises | implemented | ESLint tipado forma parte de `npm run check`. |
 | FIX-09 | Errores UI dispersos | open | Estados de error y recuperación probados. |
 | FIX-10 | UX evaluada tarde | open | Laboratorio, escenarios y gates visuales por corte. |
 
 ## Regla de mantenimiento
 
 Cada commit que implemente, difiera o difiera deliberadamente una capacidad debe actualizar esta matriz. Los estados `parity-proven` e `intentionally-changed` requieren enlazar una prueba o evidencia concreta; no se asignan por inspección informal.
-
