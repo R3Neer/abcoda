@@ -4,7 +4,6 @@ import type {
   HostBridgeHandlers,
 } from "../../apps/widget/src/application/host-bridge";
 import type {
-  EngravingOptions,
   EngravingResult,
 } from "../../apps/widget/src/application/score-session";
 import {
@@ -42,12 +41,14 @@ function scoreResult(revision: number, presentation?: Record<string, unknown>): 
 class FakeHost implements HostBridge {
   handlers: HostBridgeHandlers | undefined;
 
-  async connect(handlers: HostBridgeHandlers): Promise<void> {
+  connect(handlers: HostBridgeHandlers): Promise<void> {
     this.handlers = handlers;
+    return Promise.resolve();
   }
 
-  async disconnect(): Promise<void> {
+  disconnect(): Promise<void> {
     this.handlers = undefined;
+    return Promise.resolve();
   }
 
   result(value: unknown): void {
@@ -87,26 +88,24 @@ function harness() {
   const host = new FakeHost();
   const timers = new FakeTimers();
   const mixes: VoiceMixSnapshot[] = [];
+  const showScore = vi.fn<WidgetSessionView["showScore"]>();
+  const showPresentation = vi.fn<WidgetSessionView["showPresentation"]>();
   const view: WidgetSessionView = {
-    showScore: vi.fn(),
+    showScore,
     showPlayback: vi.fn(),
     showMix: (state) => mixes.push(state),
     showDraft: vi.fn(),
-    showPresentation: vi.fn(),
+    showPresentation,
     applyHostContext: vi.fn(),
   };
+  const refreshGeometry = vi.fn();
   const cursorView: CursorView = {
     show: vi.fn(),
     hide: vi.fn(),
-    refreshGeometry: vi.fn(),
+    refreshGeometry,
   };
   let width = 900;
-  const render = vi.fn<(
-    snapshot: Parameters<RangeAwareEngraver["render"]>[0],
-    presentation: Parameters<RangeAwareEngraver["render"]>[1],
-    signal: AbortSignal,
-    options?: EngravingOptions,
-  ) => Promise<EngravingResult>>(async (_snapshot, _presentation, _signal, _options) => ({
+  const engraving: EngravingResult = {
     timeline: {
       totalDurationMs: 1000,
       events: [{
@@ -119,14 +118,17 @@ function harness() {
       }],
     },
     voicePitches: { RH: [60] },
-  }));
+  };
+  const render = vi.fn<RangeAwareEngraver["render"]>(
+    () => Promise.resolve(engraving),
+  );
   const engraver: RangeAwareEngraver = {
     render,
     clear: vi.fn(),
     showVoiceRanges: vi.fn(),
   };
   const evaluator: DraftEvaluator = {
-    evaluate: async (abc, revision) => ({
+    evaluate: (abc, revision) => Promise.resolve({
       status: "success",
       snapshot: {
         schemaVersion: 2,
@@ -165,7 +167,8 @@ function harness() {
     mixes,
     render,
     engraver,
-    cursorView,
+    refreshGeometry,
+    showPresentation,
     presentVoiceRanges,
     setWidth(value: number) { width = value; },
   };
@@ -207,7 +210,7 @@ describe("WidgetSessionCoordinator", () => {
     h.setWidth(700);
     h.session.viewportChanged(700);
     const first = h.timers.activeIds()[0]!;
-    expect(h.cursorView.refreshGeometry).toHaveBeenCalledTimes(1);
+    expect(h.refreshGeometry).toHaveBeenCalledTimes(1);
 
     h.setWidth(600);
     h.session.viewportChanged(600);
@@ -218,7 +221,7 @@ describe("WidgetSessionCoordinator", () => {
     h.timers.run(active[0]!);
     await vi.waitFor(() => expect(h.render).toHaveBeenCalledTimes(2));
     expect(h.render.mock.calls[1]?.[3]).toEqual({ includePlayback: false });
-    expect(h.view.showPresentation).toHaveBeenCalledTimes(1);
+    expect(h.showPresentation).toHaveBeenCalledTimes(1);
 
     h.session.dispose();
   });
