@@ -23,8 +23,10 @@ import { assessVoiceRanges } from "./application/voice-range";
 const view = new DomWidgetView();
 const cursorView = new DomScoreCursor(view.scoreTarget);
 const cursor = new ScoreCursorController(cursorView);
+let cursorBaseTempo = 96;
 const playback = new PlaybackSessionController(96, 96, false, (state) => {
   view.showPlayback(state);
+  cursor.setTempoRatio(state.tempo / cursorBaseTempo);
   cursor.setPlaying(
     (state.status === "ready" || state.status === "transitioning")
       && state.mode === "playing",
@@ -70,10 +72,12 @@ const controller = new ScoreSessionController(
       cursor.setTimeline(engraving.timeline, cursorRevision === snapshot.revision);
       cursorRevision = snapshot.revision;
     }
-    const tempo = presentation?.tempo ?? snapshot.document.tempo?.bpm ?? 96;
+    const scoreTempo = snapshot.document.tempo?.bpm ?? 96;
+    const effectiveTempo = presentation?.tempo ?? scoreTempo;
+    cursorBaseTempo = scoreTempo;
     if (presentation) playback.setLoop(presentation.loop);
     voicePitches = engraving.voicePitches ?? {};
-    playbackMix.adoptSource(engraving.playbackSource, tempo);
+    playbackMix.adoptSource(engraving.playbackSource, scoreTempo, effectiveTempo);
     mix.adoptVoices(snapshot.revision, snapshot.document.voices, presentation);
     view.showPresentation(presentation, snapshot);
   },

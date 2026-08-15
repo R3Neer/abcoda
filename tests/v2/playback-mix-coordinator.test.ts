@@ -67,6 +67,22 @@ describe("PlaybackMixCoordinator", () => {
     );
   });
 
+  it("keeps score tempo as the base while honoring an initial presentation tempo", async () => {
+    const { configure, coordinator } = setup();
+    const engine = createEngine().value;
+    const source = { create: vi.fn().mockResolvedValue(engine) };
+
+    coordinator.adoptSource(source, 96, 20);
+    await coordinator.apply(mix("violin"));
+
+    expect(configure).toHaveBeenCalledWith(
+      engine,
+      96,
+      { progress: 0.4, playing: true },
+      20,
+    );
+  });
+
   it("disposes a stale build when rapid changes finish out of order", async () => {
     const { configure, coordinator } = setup();
     const first = createEngine();

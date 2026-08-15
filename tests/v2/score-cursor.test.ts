@@ -34,6 +34,33 @@ describe("ScoreCursorController", () => {
     });
   });
 
+  it("scales cursor motion with the effective playback tempo", () => {
+    const show = vi.fn();
+    const view: CursorView = { show, hide: vi.fn() };
+    const cursor = new ScoreCursorController(view);
+    cursor.setTimeline(timeline);
+    cursor.setPlaying(true);
+    show.mockClear();
+
+    cursor.setTempoRatio(0.25);
+    cursor.onPlaybackEvent({ timeMs: 0, sourceOffsets: [10] });
+
+    expect(show).toHaveBeenLastCalledWith(timeline.events[0], {
+      x: 70,
+      durationMs: 4000,
+      wrapsLine: false,
+    });
+
+    cursor.setTempoRatio(2);
+    cursor.onPlaybackEvent({ timeMs: 0, sourceOffsets: [10] });
+
+    expect(show).toHaveBeenLastCalledWith(timeline.events[0], {
+      x: 70,
+      durationMs: 500,
+      wrapsLine: false,
+    });
+  });
+
   it("seeks to the clicked note instead of the start of its measure", () => {
     const show = vi.fn();
     const view: CursorView = { show, hide: vi.fn() };

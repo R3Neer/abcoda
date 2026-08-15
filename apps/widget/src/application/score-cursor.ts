@@ -26,10 +26,15 @@ export interface PlaybackTimingCallback {
 export class ScoreCursorController {
   private timeline: ScoreTimeline = { events: [], totalDurationMs: 0 };
   private playing = false;
+  private tempoRatio = 1;
   private selected: ScoreTimingEvent | undefined;
   private ignoreMismatchedCallbacksUntil = 0;
 
   constructor(private readonly view: CursorView) {}
+
+  setTempoRatio(ratio: number): void {
+    this.tempoRatio = Number.isFinite(ratio) && ratio > 0 ? ratio : 1;
+  }
 
   setTimeline(timeline: ScoreTimeline, preserveSelection = false): void {
     const sourceOffsets = preserveSelection ? this.selected?.sourceOffsets : undefined;
@@ -57,11 +62,17 @@ export class ScoreCursorController {
     ) return;
     this.ignoreMismatchedCallbacksUntil = 0;
     this.selected = event;
-    this.view.show(event, cursorMotionFrom(
+    const motion = cursorMotionFrom(
       this.timeline.events,
       event,
       this.timeline.totalDurationMs,
-    ));
+    );
+    this.view.show(
+      event,
+      motion
+        ? { ...motion, durationMs: motion.durationMs / this.tempoRatio }
+        : undefined,
+    );
   }
 
   seekMeasure(measure: number): number | undefined {

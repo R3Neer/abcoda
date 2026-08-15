@@ -27,10 +27,14 @@ export class PlaybackMixCoordinator {
     private readonly onFailure: (message: string) => void,
   ) {}
 
-  adoptSource(source: VoiceMixPlaybackSource | undefined, baseTempo: number): void {
+  adoptSource(
+    source: VoiceMixPlaybackSource | undefined,
+    baseTempo: number,
+    initialTempo: number = baseTempo,
+  ): void {
     this.source = source;
     this.baseTempo = baseTempo;
-    this.pendingScoreTempo = baseTempo;
+    this.pendingScoreTempo = initialTempo;
     this.generation += 1;
   }
 
