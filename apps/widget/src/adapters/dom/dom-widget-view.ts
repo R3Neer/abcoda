@@ -3,6 +3,7 @@ import type { PlaybackSessionState } from "../../application/playback-session";
 import type { ScoreSessionState } from "../../application/score-session";
 import type { VoiceMixSnapshot } from "../../application/voice-mix";
 import type { DraftSessionState } from "../../application/draft-session";
+import type { VoiceRangeAssessment } from "../../application/voice-range";
 import {
   instrumentsForVoice,
   type InstrumentId,
@@ -108,7 +109,10 @@ export class DomWidgetView {
     if (state.status === "failed") this.showError(state.message);
   }
 
-  showMix(state: VoiceMixSnapshot): void {
+  showMix(
+    state: VoiceMixSnapshot,
+    assessments: readonly VoiceRangeAssessment[] = [],
+  ): void {
     this.mixer.hidden = state.voices.length === 0;
     this.voiceMix.replaceChildren(...state.voices.map((voice) => {
       const row = this.documentObject.createElement("div");
@@ -143,6 +147,13 @@ export class DomWidgetView {
       row.appendChild(name);
       row.appendChild(select);
       row.appendChild(muteLabel);
+      const assessment = assessments.find((candidate) => candidate.voiceId === voice.id);
+      if (assessment?.message) {
+        const warning = this.documentObject.createElement("p");
+        warning.className = "voice-range-warning";
+        warning.textContent = assessment.message;
+        row.appendChild(warning);
+      }
       return row;
     }));
   }

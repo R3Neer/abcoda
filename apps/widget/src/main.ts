@@ -15,6 +15,7 @@ import { PlaybackMixCoordinator } from "./application/playback-mix-coordinator";
 import { DraftSessionController } from "./application/draft-session";
 import { LocalScoreEvaluator } from "./adapters/local/local-score-evaluator";
 import { evaluateScoreResultSchema } from "../../../packages/contracts/src/index";
+import { assessVoiceRanges } from "./application/voice-range";
 
 const view = new DomWidgetView();
 const cursorView = new DomScoreCursor(view.scoreTarget);
@@ -28,9 +29,10 @@ const playback = new PlaybackSessionController(96, 96, false, (state) => {
 const playbackMix = new PlaybackMixCoordinator(playback, (message) => {
   void playback.fail(message);
 });
+let voicePitches: Readonly<Record<string, readonly number[]>> = {};
 
 const mix = new VoiceMixController((state) => {
-  view.showMix(state);
+  view.showMix(state, assessVoiceRanges(state, voicePitches));
   void playbackMix.apply(state);
 });
 const controller = new ScoreSessionController(
@@ -44,6 +46,7 @@ const controller = new ScoreSessionController(
   }),
   (state) => {
     if (state.status === "loading" || state.status === "invalid" || state.status === "failed") {
+      voicePitches = {};
       playbackMix.clear();
       mix.adoptVoices(state.status === "loading" ? state.revision : 0, []);
       void playback.dispose();
@@ -53,6 +56,7 @@ const controller = new ScoreSessionController(
   (snapshot, engraving) => {
     if (engraving.timeline) cursor.setTimeline(engraving.timeline);
     const tempo = snapshot.document.tempo?.bpm ?? 96;
+    voicePitches = engraving.voicePitches ?? {};
     playbackMix.adoptSource(engraving.playbackSource, tempo);
     mix.adoptVoices(snapshot.revision, snapshot.document.voices);
   },

@@ -171,6 +171,14 @@ body {
   font-size: 0.8rem;
 }
 
+.voice-range-warning {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: color-mix(in srgb, #e7a33e 78%, CanvasText);
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+
 .editor {
   margin-block-end: 0.75rem;
   border: 1px solid color-mix(in srgb, CanvasText 14%, transparent);

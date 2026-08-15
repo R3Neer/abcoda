@@ -4,6 +4,7 @@ import type { ScoreSnapshotDto } from "../../../../../packages/contracts/src/ind
 import { timelineForTune } from "./abcjs-timeline";
 import type { PlaybackTimingCallback } from "../../application/score-cursor";
 import { AbcjsPlaybackSource } from "./abcjs-playback-source";
+import { pitchesForVoices } from "./abcjs-voice-pitches";
 
 export class AbcjsEngraver implements Engraver {
   constructor(
@@ -37,9 +38,15 @@ export class AbcjsEngraver implements Engraver {
 
     const bpm = snapshot.document.tempo?.bpm ?? 96;
     const timeline = timelineForTune(tunes[0], bpm);
-    if (!ABCJS.synth.supportsAudio()) return { timeline };
+    const voicePitches = pitchesForVoices(
+      tunes[0],
+      snapshot.document.voices.map((voice) => voice.id),
+      bpm,
+    );
+    if (!ABCJS.synth.supportsAudio()) return { timeline, voicePitches };
     return {
       timeline,
+      voicePitches,
       playbackSource: new AbcjsPlaybackSource(
         this.audioTarget,
         tunes[0],

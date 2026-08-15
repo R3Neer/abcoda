@@ -8,6 +8,7 @@ import type { VoiceMixPlaybackSource } from "./voice-mix";
 export interface EngravingResult {
   readonly playbackSource?: VoiceMixPlaybackSource;
   readonly timeline?: ScoreTimeline;
+  readonly voicePitches?: Readonly<Record<string, readonly number[]>>;
 }
 
 export interface Engraver {

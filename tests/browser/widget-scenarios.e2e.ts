@@ -91,6 +91,17 @@ test("voice mixer keeps instrument and mute as independent local preferences", a
   await expect(page.locator("#playback")).toBeEnabled();
 });
 
+test("voice mixer warns when a selected instrument is outside the sounding range", async ({ page }) => {
+  await page.goto("/?scenario=ready");
+  const rightHand = page.locator(".voice-mix-row").filter({ hasText: "RH" });
+  await rightHand.locator("select").selectOption("piccolo");
+  await expect(rightHand.locator(".voice-range-warning")).toContainText(
+    "outside the usual D5–C8 sounding range",
+  );
+  await rightHand.locator("select").selectOption("acoustic_grand_piano");
+  await expect(rightHand.locator(".voice-range-warning")).toHaveCount(0);
+});
+
 test("a late invalid result tears down playback from the previous score", async ({ page }) => {
   await page.goto("/?scenario=invalid-after-ready");
   await expect(page.locator("body")).toHaveAttribute("data-state", "invalid");
