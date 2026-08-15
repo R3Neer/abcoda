@@ -100,6 +100,43 @@ export function measureAtPoint(
   return [...ordered].reverse().find(([, left]) => x >= left)?.[0] ?? ordered[0]?.[0];
 }
 
+export function eventAtPoint(
+  events: readonly ScoreTimingEvent[],
+  x: number,
+  y: number,
+): ScoreTimingEvent | undefined {
+  const line = eventsForPoint(events, y);
+  if (!line) return undefined;
+  return [...line].sort((left, right) => {
+    const distance = horizontalDistance(left, x) - horizontalDistance(right, x);
+    return distance !== 0 ? distance : Math.abs(left.x - x) - Math.abs(right.x - x);
+  })[0];
+}
+
+function eventsForPoint(
+  events: readonly ScoreTimingEvent[],
+  y: number,
+): readonly ScoreTimingEvent[] | undefined {
+  const lines = new Map<number, { top: number; bottom: number; events: ScoreTimingEvent[] }>();
+  for (const event of events) {
+    const line = lines.get(event.line) ?? { top: event.y, bottom: event.y + event.height, events: [] };
+    line.top = Math.min(line.top, event.y);
+    line.bottom = Math.max(line.bottom, event.y + event.height);
+    line.events.push(event);
+    lines.set(event.line, line);
+  }
+  return [...lines.values()]
+    .filter((candidate) => y >= candidate.top - 8 && y <= candidate.bottom + 8)
+    .sort((a, b) => Math.abs(y - (a.top + a.bottom) / 2) - Math.abs(y - (b.top + b.bottom) / 2))[0]
+    ?.events;
+}
+
+function horizontalDistance(event: ScoreTimingEvent, x: number): number {
+  const right = event.endX ?? event.x + (event.width ?? 12);
+  if (x < event.x) return event.x - x;
+  return x > right ? x - right : 0;
+}
+
 function nearestByTime(events: readonly ScoreTimingEvent[], timeMs: number): ScoreTimingEvent {
   return [...events].sort((a, b) => Math.abs(a.timeMs - timeMs) - Math.abs(b.timeMs - timeMs))[0]!;
 }

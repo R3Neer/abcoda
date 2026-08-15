@@ -86,6 +86,7 @@ body {
   background: Highlight;
   box-shadow: 0 0 0 1px color-mix(in srgb, Highlight 28%, transparent);
   pointer-events: none;
+  transform: translateX(-3px);
 }
 
 .score svg {
@@ -114,11 +115,12 @@ body {
 .mixer-heading {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 0.75rem;
+  cursor: pointer;
 }
 
-.mixer-heading {
-  justify-content: space-between;
+.mixer[open] .mixer-heading {
   margin-block-end: 0.6rem;
 }
 
@@ -139,13 +141,14 @@ body {
 
 .voice-mix-row {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 0.4rem 0.75rem;
   min-width: 0;
 }
 
 .voice-name {
+  grid-column: 1 / -1;
   min-width: 0;
   overflow: hidden;
   font-size: 0.8rem;
@@ -155,10 +158,10 @@ body {
 }
 
 .voice-instrument {
-  grid-column: 1 / -1;
+  grid-column: 1;
   grid-row: 2;
   min-width: 0;
-  min-height: 2.5rem;
+  min-height: 2.75rem;
   flex: 1;
   padding-inline: 0.65rem;
   border: 1px solid color-mix(in srgb, CanvasText 20%, transparent);
@@ -169,11 +172,33 @@ body {
 }
 
 .voice-mute {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  min-height: 2.5rem;
-  font-size: 0.8rem;
+  grid-column: 2;
+  grid-row: 2;
+}
+
+.icon-button {
+  display: inline-grid;
+  place-items: center;
+  width: 2.75rem;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  padding: 0;
+}
+
+.control-icon {
+  width: 1.15rem;
+  height: 1.15rem;
+  fill: currentColor;
+  pointer-events: none;
+}
+
+.control-icon[hidden] {
+  display: none;
+}
+
+.voice-mute[aria-pressed="true"] {
+  color: Canvas;
+  background: color-mix(in srgb, #c74444 78%, CanvasText);
 }
 
 .voice-range-warning {
@@ -313,6 +338,10 @@ body {
   color: CanvasText;
   background: color-mix(in srgb, CanvasText 8%, Canvas);
   font: inherit;
+}
+
+.transport .icon-button {
+  padding-inline: 0;
 }
 
 .transport button[aria-pressed="true"] {

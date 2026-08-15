@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   cursorMotionFrom,
+  eventAtPoint,
   eventProgress,
   firstEventInMeasure,
   matchingTimingEvent,
@@ -28,6 +29,10 @@ describe("v2 score timeline", () => {
     expect(measureAtPoint(events, 150, 35)).toBe(1);
     expect(measureAtPoint(events, 50, 100)).toBe(2);
     expect(measureAtPoint(events, 50, 200)).toBeUndefined();
+    expect(eventAtPoint(events, 62, 35)).toBe(events[1]);
+    expect(eventAtPoint(events, 150, 35)).toBe(events[2]);
+    expect(eventAtPoint(events, 50, 100)).toBe(events[3]);
+    expect(eventAtPoint(events, 50, 200)).toBeUndefined();
   });
 
   it("animates within a system and limits motion before a wrap", () => {

@@ -35,16 +35,8 @@ export class DomScoreCursor implements CursorView {
     this.cursor.style.transition = "none";
   }
 
-  bindSeek(
-    onPoint: (x: number, y: number) => void,
-    onMeasure: (measure: number) => void,
-  ): () => void {
+  bindSeek(onPoint: (x: number, y: number) => void): () => void {
     const click = (event: MouseEvent) => {
-      const measure = measureFromTarget(event.target);
-      if (measure !== undefined) {
-        onMeasure(measure);
-        return;
-      }
       const point = this.toScorePoint(event.clientX, event.clientY);
       if (point) onPoint(point.x, point.y);
     };
@@ -78,13 +70,4 @@ export class DomScoreCursor implements CursorView {
       y: viewBox.y + (clientY - rect.top) * viewBox.height / rect.height,
     };
   }
-}
-
-function measureFromTarget(target: EventTarget | null): number | undefined {
-  const element = target instanceof Element ? target.closest("[class*='abcjs-m']") : null;
-  const classes = element?.getAttribute("class") ?? "";
-  const global = /(?:^|\s)abcjs-mm(\d+)(?:\s|$)/.exec(classes);
-  if (global) return Number(global[1]);
-  const local = /(?:^|\s)abcjs-m(\d+)(?:\s|$)/.exec(classes);
-  return local ? Number(local[1]) : undefined;
 }

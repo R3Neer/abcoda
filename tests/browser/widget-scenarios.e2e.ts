@@ -59,9 +59,12 @@ test("playback controls adopt score tempo and remain operable without starting a
 
   await expect(play).toBeVisible();
   await expect(play).toBeEnabled();
+  await expect(play).toHaveAttribute("aria-label", "Play");
+  await expect(loop).toHaveAttribute("aria-label", "Enable loop");
   await expect(page.locator("#tempo-value")).toHaveText("84 BPM");
   await loop.click();
   await expect(loop).toHaveAttribute("aria-pressed", "true");
+  await expect(loop).toHaveAttribute("aria-label", "Disable loop");
   await tempo.fill("110");
   await tempo.dispatchEvent("change");
   await expect(page.locator("#tempo-value")).toHaveText("110 BPM");
@@ -72,10 +75,11 @@ test("schema 1 presentation preferences survive the v2 widget boundary", async (
   await expect(page.locator("#score-title")).toHaveText("Legacy presentation");
   await expect(page.locator("#tempo-value")).toHaveText("112 BPM");
   await expect(page.locator("#loop")).toHaveAttribute("aria-pressed", "true");
+  await page.locator("#mixer summary").click();
   const rightHand = page.locator(".voice-mix-row").filter({ hasText: "RH" });
   const leftHand = page.locator(".voice-mix-row").filter({ hasText: "LH" });
   await expect(rightHand.locator("select")).toHaveValue("cello");
-  await expect(leftHand.locator('input[type="checkbox"]')).toBeChecked();
+  await expect(leftHand.locator("button.voice-mute")).toHaveAttribute("aria-pressed", "true");
 });
 
 test("invalid scores never expose active playback controls", async ({ page }) => {
@@ -88,24 +92,30 @@ test("invalid scores never expose active playback controls", async ({ page }) =>
 
 test("voice mixer keeps instrument and mute as independent local preferences", async ({ page }) => {
   await page.goto("/?scenario=ready");
+  const mixer = page.locator("#mixer");
+  await expect(mixer).not.toHaveAttribute("open", "");
+  await mixer.locator("summary").click();
+  await expect(mixer).toHaveAttribute("open", "");
   const rows = page.locator(".voice-mix-row");
   await expect(rows).toHaveCount(2);
   const rightHand = rows.filter({ hasText: "RH" });
   const leftHand = rows.filter({ hasText: "LH" });
   const instrument = rightHand.locator("select");
-  const mute = leftHand.locator('input[type="checkbox"]');
+  const mute = leftHand.locator("button.voice-mute");
 
   await expect(instrument).toHaveValue("acoustic_grand_piano");
   await instrument.selectOption("cello");
   await expect(rightHand.locator("select")).toHaveValue("cello");
-  await mute.check();
-  await expect(leftHand.locator('input[type="checkbox"]')).toBeChecked();
+  await mute.click();
+  await expect(leftHand.locator("button.voice-mute")).toHaveAttribute("aria-pressed", "true");
+  await expect(leftHand.locator("button.voice-mute")).toHaveAttribute("aria-label", "Unmute LH");
   await expect(page.locator("#tempo-value")).toHaveText("84 BPM");
   await expect(page.locator("#playback")).toBeEnabled();
 });
 
 test("voice mixer warns when a selected instrument is outside the sounding range", async ({ page }) => {
   await page.goto("/?scenario=ready");
+  await page.locator("#mixer summary").click();
   const rightHand = page.locator(".voice-mix-row").filter({ hasText: "RH" });
   await rightHand.locator("select").selectOption("piccolo");
   await expect(rightHand.locator(".voice-range-warning")).toContainText(
@@ -132,12 +142,18 @@ test("host safe-area insets are applied without horizontal overflow", async ({ p
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
-test("clicking an engraved measure seeks and places the visual cursor", async ({ page }) => {
+test("clicking an engraved note seeks and places the cursor immediately before it", async ({ page }) => {
   await page.goto("/?scenario=ready");
-  await page.locator("#score .abcjs-mm1").first().dispatchEvent("click");
+  const note = page.locator("#score .abcjs-note").nth(2);
+  const noteBox = await note.boundingBox();
+  expect(noteBox).not.toBeNull();
+  await page.mouse.click(noteBox!.x + noteBox!.width / 2, noteBox!.y + noteBox!.height / 2);
   const cursor = page.locator(".score-cursor");
   await expect(cursor).toBeVisible();
   await expect(cursor).not.toHaveCSS("height", "0px");
+  const cursorBox = await cursor.boundingBox();
+  expect(cursorBox).not.toBeNull();
+  expect(Math.abs(cursorBox!.x + cursorBox!.width - noteBox!.x)).toBeLessThan(8);
 });
 
 test("invalid local edits keep the last rendered score and can be discarded", async ({ page }) => {
@@ -226,19 +242,27 @@ test("mixed pitched and percussion voices keep compatible controls and transposi
 test("primary controls follow a visible and operable keyboard path", async ({ page }) => {
   await page.goto("/?scenario=ready");
   await page.keyboard.press("Tab");
+  const mixerSummary = page.locator("#mixer summary");
+  await expect(mixerSummary).toBeFocused();
+  await expect(mixerSummary).toHaveCSS("outline-style", "solid");
+  await page.keyboard.press("Space");
+  await expect(page.locator("#mixer")).toHaveAttribute("open", "");
+
+  await page.keyboard.press("Tab");
   await expect(page.getByLabel("Instrument for RH")).toBeFocused();
   await expect(page.getByLabel("Instrument for RH")).toHaveCSS("outline-style", "solid");
 
   await page.keyboard.press("Tab");
-  const muteRight = page.getByLabel("Mute RH");
+  const muteRight = page.locator('button.voice-mute[data-voice-id="RH"]');
   await expect(muteRight).toBeFocused();
   await page.keyboard.press("Space");
-  await expect(muteRight).toBeChecked();
+  await expect(muteRight).toHaveAttribute("aria-pressed", "true");
+  await expect(muteRight).toHaveAttribute("aria-label", "Unmute RH");
 
   await page.keyboard.press("Tab");
   await expect(page.getByLabel("Instrument for LH")).toBeFocused();
   await page.keyboard.press("Tab");
-  await expect(page.getByLabel("Mute LH")).toBeFocused();
+  await expect(page.locator('button.voice-mute[data-voice-id="LH"]')).toBeFocused();
   await page.keyboard.press("Tab");
   const editorSummary = page.locator("#editor summary");
   await expect(editorSummary).toBeFocused();

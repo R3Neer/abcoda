@@ -41,6 +41,8 @@ export class DomWidgetView {
   private readonly scoreTitle: HTMLElement;
   private readonly error: HTMLElement;
   private readonly playbackButton: HTMLButtonElement;
+  private readonly playIcon: SVGElement;
+  private readonly pauseIcon: SVGElement;
   private readonly rewindButton: HTMLButtonElement;
   private readonly loopButton: HTMLButtonElement;
   private readonly tempoInput: HTMLInputElement;
@@ -65,6 +67,8 @@ export class DomWidgetView {
     this.scoreTitle = this.required("score-title");
     this.error = this.required("error");
     this.playbackButton = this.required("playback");
+    this.playIcon = this.requiredInside(this.playbackButton, ".play-icon");
+    this.pauseIcon = this.requiredInside(this.playbackButton, ".pause-icon");
     this.rewindButton = this.required("rewind");
     this.loopButton = this.required("loop");
     this.tempoInput = this.required("tempo");
@@ -113,10 +117,14 @@ export class DomWidgetView {
     this.rewindButton.disabled = !interactive;
     this.loopButton.disabled = !interactive;
     this.tempoInput.disabled = state.status === "configuring" || state.status === "transitioning";
-    this.playbackButton.textContent = state.status === "ready" && state.mode === "playing"
-      ? "Pause"
-      : "Play";
+    const playing = state.status === "ready" && state.mode === "playing";
+    this.playIcon.toggleAttribute("hidden", playing);
+    this.pauseIcon.toggleAttribute("hidden", !playing);
+    this.playbackButton.setAttribute("aria-label", playing ? "Pause" : "Play");
+    this.playbackButton.title = playing ? "Pause" : "Play";
     this.loopButton.setAttribute("aria-pressed", String(state.loop));
+    this.loopButton.setAttribute("aria-label", state.loop ? "Disable loop" : "Enable loop");
+    this.loopButton.title = state.loop ? "Disable loop" : "Enable loop";
     this.tempoInput.value = String(state.tempo);
     this.tempoValue.value = `${state.tempo} BPM`;
     if (state.status === "failed") this.showError(state.message);
@@ -132,10 +140,10 @@ export class DomWidgetView {
       : undefined;
     const focusedRole = active instanceof HTMLSelectElement
       ? "instrument"
-      : active instanceof HTMLInputElement && active.type === "checkbox"
+      : active instanceof HTMLButtonElement && active.classList.contains("voice-mute")
         ? "mute"
         : undefined;
-    let restoredFocus: HTMLSelectElement | HTMLInputElement | undefined;
+    let restoredFocus: HTMLSelectElement | HTMLButtonElement | undefined;
     this.mixer.hidden = state.voices.length === 0;
     this.voiceMix.replaceChildren(...state.voices.map((voice) => {
       const row = this.documentObject.createElement("div");
@@ -159,19 +167,18 @@ export class DomWidgetView {
         select.appendChild(option);
       }
 
-      const muteLabel = this.documentObject.createElement("label");
-      muteLabel.className = "voice-mute";
-      const mute = this.documentObject.createElement("input");
-      mute.type = "checkbox";
+      const mute = this.documentObject.createElement("button");
+      mute.type = "button";
+      mute.className = "voice-mute icon-button";
       mute.dataset.voiceId = voice.id;
-      mute.checked = voice.muted;
-      mute.setAttribute("aria-label", `Mute ${voice.id}`);
+      mute.setAttribute("aria-pressed", String(voice.muted));
+      mute.setAttribute("aria-label", `${voice.muted ? "Unmute" : "Mute"} ${voice.id}`);
+      mute.title = `${voice.muted ? "Unmute" : "Mute"} ${voice.id}`;
+      mute.appendChild(muteIcon(this.documentObject, voice.muted));
       if (voice.id === focusedVoice && focusedRole === "mute") restoredFocus = mute;
-      muteLabel.appendChild(mute);
-      muteLabel.appendChild(this.documentObject.createTextNode("Mute"));
       row.appendChild(name);
       row.appendChild(select);
-      row.appendChild(muteLabel);
+      row.appendChild(mute);
       const assessment = assessments.find((candidate) => candidate.voiceId === voice.id);
       if (assessment?.message) {
         const warning = this.documentObject.createElement("p");
@@ -253,12 +260,21 @@ export class DomWidgetView {
       if (target instanceof HTMLSelectElement && target.dataset.voiceId) {
         actions.setInstrument(target.dataset.voiceId, target.value as InstrumentId);
       }
-      if (target instanceof HTMLInputElement && target.dataset.voiceId) {
-        actions.setMuted(target.dataset.voiceId, target.checked);
+    };
+    const onClick = (event: MouseEvent) => {
+      const target = event.target instanceof Element
+        ? event.target.closest<HTMLButtonElement>("button.voice-mute")
+        : null;
+      if (target?.dataset.voiceId) {
+        actions.setMuted(target.dataset.voiceId, target.getAttribute("aria-pressed") !== "true");
       }
     };
     this.voiceMix.addEventListener("change", onChange);
-    return () => this.voiceMix.removeEventListener("change", onChange);
+    this.voiceMix.addEventListener("click", onClick);
+    return () => {
+      this.voiceMix.removeEventListener("change", onChange);
+      this.voiceMix.removeEventListener("click", onClick);
+    };
   }
 
   bindDraft(actions: DraftActions): () => void {
@@ -310,4 +326,23 @@ export class DomWidgetView {
     if (!(element instanceof HTMLElement)) throw new Error(`Missing #${id}.`);
     return element as T;
   }
+
+  private requiredInside<T extends Element>(parent: Element, selector: string): T {
+    const element = parent.querySelector<T>(selector);
+    if (!element) throw new Error(`Missing required element ${selector}.`);
+    return element;
+  }
+}
+
+function muteIcon(documentObject: Document, muted: boolean): SVGElement {
+  const svg = documentObject.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("class", "control-icon");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("aria-hidden", "true");
+  const path = documentObject.createElementNS("http://www.w3.org/2000/svg", "path");
+  path.setAttribute("d", muted
+    ? "M4 9v6h4l5 4V5L8 9H4zm12.5.5L15 11l1.5 1.5L15 14l1.5 1.5L18 14l1.5 1.5L21 14l-1.5-1.5L21 11l-1.5-1.5L18 11l-1.5-1.5z"
+    : "M4 9v6h4l5 4V5L8 9H4zm11.5 3a3.5 3.5 0 0 0-2-3.16v6.32a3.5 3.5 0 0 0 2-3.16zm-2-7.18v2.06a6 6 0 0 1 0 10.24v2.06a8 8 0 0 0 0-14.36z");
+  svg.appendChild(path);
+  return svg;
 }

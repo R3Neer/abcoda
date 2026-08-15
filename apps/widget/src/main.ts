@@ -109,9 +109,6 @@ const unbindDraft = view.bindDraft({
 const unbindSeek = cursorView.bindSeek((x, y) => {
   const progress = cursor.seekPoint(x, y);
   if (progress !== undefined) playback.seek(progress);
-}, (measure) => {
-  const progress = cursor.seekMeasure(measure);
-  if (progress !== undefined) playback.seek(progress);
 });
 
 void runtime.start().catch((cause: unknown) => {

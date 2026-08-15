@@ -1,9 +1,9 @@
 import {
   cursorMotionFrom,
+  eventAtPoint,
   eventProgress,
   firstEventInMeasure,
   matchingTimingEvent,
-  measureAtPoint,
   type CursorMotion,
   type ScoreTimeline,
   type ScoreTimingEvent,
@@ -52,8 +52,10 @@ export class ScoreCursorController {
   }
 
   seekPoint(x: number, y: number): number | undefined {
-    const measure = measureAtPoint(this.timeline.events, x, y);
-    return measure === undefined ? undefined : this.seekMeasure(measure);
+    const event = eventAtPoint(this.timeline.events, x, y);
+    if (!event) return undefined;
+    this.view.show(event);
+    return eventProgress(event, this.timeline.totalDurationMs);
   }
 
   rewind(): void {
