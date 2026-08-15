@@ -26,6 +26,11 @@ describe("ABCoda v2 Worker HTTP boundary", () => {
   });
 
   it("reports all versions from the shared manifest", async () => {
+    const widget = await SELF.fetch("https://abcoda.test/index.html");
+    const widgetBytes = new TextEncoder().encode(await widget.text());
+    const expectedHash = [...new Uint8Array(await crypto.subtle.digest("SHA-256", widgetBytes))]
+      .map((value) => value.toString(16).padStart(2, "0"))
+      .join("");
     const response = await SELF.fetch("https://abcoda.test/health");
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
@@ -33,6 +38,7 @@ describe("ABCoda v2 Worker HTTP boundary", () => {
       version: "0.13.0-alpha.1",
       schemaVersion: 2,
       rulesVersion: 4,
+      artifactHash: expectedHash,
       status: "ok",
       runtime: "cloudflare-worker",
       mcp: "/mcp",
@@ -262,5 +268,6 @@ describe("ABCoda v2 Worker HTTP boundary", () => {
     const resourceBody = await resource.text();
     expect(resourceBody).toContain("ui://abcoda/score-schema-2.html");
     expect(resourceBody).toContain("ABCoda v2 widget laboratory");
+    expect(resourceBody).toContain("abcoda/artifactHash");
   });
 });

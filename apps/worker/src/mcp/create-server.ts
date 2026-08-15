@@ -23,8 +23,9 @@ import {
   asVoiceId,
   type ScoreSnapshot,
 } from "../../../../packages/domain/src/index";
+import type { WidgetArtifact } from "../assets/widget-artifact";
 
-export type WidgetLoader = () => Promise<string>;
+export type WidgetLoader = () => Promise<WidgetArtifact>;
 
 function toDomainSnapshot(snapshot: ScoreSnapshotDto): ScoreSnapshot {
   return {
@@ -177,13 +178,15 @@ export function createV2McpServer(loadWidget?: WidgetLoader): McpServer {
           "openai/widgetPrefersBorder": false,
         },
       },
-      async () => ({
-        contents: [
-          {
+      async () => {
+        const artifact = await loadWidget();
+        return {
+          contents: [{
             uri: widgetResourceUri,
             mimeType: RESOURCE_MIME_TYPE,
-            text: await loadWidget(),
+            text: artifact.html,
             _meta: {
+              "abcoda/artifactHash": artifact.manifest.artifactHash,
               ui: {
                 csp: { connectDomains: [], resourceDomains: [] },
                 prefersBorder: false,
@@ -191,9 +194,9 @@ export function createV2McpServer(loadWidget?: WidgetLoader): McpServer {
               "openai/widgetDescription": "Interactive music notation for a validated ABC score.",
               "openai/widgetPrefersBorder": false,
             },
-          },
-        ],
-      }),
+          }],
+        };
+      },
     );
   }
 

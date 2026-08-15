@@ -1,5 +1,5 @@
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
-import { versions } from "../../../packages/contracts/src/index";
+import { loadWidgetArtifact } from "./assets/widget-artifact";
 import {
   boundRequestBody,
   validateRequestBoundary,
@@ -42,12 +42,14 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
   }
 
   if (url.pathname === "/health") {
+    const artifact = await loadWidgetArtifact(env, request.url);
     return withCors(
       Response.json({
         name: "ABCoda",
-        version: versions.appVersion,
-        schemaVersion: versions.schemaVersion,
-        rulesVersion: versions.rulesVersion,
+        version: artifact.manifest.appVersion,
+        schemaVersion: artifact.manifest.schemaVersion,
+        rulesVersion: artifact.manifest.rulesVersion,
+        artifactHash: artifact.manifest.artifactHash,
         status: "ok",
         runtime: "cloudflare-worker",
         mcp: "/mcp",
@@ -59,12 +61,7 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
   const bounded = await boundRequestBody(request);
   if (bounded instanceof Response) return withCors(bounded, boundary.origin);
 
-  const server = createV2McpServer(async () => {
-    const assetUrl = new URL("/index.html", request.url);
-    const response = await env.ASSETS.fetch(new Request(assetUrl));
-    if (!response.ok) throw new Error(`Widget asset returned ${response.status}.`);
-    return response.text();
-  });
+  const server = createV2McpServer(() => loadWidgetArtifact(env, request.url));
   const transport = new WebStandardStreamableHTTPServerTransport({
     enableJsonResponse: true,
   });
