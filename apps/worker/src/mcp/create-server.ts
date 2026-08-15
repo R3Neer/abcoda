@@ -27,14 +27,11 @@ import {
   versions,
   widgetResourceUri,
 } from "@abcoda/contracts";
-import {
-  asQuarterNoteBpm,
-  asRevisionId,
-  asTuneId,
-  asVoiceId,
-  type ScoreSnapshot,
-} from "@abcoda/domain";
 import type { WidgetArtifact } from "../assets/widget-artifact";
+import {
+  fromScoreSnapshotDto,
+  toEvaluateScoreResultDto,
+} from "./score-contract-mapper";
 
 export type WidgetLoader = () => Promise<WidgetArtifact>;
 
@@ -57,9 +54,9 @@ function legacyPresentation(input: LegacyRenderScoreRequest): ScorePresentationD
 }
 
 function applyLegacyVoiceKinds(
-  snapshot: ScoreSnapshot,
+  snapshot: ScoreSnapshotDto,
   voiceKinds: LegacyRenderScoreRequest["notation"]["voiceKinds"],
-): ScoreSnapshot {
+): ScoreSnapshotDto {
   return {
     ...snapshot,
     document: {
@@ -69,47 +66,6 @@ function applyLegacyVoiceKinds(
         kind: voiceKinds[voice.id] ?? voice.kind,
       })),
     },
-  };
-}
-
-function toDomainSnapshot(snapshot: ScoreSnapshotDto): ScoreSnapshot {
-  return {
-    schemaVersion: snapshot.schemaVersion,
-    revision: asRevisionId(snapshot.revision),
-    document: {
-      source: snapshot.document.source,
-      tuneId: asTuneId(snapshot.document.tuneId),
-      voices: snapshot.document.voices.map((voice) => ({
-        id: asVoiceId(voice.id),
-        kind: voice.kind,
-      })),
-      ...(snapshot.document.title === undefined
-        ? {}
-        : { title: snapshot.document.title }),
-      ...(snapshot.document.meter === undefined
-        ? {}
-        : { meter: snapshot.document.meter }),
-      ...(snapshot.document.key === undefined
-        ? {}
-        : { key: snapshot.document.key }),
-      ...(snapshot.document.tempo === undefined
-        ? {}
-        : {
-            tempo: {
-              beatUnit: "quarter" as const,
-              bpm: asQuarterNoteBpm(snapshot.document.tempo.bpm),
-            },
-          }),
-    },
-    diagnostics: snapshot.diagnostics.map((diagnostic) => ({
-      code: diagnostic.code,
-      severity: diagnostic.severity,
-      message: diagnostic.message,
-      ...(diagnostic.range === undefined ? {} : { range: diagnostic.range }),
-      ...(diagnostic.suggestedCorrection === undefined
-        ? {}
-        : { suggestedCorrection: diagnostic.suggestedCorrection }),
-    })),
   };
 }
 
@@ -187,10 +143,10 @@ export function createV2McpServer(loadWidget?: WidgetLoader): McpServer {
     (rawInput) => {
       try {
         const command = evaluateScoreRequestSchema.parse(rawInput);
-        const result = evaluateScore.execute(command);
-        const text = result.status === "success"
+        const result = toEvaluateScoreResultDto(evaluateScore.execute(command));
+        const text = result.status === "success" && result.snapshot
           ? `Validated revision ${result.snapshot.revision} with ${result.snapshot.document.voices.length} voice${result.snapshot.document.voices.length === 1 ? "" : "s"}.`
-          : `Score validation found ${result.diagnostics.length} blocking diagnostic${result.diagnostics.length === 1 ? "" : "s"}.`;
+          : `Score validation found ${result.diagnostics?.length ?? 0} blocking diagnostic${result.diagnostics?.length === 1 ? "" : "s"}.`;
         return {
           structuredContent: result,
           content: [{ type: "text" as const, text }],
@@ -231,10 +187,11 @@ export function createV2McpServer(loadWidget?: WidgetLoader): McpServer {
       (rawInput) => {
         try {
           const input = renderScoreToolInputSchema.parse(rawInput);
-          const result = input.schemaVersion === 1
+          const internalResult = input.schemaVersion === 1
             ? evaluateScore.execute({ abc: input.abc, revision: 0 })
-            : presentScore.execute({ snapshot: toDomainSnapshot(input.snapshot) });
-          const adapted = input.schemaVersion === 1 && result.status === "success"
+            : presentScore.execute({ score: fromScoreSnapshotDto(input.snapshot) });
+          const result = toEvaluateScoreResultDto(internalResult);
+          const adapted = input.schemaVersion === 1 && result.status === "success" && result.snapshot
             ? {
                 ...result,
                 snapshot: applyLegacyVoiceKinds(result.snapshot, input.notation.voiceKinds),
@@ -248,7 +205,7 @@ export function createV2McpServer(loadWidget?: WidgetLoader): McpServer {
             content: [
               {
                 type: "text" as const,
-                text: adapted.status === "success"
+                text: adapted.status === "success" && adapted.snapshot
                   ? `Prepared revision ${adapted.snapshot.revision} for interactive presentation${input.schemaVersion === 1 ? " through the schema 1 compatibility adapter" : ""}.`
                   : "The score could not be presented because validation failed.",
               },
