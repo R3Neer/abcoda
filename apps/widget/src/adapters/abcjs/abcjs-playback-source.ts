@@ -100,7 +100,14 @@ export function tuneWithInstrumentPrograms(
 ): ABCJS.TuneObject {
   const playbackTune = Object.create(tune) as ABCJS.TuneObject;
   playbackTune.setUpAudio = (options) => {
-    const audio = tune.setUpAudio(options);
+    const sourceAudio = tune.setUpAudio(options);
+    const audio: ABCJS.AudioTracks = {
+      ...sourceAudio,
+      tracks: sourceAudio.tracks.map((track) => (
+        track.map((event) => ({ ...event }))
+      )),
+    };
+
     audio.tracks.forEach((track, index) => {
       const assignment = mix.voices[index] ?? mix.voices[0];
       if (!assignment) return;
