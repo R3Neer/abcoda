@@ -1,5 +1,7 @@
 import "./styles/index.css";
 import { AbcjsEngraver } from "./adapters/abcjs/abcjs-engraver";
+import { createHostBridge } from "./adapters/host/create-host-bridge";
+import { WidgetRuntime } from "./application/host-bridge";
 import {
   ScoreSessionController,
   type ScoreSessionState,
@@ -32,33 +34,16 @@ function showState(state: ScoreSessionState): void {
 }
 
 const controller = new ScoreSessionController(new AbcjsEngraver(score), showState);
+const runtime = new WidgetRuntime(controller, createHostBridge());
 
-void controller.receive({
-  status: "success",
-  snapshot: {
-    schemaVersion: 2,
-    revision: 1,
-    document: {
-      tuneId: "laboratory-1",
-      title: "First architecture v2 vertical",
-      voiceIds: ["RH", "LH"],
-      source: {
-        format: "abc",
-        text: `X:1
-T:First architecture v2 vertical
-M:4/4
-L:1/4
-Q:1/4=84
-V:RH clef=treble
-V:LH clef=bass
-%%score { RH LH }
-K:C
-[V:RH] C D E F|G A B c|]
-[V:LH] C, D, E, F,|G, A, B, C|]`,
-      },
-    },
-    diagnostics: [],
-  },
+void runtime.start().catch((cause: unknown) => {
+  const message = cause instanceof Error ? cause.message : "Could not connect to the host.";
+  document.body.dataset.state = "failed";
+  status.value = "Host connection failed";
+  error.textContent = message;
+  error.hidden = false;
 });
 
-window.addEventListener("pagehide", () => controller.dispose(), { once: true });
+window.addEventListener("pagehide", () => {
+  void runtime.dispose();
+}, { once: true });
