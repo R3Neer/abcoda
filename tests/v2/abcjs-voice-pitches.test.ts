@@ -22,9 +22,13 @@ describe("pitchesForVoices", () => {
     });
   });
 
-  it("links sounding pitches to the engraved selectable with the same source offset", () => {
-    const firstSvg = {} as SVGElement;
-    const secondSvg = {} as SVGElement;
+  it("links sounding pitches to engraved selectables by voice class and source offset", () => {
+    const firstSvg = {
+      getAttribute: (name: string) => name === "class" ? "abcjs-note abcjs-v0" : null,
+    } as unknown as SVGElement;
+    const secondSvg = {
+      getAttribute: (name: string) => name === "class" ? "abcjs-note abcjs-v0" : null,
+    } as unknown as SVGElement;
     const tune = {
       setUpAudio: () => ({
         tracks: [[
@@ -32,16 +36,18 @@ describe("pitchesForVoices", () => {
           { cmd: "note", pitch: 88, startChar: 24 },
         ]],
       }),
-      makeVoicesArray: () => [[
-        {
-          svgEl: firstSvg,
-          absEl: { abcelem: { el_type: "note", startChar: 20 } },
-        },
-        {
-          svgEl: secondSvg,
-          absEl: { abcelem: { el_type: "note", startChar: 24 } },
-        },
-      ]],
+      engraver: {
+        selectables: [
+          {
+            svgEl: firstSvg,
+            absEl: { abcelem: { el_type: "note", startChar: 20 } },
+          },
+          {
+            svgEl: secondSvg,
+            absEl: { abcelem: { el_type: "note", startChar: 24 } },
+          },
+        ],
+      },
     } as unknown as ABCJS.TuneObject;
 
     const analysis = analyzeVoicePitches(tune, ["TR"], 96);
