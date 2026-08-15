@@ -1,12 +1,22 @@
 import type { HostPresentationContext } from "../../application/host-bridge";
 import type { PlaybackSessionState } from "../../application/playback-session";
 import type { ScoreSessionState } from "../../application/score-session";
+import type { VoiceMixSnapshot } from "../../application/voice-mix";
+import {
+  instrumentsForVoice,
+  type InstrumentId,
+} from "../../../../../packages/domain/src/index";
 
 export interface PlaybackActions {
   readonly togglePlayback: () => void;
   readonly rewind: () => void;
   readonly toggleLoop: () => void;
   readonly setTempo: (tempo: number) => void;
+}
+
+export interface VoiceMixActions {
+  readonly setInstrument: (voiceId: string, instrument: InstrumentId) => void;
+  readonly setMuted: (voiceId: string, muted: boolean) => void;
 }
 
 export class DomWidgetView {
@@ -20,6 +30,8 @@ export class DomWidgetView {
   private readonly loopButton: HTMLButtonElement;
   private readonly tempoInput: HTMLInputElement;
   private readonly tempoValue: HTMLOutputElement;
+  private readonly mixer: HTMLElement;
+  private readonly voiceMix: HTMLElement;
 
   constructor(private readonly documentObject: Document = document) {
     this.scoreTarget = this.required("score");
@@ -31,6 +43,8 @@ export class DomWidgetView {
     this.loopButton = this.required("loop");
     this.tempoInput = this.required("tempo");
     this.tempoValue = this.required("tempo-value");
+    this.mixer = this.required("mixer");
+    this.voiceMix = this.required("voice-mix");
   }
 
   showScore(state: ScoreSessionState): void {
@@ -58,6 +72,45 @@ export class DomWidgetView {
     this.tempoInput.value = String(state.tempo);
     this.tempoValue.value = `${state.tempo} BPM`;
     if (state.status === "failed") this.showError(state.message);
+  }
+
+  showMix(state: VoiceMixSnapshot): void {
+    this.mixer.hidden = state.voices.length === 0;
+    this.voiceMix.replaceChildren(...state.voices.map((voice) => {
+      const row = this.documentObject.createElement("div");
+      row.className = "voice-mix-row";
+
+      const name = this.documentObject.createElement("span");
+      name.className = "voice-name";
+      name.title = voice.id;
+      name.textContent = voice.id;
+
+      const select = this.documentObject.createElement("select");
+      select.className = "voice-instrument";
+      select.dataset.voiceId = voice.id;
+      select.setAttribute("aria-label", `Instrument for ${voice.id}`);
+      for (const instrument of instrumentsForVoice(voice.kind)) {
+        const option = this.documentObject.createElement("option");
+        option.value = instrument.id;
+        option.textContent = instrument.label;
+        option.selected = instrument.id === voice.instrument;
+        select.appendChild(option);
+      }
+
+      const muteLabel = this.documentObject.createElement("label");
+      muteLabel.className = "voice-mute";
+      const mute = this.documentObject.createElement("input");
+      mute.type = "checkbox";
+      mute.dataset.voiceId = voice.id;
+      mute.checked = voice.muted;
+      mute.setAttribute("aria-label", `Mute ${voice.id}`);
+      muteLabel.appendChild(mute);
+      muteLabel.appendChild(this.documentObject.createTextNode("Mute"));
+      row.appendChild(name);
+      row.appendChild(select);
+      row.appendChild(muteLabel);
+      return row;
+    }));
   }
 
   applyHostContext(context: HostPresentationContext): void {
@@ -88,6 +141,20 @@ export class DomWidgetView {
       this.loopButton.removeEventListener("click", toggleLoop);
       this.tempoInput.removeEventListener("change", setTempo);
     };
+  }
+
+  bindVoiceMix(actions: VoiceMixActions): () => void {
+    const onChange = (event: Event) => {
+      const target = event.target;
+      if (target instanceof HTMLSelectElement && target.dataset.voiceId) {
+        actions.setInstrument(target.dataset.voiceId, target.value as InstrumentId);
+      }
+      if (target instanceof HTMLInputElement && target.dataset.voiceId) {
+        actions.setMuted(target.dataset.voiceId, target.checked);
+      }
+    };
+    this.voiceMix.addEventListener("change", onChange);
+    return () => this.voiceMix.removeEventListener("change", onChange);
   }
 
   private showError(message: string): void {

@@ -58,6 +58,13 @@ body {
   font-size: 0.8rem;
 }
 
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(15rem, 19rem);
+  align-items: start;
+  gap: 1rem;
+}
+
 .score {
   position: relative;
   min-height: 12rem;
@@ -87,6 +94,81 @@ body {
   border: 1px solid color-mix(in srgb, #d22 60%, transparent);
   border-radius: 0.5rem;
   background: color-mix(in srgb, #d22 10%, Canvas);
+}
+
+.mixer {
+  position: sticky;
+  top: calc(1rem + var(--host-safe-top, 0px));
+  margin-block: 1rem 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid color-mix(in srgb, CanvasText 14%, transparent);
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, CanvasText 4%, Canvas);
+}
+
+.mixer-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.mixer-heading {
+  justify-content: space-between;
+  margin-block-end: 0.6rem;
+}
+
+.mixer-heading h2 {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.mixer-heading span {
+  color: color-mix(in srgb, CanvasText 58%, transparent);
+  font-size: 0.75rem;
+}
+
+.voice-mix {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.voice-mix-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 0.4rem 0.75rem;
+  min-width: 0;
+}
+
+.voice-name {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 0.8rem;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.voice-instrument {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  min-width: 0;
+  min-height: 2.5rem;
+  flex: 1;
+  padding-inline: 0.65rem;
+  border: 1px solid color-mix(in srgb, CanvasText 20%, transparent);
+  border-radius: 0.5rem;
+  color: CanvasText;
+  background: Canvas;
+  font: inherit;
+}
+
+.voice-mute {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 2.5rem;
+  font-size: 0.8rem;
 }
 
 .transport {
@@ -145,5 +227,17 @@ body {
 
   .tempo {
     flex-basis: 100%;
+  }
+
+}
+
+@media (max-width: 52rem) {
+  .workspace {
+    display: block;
+  }
+
+  .mixer {
+    position: static;
+    margin-block-start: 0;
   }
 }

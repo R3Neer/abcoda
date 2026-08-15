@@ -70,6 +70,25 @@ test("invalid scores never expose active playback controls", async ({ page }) =>
   await expect(page.locator("#playback")).toBeDisabled();
   await expect(page.locator("#rewind")).toBeDisabled();
   await expect(page.locator("#loop")).toBeDisabled();
+  await expect(page.locator("#mixer")).toBeHidden();
+});
+
+test("voice mixer keeps instrument and mute as independent local preferences", async ({ page }) => {
+  await page.goto("/?scenario=ready");
+  const rows = page.locator(".voice-mix-row");
+  await expect(rows).toHaveCount(2);
+  const rightHand = rows.filter({ hasText: "RH" });
+  const leftHand = rows.filter({ hasText: "LH" });
+  const instrument = rightHand.locator("select");
+  const mute = leftHand.locator('input[type="checkbox"]');
+
+  await expect(instrument).toHaveValue("acoustic_grand_piano");
+  await instrument.selectOption("cello");
+  await expect(rightHand.locator("select")).toHaveValue("cello");
+  await mute.check();
+  await expect(leftHand.locator('input[type="checkbox"]')).toBeChecked();
+  await expect(page.locator("#tempo-value")).toHaveText("84 BPM");
+  await expect(page.locator("#playback")).toBeEnabled();
 });
 
 test("a late invalid result tears down playback from the previous score", async ({ page }) => {

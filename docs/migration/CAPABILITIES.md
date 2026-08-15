@@ -14,8 +14,8 @@
 | CAP-05 | Grabado multivoz | partial | abcjs en tests Node y widget construido | Prueba en navegador y screenshots. |
 | CAP-06 | Play, pause, rewind y loop | partial | Engine diferido conectado y controles sticky; estados/race probados y controles E2E móvil/escritorio | Audición humana, finalización natural y continuidad real. |
 | CAP-07 | Tempo en vivo | partial | Tempo canónico inicial, ratio, carrera y control E2E sin audio | Rebuild abcjs audible y continuidad en navegador. |
-| CAP-08 | Instrumento y mute por voz | partial | `tests/score.test.ts`, markup | Interacción completa en navegador. |
-| CAP-09 | Compatibilidad y rango instrumental | characterized | `tests/score.test.ts` | Política de dominio independiente de abcjs. |
+| CAP-08 | Instrumento y mute por voz | implemented-v2 | Estado tipado, carreras unitarias y Playwright móvil/escritorio | Falta audición humana de cambios en reproducción real. |
+| CAP-09 | Compatibilidad y rango instrumental | implemented-v2 | Catálogo de dominio y `tests/v2/instruments.test.ts` | Añadir avisos de tesitura a la UI. |
 | CAP-10 | Transposición de ABC, tonalidad y acordes | characterized | `tests/abc-edit.test.ts` | Operación canónica e inversa. |
 | CAP-11 | Percusión inmune a transposición tonal | characterized | lint, edit y score tests | Invariante de dominio v2. |
 | CAP-12 | Editar, copiar, aplicar y restaurar | partial | tests de markup y funciones | E2E de revisiones y diagnóstico. |

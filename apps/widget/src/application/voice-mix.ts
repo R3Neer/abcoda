@@ -4,6 +4,7 @@ import {
   type InstrumentId,
   type VoiceKind,
 } from "../../../../packages/domain/src/index";
+import type { PlaybackEngine } from "./playback-session";
 
 export interface MixableVoice {
   readonly id: string;
@@ -18,6 +19,10 @@ export interface VoiceMixEntry extends MixableVoice {
 export interface VoiceMixSnapshot {
   readonly revision: number;
   readonly voices: readonly VoiceMixEntry[];
+}
+
+export interface VoiceMixPlaybackSource {
+  create(mix: VoiceMixSnapshot): Promise<PlaybackEngine>;
 }
 
 export class VoiceMixController {

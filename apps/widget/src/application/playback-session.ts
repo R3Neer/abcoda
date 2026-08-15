@@ -164,6 +164,20 @@ export class PlaybackSessionController {
     this.emit();
   }
 
+  async fail(message: string): Promise<void> {
+    ++this.generation;
+    const engine = this.engine;
+    this.engine = undefined;
+    this.state = {
+      status: "failed",
+      tempo: this.state.tempo,
+      loop: this.state.loop,
+      message,
+    };
+    this.emit();
+    await engine?.dispose();
+  }
+
   async dispose(): Promise<void> {
     ++this.generation;
     const engine = this.engine;

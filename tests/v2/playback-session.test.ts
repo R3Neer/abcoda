@@ -126,4 +126,19 @@ describe("PlaybackSessionController", () => {
       message: "decode failed",
     });
   });
+
+  it("fails only the audio session and disposes its current engine", async () => {
+    const { controller, engine, spies } = setup();
+    await controller.configure(engine, 100);
+
+    await controller.fail("sample unavailable");
+
+    expect(spies.dispose).toHaveBeenCalledOnce();
+    expect(controller.snapshot()).toEqual({
+      status: "failed",
+      tempo: 100,
+      loop: false,
+      message: "sample unavailable",
+    });
+  });
 });

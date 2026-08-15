@@ -2,11 +2,11 @@ import {
   evaluateScoreResultSchema,
   type ScoreSnapshotDto,
 } from "../../../../packages/contracts/src/index";
-import type { PlaybackEngine } from "./playback-session";
 import type { ScoreTimeline } from "./score-timeline";
+import type { VoiceMixPlaybackSource } from "./voice-mix";
 
 export interface EngravingResult {
-  readonly playback?: PlaybackEngine;
+  readonly playbackSource?: VoiceMixPlaybackSource;
   readonly timeline?: ScoreTimeline;
 }
 

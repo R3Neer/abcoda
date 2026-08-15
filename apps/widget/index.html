@@ -12,7 +12,16 @@
         <output id="status" class="status" aria-live="polite">Booting</output>
       </header>
       <section id="error" class="error" role="alert" hidden></section>
-      <section id="score" class="score" aria-label="Music score"></section>
+      <div class="workspace">
+        <section id="score" class="score" aria-label="Music score"></section>
+        <section id="mixer" class="mixer" aria-labelledby="mixer-title" hidden>
+          <div class="mixer-heading">
+            <h2 id="mixer-title">Voices</h2>
+            <span>Local playback mix</span>
+          </div>
+          <div id="voice-mix" class="voice-mix"></div>
+        </section>
+      </div>
       <footer class="transport" aria-label="Playback controls">
         <button id="rewind" type="button" disabled aria-label="Return to beginning">↶</button>
         <button id="playback" type="button" disabled>Play</button>

@@ -7,6 +7,10 @@ import { WidgetRuntime } from "./application/host-bridge";
 import { PlaybackSessionController } from "./application/playback-session";
 import { ScoreSessionController } from "./application/score-session";
 import { ScoreCursorController } from "./application/score-cursor";
+import {
+  VoiceMixController,
+} from "./application/voice-mix";
+import { PlaybackMixCoordinator } from "./application/playback-mix-coordinator";
 
 const view = new DomWidgetView();
 const cursorView = new DomScoreCursor(view.scoreTarget);
@@ -16,6 +20,14 @@ const playback = new PlaybackSessionController(96, 96, false, (state) => {
   cursor.setPlaying(
     (state.status === "ready" || state.status === "transitioning") && state.mode === "playing",
   );
+});
+const playbackMix = new PlaybackMixCoordinator(playback, (message) => {
+  void playback.fail(message);
+});
+
+const mix = new VoiceMixController((state) => {
+  view.showMix(state);
+  void playbackMix.apply(state);
 });
 
 const controller = new ScoreSessionController(
@@ -29,15 +41,17 @@ const controller = new ScoreSessionController(
   }),
   (state) => {
     if (state.status === "loading" || state.status === "invalid" || state.status === "failed") {
+      playbackMix.clear();
+      mix.adoptVoices(state.status === "loading" ? state.revision : 0, []);
       void playback.dispose();
     }
     view.showScore(state);
   },
   (snapshot, engraving) => {
     if (engraving.timeline) cursor.setTimeline(engraving.timeline);
-    if (!engraving.playback) return;
     const tempo = snapshot.document.tempo?.bpm ?? 96;
-    void playback.configure(engraving.playback, tempo, undefined, tempo);
+    playbackMix.adoptSource(engraving.playbackSource, tempo);
+    mix.adoptVoices(snapshot.revision, snapshot.document.voices);
   },
 );
 const runtime = new WidgetRuntime(controller, createHostBridge(), (context) => view.applyHostContext(context));
@@ -46,6 +60,10 @@ const unbindPlayback = view.bindPlayback({
   rewind: () => { playback.rewind(); cursor.rewind(); },
   toggleLoop: () => playback.setLoop(!playback.snapshot().loop),
   setTempo: (tempo) => { void playback.setTempo(tempo); },
+});
+const unbindVoiceMix = view.bindVoiceMix({
+  setInstrument: (voiceId, instrument) => mix.setInstrument(voiceId, instrument),
+  setMuted: (voiceId, muted) => mix.setMuted(voiceId, muted),
 });
 const unbindSeek = cursorView.bindSeek((x, y) => {
   const progress = cursor.seekPoint(x, y);
@@ -62,6 +80,7 @@ void runtime.start().catch((cause: unknown) => {
 
 window.addEventListener("pagehide", () => {
   unbindPlayback();
+  unbindVoiceMix();
   unbindSeek();
   void playback.dispose();
   void runtime.dispose();
