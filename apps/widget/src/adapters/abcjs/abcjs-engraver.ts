@@ -8,6 +8,7 @@ import { timelineForTune } from "./abcjs-timeline";
 import type { PlaybackTimingCallback } from "../../application/score-cursor";
 import { AbcjsPlaybackSource } from "./abcjs-playback-source";
 import { pitchesForVoices } from "./abcjs-voice-pitches";
+import { scoreStaffWidth } from "../../application/score-layout";
 
 export class AbcjsEngraver implements Engraver {
   constructor(
@@ -31,8 +32,11 @@ export class AbcjsEngraver implements Engraver {
     signal.throwIfAborted();
 
     const availableWidth = this.target.clientWidth;
+    const staffWidth = scoreStaffWidth(
+      availableWidth,
+      presentation?.preferredMeasuresPerLine,
+    );
     const tunes = ABCJS.renderAbc(this.target, snapshot.document.source.text, {
-      responsive: "resize",
       add_classes: true,
       expandToWidest: true,
       foregroundColor: "currentColor",
@@ -41,7 +45,7 @@ export class AbcjsEngraver implements Engraver {
           this.callbacks.onScoreSelection([abcElement.startChar]);
         }
       },
-      staffwidth: availableWidth > 0 ? Math.max(280, availableWidth - 32) : 720,
+      staffwidth: staffWidth,
       ...(presentation?.preferredMeasuresPerLine === undefined
         ? {}
         : {

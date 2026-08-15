@@ -118,10 +118,7 @@ body {
 }
 
 .workspace {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(15rem, 19rem);
-  align-items: start;
-  gap: 1rem;
+  display: block;
 }
 
 .score {
@@ -156,7 +153,10 @@ body {
 
 .score svg {
   display: block;
+  width: auto;
   max-width: 100%;
+  height: auto;
+  margin-inline: auto;
 }
 
 .error {
@@ -168,9 +168,8 @@ body {
 }
 
 .mixer {
-  position: sticky;
-  top: calc(1rem + var(--host-safe-top, 0px));
-  margin-block: 1rem 0.75rem;
+  position: static;
+  margin-block: 0 0.75rem;
   padding: 0.75rem;
   border: 1px solid color-mix(in srgb, CanvasText 14%, transparent);
   border-radius: 0.75rem;
@@ -640,15 +639,6 @@ body {
 }
 
 @media (max-width: 52rem) {
-  .workspace {
-    display: block;
-  }
-
-  .mixer {
-    position: static;
-    margin-block-start: 0;
-  }
-
   .editor[open] ~ .transport {
     position: static;
   }
