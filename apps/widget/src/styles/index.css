@@ -206,14 +206,15 @@ body {
 
 .voice-mix-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(2.5rem, 0.35fr) minmax(7rem, 1fr) auto;
   align-items: center;
   gap: 0.4rem 0.75rem;
   min-width: 0;
 }
 
 .voice-name {
-  grid-column: 1 / -1;
+  grid-column: 1;
+  grid-row: 1;
   min-width: 0;
   overflow: hidden;
   font-size: 0.8rem;
@@ -223,8 +224,8 @@ body {
 }
 
 .voice-instrument {
-  grid-column: 1;
-  grid-row: 2;
+  grid-column: 2;
+  grid-row: 1;
   min-width: 0;
   min-height: 2.75rem;
   flex: 1;
@@ -237,8 +238,8 @@ body {
 }
 
 .voice-mute {
-  grid-column: 2;
-  grid-row: 2;
+  grid-column: 3;
+  grid-row: 1;
 }
 
 .icon-button {

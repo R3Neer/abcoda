@@ -99,14 +99,13 @@ function normalizeScoreGrouping(abc: string): string {
   const groupingIsComplete = groupedIds.length > 0
     && groupedIds.every((voiceId) => voiceSet.has(voiceId))
     && voiceIds.every((voiceId) => groupedIds.includes(voiceId));
-  if (groupingIsComplete) return abc;
-
-  const canonical = `%%score { ${voiceIds.join(" ")} }`;
-  if (/^\s*%%score\b.*$/m.test(abc)) {
-    return abc.replace(/^\s*%%score\b.*$/m, canonical);
-  }
-
   const lines = abc.split("\n");
+  const scoreIndex = lines.findIndex((line) => /^\s*%%score\b/.test(line));
+  const existing = scoreIndex >= 0 ? lines[scoreIndex]?.trim() : undefined;
+  const canonical = groupingIsComplete && existing
+    ? existing
+    : `%%score { ${voiceIds.join(" ")} }`;
+  if (scoreIndex >= 0) lines.splice(scoreIndex, 1);
   const firstVoice = lines.findIndex((line) => /^\s*V:/.test(line));
   const firstKey = lines.findIndex((line) => /^\s*K:/.test(line));
   const insertion = firstVoice >= 0 ? firstVoice : firstKey >= 0 ? firstKey : lines.length;

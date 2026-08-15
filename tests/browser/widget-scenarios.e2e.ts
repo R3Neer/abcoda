@@ -72,6 +72,33 @@ test("playback controls adopt score tempo and remain operable without starting a
   await expect(page.locator("#tempo-value")).toHaveText("110 BPM");
 });
 
+test("transport orders play before rewind", async ({ page }) => {
+  await page.goto("/?scenario=ready");
+  const order = await page.locator(".transport > button").evaluateAll((buttons) => (
+    buttons.map((button) => button.id)
+  ));
+  expect(order.slice(0, 2)).toEqual(["playback", "rewind"]);
+});
+
+test("piano voices share a full grand-staff brace while unrelated voices do not", async ({ page }) => {
+  await page.goto("/?scenario=ready");
+  const brace = page.locator('#score [data-name="brace"]');
+  const staves = page.locator("#score .abcjs-staff");
+  await expect(brace).toHaveCount(1);
+  await expect(staves).toHaveCount(2);
+  const braceBox = await brace.boundingBox();
+  const upperBox = await staves.nth(0).boundingBox();
+  const lowerBox = await staves.nth(1).boundingBox();
+  expect(braceBox).not.toBeNull();
+  expect(upperBox).not.toBeNull();
+  expect(lowerBox).not.toBeNull();
+  expect(braceBox!.y).toBeLessThanOrEqual(upperBox!.y + 2);
+  expect(braceBox!.y + braceBox!.height).toBeGreaterThanOrEqual(lowerBox!.y + lowerBox!.height - 2);
+
+  await page.goto("/?scenario=mixed");
+  await expect(page.locator('#score [data-name="brace"]')).toHaveCount(0);
+});
+
 test("schema 1 presentation preferences survive the v2 widget boundary", async ({ page }) => {
   await page.goto("/?scenario=legacy");
   await expect(page.locator("#score-title")).toHaveText("Legacy presentation");
@@ -104,6 +131,19 @@ test("voice mixer keeps instrument and mute as independent local preferences", a
   const leftHand = rows.filter({ hasText: "LH" });
   const instrument = rightHand.locator("select");
   const mute = leftHand.locator("button.voice-mute");
+
+  for (const row of [rightHand, leftHand]) {
+    const nameBox = await row.locator(".voice-name").boundingBox();
+    const instrumentBox = await row.locator("select").boundingBox();
+    const muteBox = await row.locator("button.voice-mute").boundingBox();
+    expect(nameBox).not.toBeNull();
+    expect(instrumentBox).not.toBeNull();
+    expect(muteBox).not.toBeNull();
+    expect(nameBox!.x).toBeLessThan(instrumentBox!.x);
+    expect(instrumentBox!.x).toBeLessThan(muteBox!.x);
+    expect(Math.abs((nameBox!.y + nameBox!.height / 2) - (instrumentBox!.y + instrumentBox!.height / 2))).toBeLessThan(2);
+    expect(Math.abs((muteBox!.y + muteBox!.height / 2) - (instrumentBox!.y + instrumentBox!.height / 2))).toBeLessThan(2);
+  }
 
   await expect(instrument).toHaveValue("acoustic_grand_piano");
   await instrument.selectOption("cello");

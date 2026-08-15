@@ -28,9 +28,9 @@ T:First architecture v2 vertical
 M:4/4
 L:1/4
 Q:1/4=84
+%%score { RH | LH }
 V:RH clef=treble
 V:LH clef=bass
-%%score { RH LH }
 K:C
 [V:RH] C D E F|G A B c|]
 [V:LH] C, D, E, F,|G, A, B, C|]`,
@@ -83,9 +83,9 @@ T:Melody and percussion
 M:4/4
 L:1/4
 Q:1/4=96
+%%score P D
 V:P clef=treble
 V:D clef=perc
-%%score { P D }
 K:C
 [V:P] C D E F|G A B c|]
 [V:D][K:none clef=perc] C D E F|C D E F|]`,

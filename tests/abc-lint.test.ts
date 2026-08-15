@@ -50,6 +50,18 @@ describe("ABC mechanical normalization", () => {
     expect(ABCJS.synth.sequence(ABCJS.parseOnly(result.score.abc)[0]!, {})).toHaveLength(3);
   });
 
+  it("moves a complete score directive before voice declarations without losing grand-staff syntax", () => {
+    const result = normalizeAndLintScore(score(
+      "X:1\nT:Piano\nM:4/4\nL:1/4\nQ:1/4=96\nV:RH clef=treble\nV:LH clef=bass\n%%score { RH | LH }\nK:C\n[V:RH] C4|]\n[V:LH] C,4|]",
+    ));
+
+    expect(result.score.abc).toContain("Q:1/4=96\n%%score { RH | LH }\nV:RH");
+    const tune = ABCJS.parseOnly(result.score.abc)[0]!;
+    const staves = tune.lines[0]?.staff as Array<{ brace?: string }> | undefined;
+    expect(staves?.[0]?.brace).toBe("start");
+    expect(staves?.[1]?.brace).toBe("end");
+  });
+
   it("aligns the printed quarter-note tempo with playback", () => {
     const input = score("X:1\nT:Tempo\nM:4/4\nL:1/8\nQ:\"Andante\" 1/8=144\nK:C\nC8|]", {
       playback: { tempo: 72 },
