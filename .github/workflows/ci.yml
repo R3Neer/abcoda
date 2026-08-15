@@ -22,6 +22,8 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - name: Check types, tests, and builds
         run: npm run check
+      - name: Run range browser smoke
+        run: npx playwright test tests/browser/range-semantics.e2e.ts tests/browser/visual-review.e2e.ts --grep range --retries=0 --workers=1 --timeout=15000
       - name: Run browser tests
         run: npm run test:browser
       - name: Upload browser visual review
