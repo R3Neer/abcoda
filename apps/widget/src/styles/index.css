@@ -668,3 +668,31 @@ body {
     opacity: 1;
   }
 }
+
+@media (forced-colors: active) {
+  :root {
+    --accent: Highlight;
+    --accent-ink: HighlightText;
+    --control-bg: Canvas;
+    --control-border: ButtonText;
+    --control-hover: Canvas;
+    --control-pressed: Highlight;
+  }
+
+  :where(button, select, input, textarea, summary):focus-visible {
+    outline-color: Highlight;
+  }
+
+  button[aria-pressed="true"],
+  .version-picker[open] > summary,
+  .score-cursor {
+    forced-color-adjust: none;
+  }
+
+  .error,
+  .draft-diagnostics li,
+  .voice-range-warning {
+    border-color: Mark;
+    color: MarkText;
+  }
+}

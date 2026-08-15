@@ -12,6 +12,39 @@ const allowedMethods: Readonly<Record<string, ReadonlySet<string>>> = {
   "/mcp": new Set(["GET", "POST", "DELETE", "OPTIONS"]),
 };
 
+interface RequestContext {
+  readonly id: string;
+  readonly method: string;
+  readonly path: string;
+  readonly startedAt: number;
+}
+
+function requestContext(request: Request): RequestContext {
+  return {
+    id: crypto.randomUUID(),
+    method: request.method,
+    path: new URL(request.url).pathname,
+    startedAt: Date.now(),
+  };
+}
+
+function finalizeResponse(response: Response, context: RequestContext): Response {
+  const headers = new Headers(response.headers);
+  headers.set("X-Request-Id", context.id);
+  headers.set("X-Content-Type-Options", "nosniff");
+  headers.set("Referrer-Policy", "no-referrer");
+  headers.set("Permissions-Policy", "camera=(), geolocation=(), microphone=()");
+  if (context.path === "/mcp" || context.path === "/health") {
+    headers.set("Cache-Control", "no-store");
+    headers.set("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'; base-uri 'none'");
+  }
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
 function methodNotAllowed(methods: ReadonlySet<string>): Response {
   return Response.json(
     { error: { code: "METHOD_NOT_ALLOWED", message: "The request method is not allowed for this route." } },
@@ -72,19 +105,33 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
+    const context = requestContext(request);
     try {
-      return await handleRequest(request, env);
+      const response = finalizeResponse(await handleRequest(request, env), context);
+      console.log({
+        event: "request.completed",
+        requestId: context.id,
+        method: context.method,
+        path: context.path,
+        status: response.status,
+        durationMs: Date.now() - context.startedAt,
+      });
+      return response;
     } catch (error) {
-      const requestId = crypto.randomUUID();
-      console.error(JSON.stringify({
+      console.error({
         event: "request.failed",
-        requestId,
-        path: new URL(request.url).pathname,
+        requestId: context.id,
+        method: context.method,
+        path: context.path,
+        durationMs: Date.now() - context.startedAt,
         error: error instanceof Error ? error.message : "Unknown error",
-      }));
-      return Response.json(
-        { error: { code: "INTERNAL_ERROR", message: "The request could not be completed.", requestId } },
-        { status: 500 },
+      });
+      return finalizeResponse(
+        Response.json(
+          { error: { code: "INTERNAL_ERROR", message: "The request could not be completed.", requestId: context.id } },
+          { status: 500 },
+        ),
+        context,
       );
     }
   },

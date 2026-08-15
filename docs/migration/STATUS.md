@@ -4,9 +4,9 @@
 >
 > Baseline: `ae361541f05fd52abbd0fe1dc0f1240e3d627320`
 >
-> Última auditoría: 2026-08-15, commit `ff8de78`
+> Último corte confirmado: 2026-08-15, commit `1bdb00a`
 >
-> Validación: `npm run check:browser` verde (187 unitarias/integración, 11 Worker y 64 navegador)
+> Validación del corte: `npm run check` verde (207 unitarias/integración y 11 Worker); Playwright 62/64 más la regresión corregida 2/2. El rerun integral de los cambios posteriores está pendiente por el límite de ejecución del entorno.
 
 ## Fases
 
@@ -16,13 +16,13 @@
 | 1. Esqueleto y dependencias | complete | Workspaces, tsconfigs, apps Worker/widget, ESLint tipado, límites automáticos, detección de ciclos, CI Node 22 y builds legacy/v2 simultáneos pasan en `check:browser`. Versiones y URI v2 proceden de `packages/contracts`. |
 | 2. Contratos y modelo canónico | complete | Contratos externos v2 versionados y adaptador schema 1; aggregate rico con IDs nominales de melodía/voz/compás/evento/revisión; snapshot compacto; `PlaybackProfile`, `ScoreOperation`, diagnósticos con corrección y resultados discriminados. Worker, widget y aplicación compilan sin importarse entre sí. |
 | 3. Codec y diagnósticos | complete | `CanonicalAbcCodec` modela corpus, rangos y nodos opacos con round-trip lossless; validadores distinguen sintaxis de consistencia; normalización es idempotente; `ApplyScoreOperation` transpone tonalidad/notas/acordes, preserva percusión y aplica instrumento/mute/restauración sin revisiones parciales. `abcjs` ya no transforma borradores. |
-| 4. Casos de uso | in progress | `EvaluateScore` está detrás de `ScoreCodec`; la política pura `@abcoda/composition` es compartida sin depender de MCP ni Cloudflare. |
-| 5. MCP y Worker seguro | in progress | `prepare_composition`, `validate_score` y `render_score`, recurso UI, health, límites HTTP y CORS por allowlist pasan 11 pruebas en workerd. Faltan completar headers/telemetría de petición y la prueba en preview real. |
+| 4. Casos de uso | in progress | `PrepareComposition`, `EvaluateScore`, `PresentScore`, `ApplyScoreOperation` y `ExportScore` ya están tras puertos y tienen pruebas sin MCP/Worker/DOM. Implementación, lint y tipos listos; falta ejecutar el gate nuevo para pasar a `complete`. |
+| 5. MCP y Worker seguro | in progress | Herramientas/recurso, límites HTTP, allowlist CORS y CSP MCP ya pasaban workerd; se añadieron request ID, headers defensivos, logs estructurados sin ABC/prompts y trazas automáticas. Falta rerun workerd y preview real. |
 | 6. Shell y bridge | complete | `HostBridge` aísla resultados, teardown, tema y safe areas; los controladores poseen estado y efectos por revisión; `DomWidgetView` posee el DOM. El laboratorio cubre carga, error, recuperación y carreras en móvil/escritorio. |
-| 7. Grabado | in progress | Adaptador abcjs, piano/multivoz, selección por nota, cursor continuo y saltos de sistema pasan Playwright. Faltan corpus visual versionado, zoom/contraste alto y reflow largo. |
-| 8. Reproducción | in progress | Engine diferido, transporte, tempo vivo, loop, timeline, cursor y click-to-seek tienen pruebas de carrera y navegador. Falta audición humana y completar la matriz con fallos de muestras/reflow. |
+| 7. Grabado | in progress | Adaptador abcjs, piano/multivoz, selección por nota y cursor ya pasaban Playwright; ahora hay reflow cancelable por `ResizeObserver` que conserva identidad de fuente y regresiones de zoom/contraste forzado. Falta ejecutar el gate browser nuevo. |
+| 8. Reproducción | in progress | Engine diferido, transporte, tempo vivo, loop, timeline y click-to-seek tienen pruebas de carrera; reflow conserva continuidad y teardown invalida cargas de muestras pendientes. Falta ejecutar esas regresiones y audición humana. |
 | 9. Instrumentos y edición | in progress | Mezcla race-safe, avisos de tesitura, editor revisionado, commits explícitos, historial y transposición revisable están implementados. Falta sustituir la transformación abcjs/textual por operaciones canónicas. |
-| 10. Paridad, UX y robustez | in progress | Las iteraciones de UX y `check:browser` ya aportan cobertura semántica; faltan clasificación final CAP/FIX, propiedades del codec, auditoría accesible y pruebas manuales/audio/carga. |
+| 10. Paridad, UX y robustez | in progress | Propiedades del codec, teclado/foco/reduced-motion y presupuestos están cubiertos; se añadieron contraste forzado, zoom 200 %, reflow y telemetría sin contenido musical. Faltan gate integral, revisión humana/audio y clasificación final. |
 | 11. Candidato y sustitución | pending | No existe aún un preview integrado y aprobado ni procedimiento probado de rollback. |
 
 ## Decisiones de cierre

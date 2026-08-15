@@ -114,4 +114,27 @@ describe("v2 widget score session", () => {
     expect(render).toHaveBeenCalledTimes(1);
     expect(states.at(-1)).toMatchObject({ status: "ready", snapshot: { revision: 5 } });
   });
+
+  it("cancels stale responsive reflows and republishes only the current revision", async () => {
+    const reflow = deferred();
+    const render = vi.fn<Engraver["render"]>((_snapshot, _presentation, signal) => {
+      if (render.mock.calls.length === 1) return Promise.resolve({});
+      return new Promise<EngravingResult>((resolve, reject) => {
+        reflow.promise.then(() => resolve({}), reject);
+        signal.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")));
+      });
+    });
+    const engravedRevisions: number[] = [];
+    const controller = new ScoreSessionController(
+      { render, clear: vi.fn() },
+      vi.fn(),
+      (value) => engravedRevisions.push(value.revision),
+    );
+    await controller.receive(snapshot(7));
+    const staleReflow = controller.reflow();
+    const nextRevision = controller.receive(snapshot(8));
+    reflow.resolve();
+    await Promise.all([staleReflow, nextRevision]);
+    expect(engravedRevisions).toEqual([7, 8]);
+  });
 });

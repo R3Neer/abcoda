@@ -31,9 +31,12 @@ export class ScoreCursorController {
 
   constructor(private readonly view: CursorView) {}
 
-  setTimeline(timeline: ScoreTimeline): void {
+  setTimeline(timeline: ScoreTimeline, preserveSelection = false): void {
+    const sourceOffsets = preserveSelection ? this.selected?.sourceOffsets : undefined;
     this.timeline = timeline;
-    this.selected = firstTimingEvent(timeline.events);
+    this.selected = sourceOffsets
+      ? eventForSourceOffsets(timeline.events, sourceOffsets) ?? firstTimingEvent(timeline.events)
+      : firstTimingEvent(timeline.events);
     if (this.selected) this.view.show(this.selected);
     else this.view.hide();
   }

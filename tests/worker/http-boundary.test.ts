@@ -54,6 +54,17 @@ describe("ABCoda v2 Worker HTTP boundary", () => {
     });
     expect(response.headers.get("Access-Control-Allow-Origin")).toBeNull();
     expect(response.headers.get("Vary")).toContain("Origin");
+    expect(response.headers.get("X-Request-Id")).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+    );
+    expect(response.headers.get("X-Content-Type-Options")).toBe("nosniff");
+    expect(response.headers.get("Referrer-Policy")).toBe("no-referrer");
+    expect(response.headers.get("Permissions-Policy")).toContain("microphone=()");
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
+    expect(response.headers.get("Content-Security-Policy")).toContain("default-src 'none'");
+
+    const next = await SELF.fetch("https://abcoda.test/health");
+    expect(next.headers.get("X-Request-Id")).not.toBe(response.headers.get("X-Request-Id"));
   });
 
   it("keeps concurrent health and MCP evaluations isolated", async () => {

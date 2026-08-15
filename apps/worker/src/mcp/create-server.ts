@@ -13,6 +13,7 @@ import {
 } from "../../../../packages/composition/src/index";
 import {
   EvaluateScore,
+  PrepareComposition,
   PresentScore,
 } from "../../../../packages/application/src/index";
 import {
@@ -105,6 +106,9 @@ function toDomainSnapshot(snapshot: ScoreSnapshotDto): ScoreSnapshot {
       severity: diagnostic.severity,
       message: diagnostic.message,
       ...(diagnostic.range === undefined ? {} : { range: diagnostic.range }),
+      ...(diagnostic.suggestedCorrection === undefined
+        ? {}
+        : { suggestedCorrection: diagnostic.suggestedCorrection }),
     })),
   };
 }
@@ -119,6 +123,7 @@ export function createV2McpServer(loadWidget?: WidgetLoader): McpServer {
   );
   const evaluateScore = new EvaluateScore(new CanonicalAbcCodec());
   const presentScore = new PresentScore(evaluateScore);
+  const prepareComposition = new PrepareComposition({ prepare: buildCompositionPlan });
 
   registerAppTool(
     server,
@@ -142,7 +147,9 @@ export function createV2McpServer(loadWidget?: WidgetLoader): McpServer {
     },
     (rawInput) => {
       try {
-        const result = buildCompositionPlan(compositionBriefSchema.parse(rawInput));
+        const result = prepareComposition.execute({
+          brief: compositionBriefSchema.parse(rawInput),
+        });
         return {
           structuredContent: result,
           content: [{ type: "text" as const, text: result.prompt }],

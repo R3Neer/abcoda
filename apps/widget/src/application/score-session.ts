@@ -33,6 +33,8 @@ export type StateListener = (state: ScoreSessionState) => void;
 export class ScoreSessionController {
   private activeRevision = -1;
   private activeEffect: AbortController | undefined;
+  private activeSnapshot: ScoreSnapshotDto | undefined;
+  private activePresentation: ScorePresentationDto | undefined;
 
   constructor(
     private readonly engraver: Engraver,
@@ -50,6 +52,8 @@ export class ScoreSessionController {
     const parsed = evaluateScoreResultSchema.safeParse(input);
     if (!parsed.success) {
       this.activeEffect?.abort();
+      this.activeSnapshot = undefined;
+      this.activePresentation = undefined;
       this.engraver.clear();
       this.onState({
         status: "invalid",
@@ -60,6 +64,8 @@ export class ScoreSessionController {
 
     if (parsed.data.status === "invalid") {
       this.activeEffect?.abort();
+      this.activeSnapshot = undefined;
+      this.activePresentation = undefined;
       this.engraver.clear();
       this.onState({
         status: "invalid",
@@ -71,6 +77,8 @@ export class ScoreSessionController {
 
     const snapshot = parsed.data.snapshot;
     if (!snapshot) {
+      this.activeSnapshot = undefined;
+      this.activePresentation = undefined;
       this.engraver.clear();
       this.onState({ status: "invalid", message: "The score result has no snapshot." });
       return;
@@ -81,6 +89,8 @@ export class ScoreSessionController {
     const effect = new AbortController();
     this.activeEffect = effect;
     this.activeRevision = snapshot.revision;
+    this.activeSnapshot = snapshot;
+    this.activePresentation = parsed.data.presentation;
     this.onState({ status: "loading", revision: snapshot.revision });
 
     try {
@@ -96,9 +106,34 @@ export class ScoreSessionController {
     }
   }
 
+  async reflow(): Promise<void> {
+    const snapshot = this.activeSnapshot;
+    if (!snapshot) return;
+    this.activeEffect?.abort();
+    const effect = new AbortController();
+    this.activeEffect = effect;
+    try {
+      const result = await this.engraver.render(
+        snapshot,
+        this.activePresentation,
+        effect.signal,
+      );
+      if (effect.signal.aborted || snapshot.revision !== this.activeRevision) return;
+      this.onEngraved(snapshot, result, this.activePresentation);
+      this.onState({ status: "ready", snapshot });
+    } catch (error) {
+      if (effect.signal.aborted || snapshot.revision !== this.activeRevision) return;
+      const message = error instanceof Error ? error.message : "The score could not be reflowed.";
+      this.engraver.clear();
+      this.onState({ status: "failed", message });
+    }
+  }
+
   dispose(): void {
     this.activeEffect?.abort();
     this.activeEffect = undefined;
+    this.activeSnapshot = undefined;
+    this.activePresentation = undefined;
     this.engraver.clear();
   }
 }

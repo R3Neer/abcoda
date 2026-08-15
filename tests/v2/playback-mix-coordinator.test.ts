@@ -98,4 +98,19 @@ describe("PlaybackMixCoordinator", () => {
     await coordinator.apply(mix("violin"));
     expect(failures).toEqual(["sample failed"]);
   });
+
+  it("disposes a sample build that finishes after widget teardown", async () => {
+    const { configure, coordinator } = setup();
+    const pending = createEngine();
+    let resolve!: (value: PlaybackEngine) => void;
+    coordinator.adoptSource({
+      create: vi.fn(() => new Promise<PlaybackEngine>((done) => { resolve = done; })),
+    }, 96);
+    const applying = coordinator.apply(mix("violin"));
+    coordinator.clear();
+    resolve(pending.value);
+    await applying;
+    expect(pending.dispose).toHaveBeenCalledOnce();
+    expect(configure).not.toHaveBeenCalled();
+  });
 });

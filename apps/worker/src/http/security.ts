@@ -56,7 +56,7 @@ export function withCors(response: Response, origin?: string): Response {
       "Access-Control-Allow-Headers",
       "Content-Type, MCP-Protocol-Version, Mcp-Session-Id",
     );
-    headers.set("Access-Control-Expose-Headers", "Mcp-Session-Id");
+    headers.set("Access-Control-Expose-Headers", "Mcp-Session-Id, X-Request-Id");
   }
   return new Response(response.body, {
     status: response.status,

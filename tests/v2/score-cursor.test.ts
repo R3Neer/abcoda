@@ -84,4 +84,17 @@ describe("ScoreCursorController", () => {
 
     expect(show).not.toHaveBeenCalled();
   });
+
+  it("retains source identity when a responsive reflow replaces coordinates", () => {
+    const show = vi.fn();
+    const cursor = new ScoreCursorController({ show, hide: vi.fn() });
+    cursor.setTimeline(timeline);
+    cursor.seekSourceOffsets([15]);
+    const reflowed: ScoreTimeline = {
+      ...timeline,
+      events: timeline.events.map((event) => ({ ...event, x: event.x / 2, line: 1 })),
+    };
+    cursor.setTimeline(reflowed, true);
+    expect(show).toHaveBeenLastCalledWith(reflowed.events[1]);
+  });
 });

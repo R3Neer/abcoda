@@ -35,6 +35,7 @@ const playbackMix = new PlaybackMixCoordinator(playback, (message) => {
 });
 let voicePitches: Readonly<Record<string, readonly number[]>> = {};
 let hostPresentation: ScorePresentationDto | undefined;
+let cursorRevision = -1;
 
 const mix = new VoiceMixController((state) => {
   view.showMix(state, assessVoiceRanges(state, voicePitches));
@@ -65,7 +66,10 @@ const controller = new ScoreSessionController(
   },
   (snapshot, engraving, resultPresentation) => {
     const presentation = resultPresentation ?? hostPresentation;
-    if (engraving.timeline) cursor.setTimeline(engraving.timeline);
+    if (engraving.timeline) {
+      cursor.setTimeline(engraving.timeline, cursorRevision === snapshot.revision);
+      cursorRevision = snapshot.revision;
+    }
     const tempo = presentation?.tempo ?? snapshot.document.tempo?.bpm ?? 96;
     if (presentation) playback.setLoop(presentation.loop);
     voicePitches = engraving.voicePitches ?? {};
@@ -96,6 +100,15 @@ const runtime = new WidgetRuntime(
     }
   },
 );
+let reflowTimer: ReturnType<typeof setTimeout> | undefined;
+const resizeObserver = new ResizeObserver(() => {
+  if (reflowTimer) clearTimeout(reflowTimer);
+  reflowTimer = setTimeout(() => {
+    reflowTimer = undefined;
+    void controller.reflow();
+  }, 140);
+});
+resizeObserver.observe(view.scoreTarget);
 const unbindPlayback = view.bindPlayback({
   togglePlayback: () => { void playback.togglePlayback(); },
   rewind: () => { playback.rewind(); cursor.rewind(); },
@@ -118,9 +131,12 @@ void runtime.start().catch((cause: unknown) => {
 });
 
 window.addEventListener("pagehide", () => {
+  resizeObserver.disconnect();
+  if (reflowTimer) clearTimeout(reflowTimer);
   unbindPlayback();
   unbindVoiceMix();
   unbindDraft();
+  playbackMix.clear();
   void playback.dispose();
   draft.dispose();
   void runtime.dispose();

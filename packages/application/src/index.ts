@@ -14,6 +14,38 @@ export interface ScoreCodec {
   encode(document: ScoreDocument): string;
 }
 
+export interface CompositionKnowledge<Brief, Plan> {
+  prepare(brief: Brief): Plan;
+}
+
+export interface Clock {
+  now(): Date;
+}
+
+export interface IdGenerator<Id = string> {
+  next(): Id;
+}
+
+export interface Telemetry {
+  record(event: {
+    readonly name: string;
+    readonly outcome: "success" | "invalid" | "unsupported" | "failure";
+    readonly attributes?: Readonly<Record<string, string | number | boolean>>;
+  }): void;
+}
+
+export interface PrepareCompositionCommand<Brief> {
+  readonly brief: Brief;
+}
+
+export class PrepareComposition<Brief, Plan> {
+  constructor(private readonly knowledge: CompositionKnowledge<Brief, Plan>) {}
+
+  execute(command: PrepareCompositionCommand<Brief>): Plan {
+    return this.knowledge.prepare(command.brief);
+  }
+}
+
 export interface ScoreOperationExecutor {
   apply(command: ApplyScoreOperationCommand): ApplyScoreOperationResult;
 }
@@ -103,5 +135,17 @@ export class PresentScore {
       abc: command.snapshot.document.source.text,
       revision: command.snapshot.revision,
     });
+  }
+}
+
+export interface ExportScoreCommand {
+  readonly document: ScoreDocument;
+}
+
+export class ExportScore {
+  constructor(private readonly codec: ScoreCodec) {}
+
+  execute(command: ExportScoreCommand): { readonly format: "abc"; readonly content: string } {
+    return { format: "abc", content: this.codec.encode(command.document) };
   }
 }

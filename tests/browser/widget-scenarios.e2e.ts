@@ -485,3 +485,33 @@ test("reduced-motion preference suppresses nonessential transitions", async ({ p
   await expect(page.locator("#playback")).toHaveCSS("transition-duration", "1e-05s");
   await expect(page.locator("html")).toHaveCSS("scroll-behavior", "auto");
 });
+
+test("responsive reflow retains the selected musical event", async ({ page }) => {
+  await page.setViewportSize({ width: 980, height: 760 });
+  await page.goto("/?scenario=ready");
+  const selectedIndex = 6;
+  const note = page.locator("#score .abcjs-note").nth(selectedIndex);
+  const before = await note.boundingBox();
+  expect(before).not.toBeNull();
+  await page.mouse.click(before!.x + before!.width / 2, before!.y + before!.height / 2);
+
+  await page.setViewportSize({ width: 520, height: 760 });
+  await expect.poll(async () => {
+    const cursor = await page.locator(".score-cursor").boundingBox();
+    const reflowedNote = await page.locator("#score .abcjs-note").nth(selectedIndex).boundingBox();
+    if (!cursor || !reflowedNote) return Number.POSITIVE_INFINITY;
+    return Math.abs(cursor.x + cursor.width - reflowedNote.x);
+  }).toBeLessThan(8);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
+test("browser zoom and forced colors keep controls and notation legible", async ({ page }) => {
+  await page.emulateMedia({ forcedColors: "active" });
+  await page.goto("/?scenario=mixed");
+  await page.evaluate(() => { document.documentElement.style.zoom = "200%"; });
+  await expect(page.locator("#score svg")).toBeVisible();
+  await expect(page.locator("#playback")).toBeVisible();
+  await page.locator("#playback").focus();
+  await expect(page.locator("#playback")).toHaveCSS("outline-style", "solid");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
