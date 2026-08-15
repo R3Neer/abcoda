@@ -226,9 +226,6 @@ export class DomScoreCursor implements CursorView {
     const wrapper =
       this.staffWrapper(svg, event.line);
 
-    const horizontalOffset =
-      this.staffHorizontalOffset(wrapper);
-
     const vertical =
       this.staffVerticalBounds(wrapper)
       ?? {
@@ -240,7 +237,7 @@ export class DomScoreCursor implements CursorView {
       x:
         svgRect.left -
         scoreRect.left +
-        (x + horizontalOffset - viewBox.x) * scaleX,
+        (x - viewBox.x) * scaleX,
 
       y:
         svgRect.top -
@@ -264,18 +261,6 @@ export class DomScoreCursor implements CursorView {
     );
   }
 
-  private staffHorizontalOffset(
-    wrapper: SVGGElement | undefined,
-  ): number {
-    if (!wrapper) return 0;
-
-    const value =
-      Number(wrapper.dataset.abcodaCenterX);
-
-    return Number.isFinite(value)
-      ? value
-      : 0;
-  }
 
   private staffVerticalBounds(
     wrapper: SVGGElement | undefined,

@@ -33,6 +33,7 @@ export interface DraftActions {
 }
 
 export class DomWidgetView {
+  readonly scoreViewport: HTMLElement;
   readonly scoreTarget: HTMLElement;
   readonly audioTarget: HTMLElement;
 
@@ -68,6 +69,7 @@ export class DomWidgetView {
   private draftStatus: DraftSessionState["status"] = "unavailable";
 
   constructor(private readonly documentObject: Document = document) {
+    this.scoreViewport = this.required("score-shell");
     this.scoreTarget = this.required("score");
     this.audioTarget = this.required("abcjs-audio");
     this.status = this.required("status");

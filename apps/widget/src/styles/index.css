@@ -118,14 +118,22 @@ body {
 }
 
 .workspace {
-  display: block;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 3rem;
 }
 
 .score {
   position: relative;
+  min-width: 0;
   min-height: 12rem;
+  margin-block-start: 1rem;
   overflow: visible;
-  padding-block: 1rem 2.5rem;
+}
+
+.score-surface {
+  width: 100%;
+  min-width: 0;
 }
 
 .score-cursor {
@@ -151,9 +159,8 @@ body {
   stroke: var(--accent) !important;
 }
 
-.score svg {
+.score-surface svg {
   display: block;
-  width: auto;
   max-width: 100%;
   height: auto;
   margin-inline: auto;
@@ -542,6 +549,7 @@ body {
 
 .transport {
   position: sticky;
+  z-index: 20;
   bottom: 0;
   display: flex;
   align-items: center;
@@ -549,7 +557,7 @@ body {
   padding: 0.75rem;
   border: 1px solid color-mix(in srgb, CanvasText 16%, transparent);
   border-radius: 0.75rem;
-  background: color-mix(in srgb, Canvas 92%, transparent);
+  background: color-mix(in srgb, Canvas 96%, CanvasText 4%);
   backdrop-filter: blur(12px);
 }
 

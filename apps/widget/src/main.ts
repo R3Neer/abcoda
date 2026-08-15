@@ -22,7 +22,7 @@ import { assessVoiceRanges } from "./application/voice-range";
 import { scoreStaffWidth } from "./application/score-layout";
 
 const view = new DomWidgetView();
-const cursorView = new DomScoreCursor(view.scoreTarget);
+const cursorView = new DomScoreCursor(view.scoreViewport);
 const cursor = new ScoreCursorController(cursorView);
 let cursorBaseTempo = 96;
 const playback = new PlaybackSessionController(96, 96, false, (state) => {
@@ -78,7 +78,7 @@ const controller = new ScoreSessionController(
 
     activePreferredMeasuresPerLine = presentation?.preferredMeasuresPerLine;
     renderedStaffWidth = scoreStaffWidth(
-      view.scoreTarget.clientWidth,
+      view.scoreViewport.clientWidth,
       activePreferredMeasuresPerLine,
     );
 
@@ -117,10 +117,10 @@ const runtime = new WidgetRuntime(
   },
 );
 let reflowTimer: ReturnType<typeof setTimeout> | undefined;
-let observedScoreWidth = view.scoreTarget.clientWidth;
+let observedScoreWidth = view.scoreViewport.clientWidth;
 
 const resizeObserver = new ResizeObserver((entries) => {
-  const width = entries.at(-1)?.contentRect.width ?? view.scoreTarget.clientWidth;
+  const width = entries.at(-1)?.contentRect.width ?? view.scoreViewport.clientWidth;
 
   // Ignore height-only changes caused by engraving itself.
   if (Math.abs(width - observedScoreWidth) < 0.5) return;
@@ -150,7 +150,7 @@ const resizeObserver = new ResizeObserver((entries) => {
     reflowTimer = undefined;
 
     const stableStaffWidth = scoreStaffWidth(
-      view.scoreTarget.clientWidth,
+      view.scoreViewport.clientWidth,
       activePreferredMeasuresPerLine,
     );
 
@@ -166,7 +166,7 @@ const resizeObserver = new ResizeObserver((entries) => {
   }, 320);
 });
 
-resizeObserver.observe(view.scoreTarget);
+resizeObserver.observe(view.scoreViewport);
 const unbindPlayback = view.bindPlayback({
   togglePlayback: () => { void playback.togglePlayback(); },
   rewind: () => { playback.rewind(); cursor.rewind(); },
