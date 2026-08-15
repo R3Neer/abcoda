@@ -18,10 +18,10 @@
 | CAP-09 | Compatibilidad y rango instrumental | implemented-v2 | Catálogo de dominio y `tests/v2/instruments.test.ts` | Añadir avisos de tesitura a la UI. |
 | CAP-10 | Transposición de ABC, tonalidad y acordes | characterized | `tests/abc-edit.test.ts` | Operación canónica e inversa. |
 | CAP-11 | Percusión inmune a transposición tonal | characterized | lint, edit y score tests | Invariante de dominio v2. |
-| CAP-12 | Editar, copiar, aplicar y restaurar | partial | tests de markup y funciones | E2E de revisiones y diagnóstico. |
+| CAP-12 | Editar, copiar, aplicar y restaurar | implemented-v2 | Borrador/último válido/original separados; carreras unitarias y E2E de diagnóstico/revisiones/restauración | Verificar portapapeles dentro del host MCP real. |
 | CAP-13 | Cursor y seek por compás | partial | Timeline neutral, matching por fuente/tiempo, cursor DOM y click-to-seek E2E móvil/escritorio | Movimiento durante audio real, reflow y touch explícito. |
 | CAP-14 | Tema del host y layout móvil | partial | Contexto neutral, temas/safe areas explícitos, sin mínimo rígido y E2E móvil/escritorio | Dimensiones declaradas del contenedor y matriz de hosts reales. |
-| CAP-15 | Transporte siempre accesible | partial | markup y CSS | Screenshots y teclado en viewports límite. |
+| CAP-15 | Transporte siempre accesible | partial | Sticky salvo durante edición móvil; screenshots 390/1100 px y E2E responsive | Recorrido completo de teclado en viewports límite. |
 | CAP-16 | Demo independiente | implemented | Host simulado v2 y ocho recorridos Playwright móvil/escritorio | Paridad funcional al completar controles interactivos. |
 | CAP-17 | Operación stateless | characterized | inspección de Worker/servidor | Pruebas de aislamiento en runtime. |
 | CAP-18 | Claves, transposición sonora y claves de octava | characterized | tests añadidos en `ae36154` | Modelo canónico y pruebas browser/audio. |

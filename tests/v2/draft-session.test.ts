@@ -101,7 +101,11 @@ describe("DraftSessionController", () => {
     draft.restoreLastGood();
     expect(draft.snapshot()).toMatchObject({ draft: "accepted", original: { revision: 7 } });
     draft.restoreOriginal();
-    expect(draft.snapshot()).toMatchObject({ draft: "original", lastGood: { revision: 7 } });
-    expect(applied.at(-1)).toMatchObject({ status: "success", snapshot: { revision: 7 } });
+    expect(draft.snapshot()).toMatchObject({
+      draft: "original",
+      original: { revision: 7 },
+      lastGood: { revision: 9 },
+    });
+    expect(applied.at(-1)).toMatchObject({ status: "success", snapshot: { revision: 9 } });
   });
 });

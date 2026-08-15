@@ -115,3 +115,55 @@ test("clicking an engraved measure seeks and places the visual cursor", async ({
   await expect(cursor).toBeVisible();
   await expect(cursor).not.toHaveCSS("height", "0px");
 });
+
+test("invalid local edits keep the last rendered score and can be discarded", async ({ page }) => {
+  await page.goto("/?scenario=ready");
+  await page.locator("#editor summary").click();
+  const source = page.locator("#abc-draft");
+  const original = await source.inputValue();
+  await source.fill(original.replace(/^X:1\n/, ""));
+  await page.locator("#apply-draft").click();
+
+  await expect(page.locator("#editor-state")).toHaveText("Needs attention");
+  await expect(page.locator("#draft-diagnostics")).toContainText("must declare exactly one X:");
+  await expect(page.locator("#status")).toHaveText("Revision 1 ready");
+  await expect(page.locator("body")).toHaveAttribute("data-state", "ready");
+
+  await page.locator("#discard-draft").click();
+  await expect(source).toHaveValue(original);
+  await expect(page.locator("#editor-state")).toHaveText("Revision 1 saved");
+  await expect(page.locator("#draft-diagnostics")).toBeEmpty();
+});
+
+test("valid local edits create revisions and original restore stays monotonic", async ({ page }) => {
+  await page.goto("/?scenario=ready");
+  await page.locator("#editor summary").click();
+  const source = page.locator("#abc-draft");
+  await source.fill((await source.inputValue()).replace(
+    "T:First architecture v2 vertical",
+    "T:Locally edited title",
+  ));
+  await page.locator("#apply-draft").click();
+
+  await expect(page.locator("#status")).toHaveText("Revision 2 ready");
+  await expect(page.locator("#editor-state")).toHaveText("Revision 2 saved");
+  await expect(page.locator("#score")).toContainText("Locally edited title");
+
+  await page.locator("#restore-original").click();
+  await expect(page.locator("#status")).toHaveText("Revision 3 ready");
+  await expect(page.locator("#editor-state")).toHaveText("Revision 3 saved");
+  await expect(page.locator("#score")).toContainText("First architecture v2 vertical");
+});
+
+test("copy ABC is an explicit user action with visible feedback", async ({ page, context }) => {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"], {
+    origin: "http://127.0.0.1:4173",
+  });
+  await page.goto("/?scenario=ready");
+  await page.locator("#editor summary").click();
+  const expected = await page.locator("#abc-draft").inputValue();
+  await page.locator("#copy-draft").click();
+
+  await expect(page.locator("#copy-status")).toHaveText("Copied");
+  expect((await page.evaluate(() => navigator.clipboard.readText())).replace(/\r\n/g, "\n")).toBe(expected);
+});

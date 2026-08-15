@@ -25,7 +25,8 @@ describe("WidgetRuntime", () => {
       receive,
       dispose,
     };
-    const runtime = new WidgetRuntime(session, host);
+    const observeResult = vi.fn();
+    const runtime = new WidgetRuntime(session, host, () => undefined, observeResult);
 
     await runtime.start();
     const result = { status: "success", snapshot: { revision: 4 } };
@@ -35,6 +36,7 @@ describe("WidgetRuntime", () => {
     await runtime.dispose();
 
     expect(receive).toHaveBeenCalledWith(result);
+    expect(observeResult).toHaveBeenCalledWith(result);
     expect(dispose).toHaveBeenCalledOnce();
     expect(host.disconnect).toHaveBeenCalledOnce();
   });

@@ -16,7 +16,7 @@
 | 6. Shell y bridge | in progress | `HostBridge` aísla resultados, teardown, tema y safe areas. `DomWidgetView` posee el DOM; Playwright cubre estados, reemplazo válido→inválido y recorridos móvil/escritorio. |
 | 7. Grabado | in progress | Adaptador abcjs estático comprobado en escritorio y 390 px. |
 | 8. Reproducción | in progress | Engine diferido, transporte, tempo canónico, timeline, cursor y click-to-seek. Falta audición humana. |
-| 9. Instrumentos y edición | in progress | Catálogo puro, compatibilidad voz/instrumento, mezcla local, mute y reconstrucción race-safe implementados. Faltan avisos de tesitura, editor y transposición. |
+| 9. Instrumentos y edición | in progress | Catálogo puro, mezcla race-safe y editor revisionado local con diagnóstico/restauración implementados. Faltan avisos de tesitura y transposición. |
 | 10–11 | pending | No iniciadas. |
 
 ## Primer corte vertical

@@ -22,6 +22,24 @@
           <div id="voice-mix" class="voice-mix"></div>
         </section>
       </div>
+      <details id="editor" class="editor" hidden>
+        <summary>
+          <span>Edit ABC</span>
+          <output id="editor-state">Saved</output>
+        </summary>
+        <div class="editor-body">
+          <label for="abc-draft">ABC source</label>
+          <textarea id="abc-draft" rows="12" spellcheck="false"></textarea>
+          <ul id="draft-diagnostics" class="draft-diagnostics" aria-live="polite"></ul>
+          <div class="editor-actions">
+            <button id="apply-draft" type="button">Apply</button>
+            <button id="discard-draft" type="button">Last valid</button>
+            <button id="restore-original" type="button">Original</button>
+            <button id="copy-draft" type="button">Copy ABC</button>
+            <output id="copy-status" class="copy-status" aria-live="polite"></output>
+          </div>
+        </div>
+      </details>
       <footer class="transport" aria-label="Playback controls">
         <button id="rewind" type="button" disabled aria-label="Return to beginning">↶</button>
         <button id="playback" type="button" disabled>Play</button>

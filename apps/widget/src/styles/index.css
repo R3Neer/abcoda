@@ -171,6 +171,98 @@ body {
   font-size: 0.8rem;
 }
 
+.editor {
+  margin-block-end: 0.75rem;
+  border: 1px solid color-mix(in srgb, CanvasText 14%, transparent);
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, CanvasText 4%, Canvas);
+}
+
+.editor summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 3rem;
+  padding-inline: 0.8rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 650;
+  list-style-position: inside;
+}
+
+.editor summary output {
+  color: color-mix(in srgb, CanvasText 62%, transparent);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.editor-body {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0 0.8rem 0.8rem;
+}
+
+.editor-body > label {
+  font-size: 0.75rem;
+  font-weight: 650;
+}
+
+#abc-draft {
+  width: 100%;
+  min-height: 12rem;
+  resize: vertical;
+  padding: 0.75rem;
+  border: 1px solid color-mix(in srgb, CanvasText 20%, transparent);
+  border-radius: 0.5rem;
+  color: CanvasText;
+  background: Canvas;
+  font: 0.8rem/1.45 ui-monospace, "Cascadia Code", monospace;
+  tab-size: 2;
+}
+
+.draft-diagnostics {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.draft-diagnostics li {
+  padding: 0.55rem 0.65rem;
+  border-left: 3px solid #d77;
+  border-radius: 0.25rem;
+  background: color-mix(in srgb, #d22 9%, Canvas);
+  font-size: 0.8rem;
+}
+
+.editor-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.editor-actions button {
+  min-height: 2.5rem;
+  padding-inline: 0.75rem;
+  border: 1px solid color-mix(in srgb, CanvasText 20%, transparent);
+  border-radius: 0.5rem;
+  color: CanvasText;
+  background: color-mix(in srgb, CanvasText 7%, Canvas);
+  font: inherit;
+}
+
+.editor-actions button:disabled {
+  opacity: 0.5;
+}
+
+.copy-status {
+  color: color-mix(in srgb, CanvasText 65%, transparent);
+  font-size: 0.75rem;
+}
+
 .transport {
   position: sticky;
   bottom: 0;
@@ -239,5 +331,9 @@ body {
   .mixer {
     position: static;
     margin-block-start: 0;
+  }
+
+  .editor[open] ~ .transport {
+    position: static;
   }
 }

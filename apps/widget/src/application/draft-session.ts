@@ -120,11 +120,15 @@ export class DraftSessionController {
   restoreOriginal(): void {
     const context = this.requiredContext();
     this.cancelEvaluation();
-    const result: EvaluateScoreResultDto = { status: "success", snapshot: context.original };
+    const restored: ScoreSnapshotDto = {
+      ...structuredClone(context.original),
+      revision: this.nextRevision++,
+    };
+    const result: EvaluateScoreResultDto = { status: "success", snapshot: restored };
     this.state = {
       status: "clean",
       original: context.original,
-      lastGood: context.original,
+      lastGood: restored,
       draft: context.original.document.source.text,
     };
     this.emit();

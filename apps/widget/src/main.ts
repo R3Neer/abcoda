@@ -11,6 +11,9 @@ import {
   VoiceMixController,
 } from "./application/voice-mix";
 import { PlaybackMixCoordinator } from "./application/playback-mix-coordinator";
+import { DraftSessionController } from "./application/draft-session";
+import { LocalScoreEvaluator } from "./adapters/local/local-score-evaluator";
+import { evaluateScoreResultSchema } from "../../../packages/contracts/src/index";
 
 const view = new DomWidgetView();
 const cursorView = new DomScoreCursor(view.scoreTarget);
@@ -29,7 +32,6 @@ const mix = new VoiceMixController((state) => {
   view.showMix(state);
   void playbackMix.apply(state);
 });
-
 const controller = new ScoreSessionController(
   new AbcjsEngraver(view.scoreTarget, view.audioTarget, {
     onPlaybackStarted: () => cursor.setPlaying(true),
@@ -54,7 +56,24 @@ const controller = new ScoreSessionController(
     mix.adoptVoices(snapshot.revision, snapshot.document.voices);
   },
 );
-const runtime = new WidgetRuntime(controller, createHostBridge(), (context) => view.applyHostContext(context));
+const draft = new DraftSessionController(
+  new LocalScoreEvaluator(),
+  (state) => view.showDraft(state),
+  (result) => { void controller.receive(result); },
+);
+const runtime = new WidgetRuntime(
+  controller,
+  createHostBridge(),
+  (context) => view.applyHostContext(context),
+  (result) => {
+    const parsed = evaluateScoreResultSchema.safeParse(result);
+    if (parsed.success && parsed.data.status === "success" && parsed.data.snapshot) {
+      draft.adoptHostSnapshot(parsed.data.snapshot);
+    } else {
+      draft.dispose();
+    }
+  },
+);
 const unbindPlayback = view.bindPlayback({
   togglePlayback: () => { void playback.togglePlayback(); },
   rewind: () => { playback.rewind(); cursor.rewind(); },
@@ -64,6 +83,12 @@ const unbindPlayback = view.bindPlayback({
 const unbindVoiceMix = view.bindVoiceMix({
   setInstrument: (voiceId, instrument) => mix.setInstrument(voiceId, instrument),
   setMuted: (voiceId, muted) => mix.setMuted(voiceId, muted),
+});
+const unbindDraft = view.bindDraft({
+  edit: (text) => draft.edit(text),
+  apply: () => { void draft.apply(); },
+  restoreLastGood: () => draft.restoreLastGood(),
+  restoreOriginal: () => draft.restoreOriginal(),
 });
 const unbindSeek = cursorView.bindSeek((x, y) => {
   const progress = cursor.seekPoint(x, y);
@@ -81,7 +106,9 @@ void runtime.start().catch((cause: unknown) => {
 window.addEventListener("pagehide", () => {
   unbindPlayback();
   unbindVoiceMix();
+  unbindDraft();
   unbindSeek();
   void playback.dispose();
+  draft.dispose();
   void runtime.dispose();
 }, { once: true });

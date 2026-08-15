@@ -33,12 +33,14 @@ export class WidgetRuntime {
     private readonly session: ScoreSession,
     private readonly host: HostBridge,
     private readonly onContext: (context: HostPresentationContext) => void = () => undefined,
+    private readonly onResult: (result: unknown) => void = () => undefined,
   ) {}
 
   async start(): Promise<void> {
     await this.host.connect({
       onResult: (result) => {
         if (this.sessionDisposed) return;
+        this.onResult(result);
         void this.session.receive(result);
       },
       onContext: this.onContext,

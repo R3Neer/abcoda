@@ -2,6 +2,7 @@ import type { HostPresentationContext } from "../../application/host-bridge";
 import type { PlaybackSessionState } from "../../application/playback-session";
 import type { ScoreSessionState } from "../../application/score-session";
 import type { VoiceMixSnapshot } from "../../application/voice-mix";
+import type { DraftSessionState } from "../../application/draft-session";
 import {
   instrumentsForVoice,
   type InstrumentId,
@@ -19,6 +20,13 @@ export interface VoiceMixActions {
   readonly setMuted: (voiceId: string, muted: boolean) => void;
 }
 
+export interface DraftActions {
+  readonly edit: (draft: string) => void;
+  readonly apply: () => void;
+  readonly restoreLastGood: () => void;
+  readonly restoreOriginal: () => void;
+}
+
 export class DomWidgetView {
   readonly scoreTarget: HTMLElement;
   readonly audioTarget: HTMLElement;
@@ -32,6 +40,15 @@ export class DomWidgetView {
   private readonly tempoValue: HTMLOutputElement;
   private readonly mixer: HTMLElement;
   private readonly voiceMix: HTMLElement;
+  private readonly editor: HTMLDetailsElement;
+  private readonly editorState: HTMLOutputElement;
+  private readonly draftInput: HTMLTextAreaElement;
+  private readonly draftDiagnostics: HTMLElement;
+  private readonly applyDraftButton: HTMLButtonElement;
+  private readonly discardDraftButton: HTMLButtonElement;
+  private readonly restoreOriginalButton: HTMLButtonElement;
+  private readonly copyDraftButton: HTMLButtonElement;
+  private readonly copyStatus: HTMLOutputElement;
 
   constructor(private readonly documentObject: Document = document) {
     this.scoreTarget = this.required("score");
@@ -45,6 +62,15 @@ export class DomWidgetView {
     this.tempoValue = this.required("tempo-value");
     this.mixer = this.required("mixer");
     this.voiceMix = this.required("voice-mix");
+    this.editor = this.required("editor");
+    this.editorState = this.required("editor-state");
+    this.draftInput = this.required("abc-draft");
+    this.draftDiagnostics = this.required("draft-diagnostics");
+    this.applyDraftButton = this.required("apply-draft");
+    this.discardDraftButton = this.required("discard-draft");
+    this.restoreOriginalButton = this.required("restore-original");
+    this.copyDraftButton = this.required("copy-draft");
+    this.copyStatus = this.required("copy-status");
   }
 
   showScore(state: ScoreSessionState): void {
@@ -113,6 +139,38 @@ export class DomWidgetView {
     }));
   }
 
+  showDraft(state: DraftSessionState): void {
+    this.editor.hidden = state.status === "unavailable";
+    if (state.status === "unavailable") return;
+    if (this.draftInput.value !== state.draft) this.draftInput.value = state.draft;
+    this.editorState.value = state.status === "clean"
+      ? `Revision ${state.lastGood.revision} saved`
+      : state.status === "dirty"
+        ? "Unsaved changes"
+        : state.status === "validating"
+          ? "Validating…"
+          : "Needs attention";
+    const busy = state.status === "validating";
+    this.draftInput.disabled = busy;
+    this.applyDraftButton.disabled = busy || state.status === "clean";
+    this.discardDraftButton.disabled = busy || state.draft === state.lastGood.document.source.text;
+    this.restoreOriginalButton.disabled = busy || (
+      state.draft === state.original.document.source.text
+      && state.lastGood.revision === state.original.revision
+    );
+    this.copyDraftButton.disabled = busy;
+    this.draftDiagnostics.replaceChildren(...(
+      state.status === "invalid" ? state.diagnostics.map((diagnostic) => {
+        const item = this.documentObject.createElement("li");
+        const location = diagnostic.range
+          ? `Line ${diagnostic.range.start.line}, column ${diagnostic.range.start.column}: `
+          : "";
+        item.textContent = `${location}${diagnostic.message}`;
+        return item;
+      }) : []
+    ));
+  }
+
   applyHostContext(context: HostPresentationContext): void {
     const root = this.documentObject.documentElement;
     if (context.theme) root.dataset.theme = context.theme;
@@ -155,6 +213,37 @@ export class DomWidgetView {
     };
     this.voiceMix.addEventListener("change", onChange);
     return () => this.voiceMix.removeEventListener("change", onChange);
+  }
+
+  bindDraft(actions: DraftActions): () => void {
+    const edit = () => actions.edit(this.draftInput.value);
+    const apply = () => actions.apply();
+    const restoreLastGood = () => actions.restoreLastGood();
+    const restoreOriginal = () => actions.restoreOriginal();
+    const copy = () => { void this.copyDraft(); };
+    this.draftInput.addEventListener("input", edit);
+    this.applyDraftButton.addEventListener("click", apply);
+    this.discardDraftButton.addEventListener("click", restoreLastGood);
+    this.restoreOriginalButton.addEventListener("click", restoreOriginal);
+    this.copyDraftButton.addEventListener("click", copy);
+    return () => {
+      this.draftInput.removeEventListener("input", edit);
+      this.applyDraftButton.removeEventListener("click", apply);
+      this.discardDraftButton.removeEventListener("click", restoreLastGood);
+      this.restoreOriginalButton.removeEventListener("click", restoreOriginal);
+      this.copyDraftButton.removeEventListener("click", copy);
+    };
+  }
+
+  private async copyDraft(): Promise<void> {
+    try {
+      const clipboard = this.documentObject.defaultView?.navigator.clipboard;
+      if (!clipboard) throw new Error("Clipboard access is unavailable.");
+      await clipboard.writeText(this.draftInput.value);
+      this.copyStatus.value = "Copied";
+    } catch {
+      this.copyStatus.value = "Copy failed";
+    }
   }
 
   private showError(message: string): void {
