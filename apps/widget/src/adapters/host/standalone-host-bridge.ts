@@ -13,7 +13,13 @@ const laboratoryResult = {
     document: {
       tuneId: "laboratory-1",
       title: "First architecture v2 vertical",
-      voiceIds: ["RH", "LH"],
+      meter: "4/4",
+      key: "C",
+      tempo: { beatUnit: "quarter", bpm: 84 },
+      voices: [
+        { id: "RH", kind: "pitched" },
+        { id: "LH", kind: "pitched" },
+      ],
       source: {
         format: "abc",
         text: `X:1

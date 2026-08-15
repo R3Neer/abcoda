@@ -197,7 +197,12 @@ describe("ABCoda v2 Worker HTTP boundary", () => {
           snapshot: {
             schemaVersion: 2,
             revision: 12,
-            document: { tuneId: "1", voiceIds: ["default"] },
+            document: {
+              tuneId: "1",
+              meter: "4/4",
+              key: "C",
+              voices: [{ id: "default", kind: "pitched" }],
+            },
           },
         },
       },
@@ -217,7 +222,7 @@ describe("ABCoda v2 Worker HTTP boundary", () => {
             document: {
               tuneId: "forged-tune-id",
               title: "Forged title",
-              voiceIds: ["forged-voice-id"],
+              voices: [{ id: "forged-voice-id", kind: "unpitched_percussion" }],
               source: {
                 format: "abc",
                 text: "X:7\nT:Canonical source\nM:4/4\nL:1/4\nK:C\nG A B c|]",
@@ -240,7 +245,7 @@ describe("ABCoda v2 Worker HTTP boundary", () => {
             document: {
               tuneId: "7",
               title: "Canonical source",
-              voiceIds: ["default"],
+              voices: [{ id: "default", kind: "pitched" }],
             },
           },
         },

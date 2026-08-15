@@ -60,7 +60,16 @@ export const scoreSnapshotSchema = z.object({
   document: z.object({
     tuneId: z.string().min(1),
     title: z.string().min(1).optional(),
-    voiceIds: z.array(z.string().min(1)).min(1),
+    meter: z.string().min(1).optional(),
+    key: z.string().min(1).optional(),
+    tempo: z.object({
+      beatUnit: z.literal("quarter"),
+      bpm: z.number().int().min(20).max(300),
+    }).optional(),
+    voices: z.array(z.object({
+      id: z.string().min(1),
+      kind: z.enum(["pitched", "unpitched_percussion"]),
+    })).min(1),
     source: z.object({
       format: z.literal("abc"),
       text: z.string().min(1).max(65_536),

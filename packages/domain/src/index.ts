@@ -4,6 +4,7 @@ export type Brand<Value, Name extends string> = Value & {
 
 export type TuneId = Brand<string, "TuneId">;
 export type VoiceId = Brand<string, "VoiceId">;
+export type QuarterNoteBpm = Brand<number, "QuarterNoteBpm">;
 
 export interface SourcePosition {
   readonly line: number;
@@ -40,8 +41,21 @@ export interface AbcSource {
 export interface ScoreDocument {
   readonly tuneId: TuneId;
   readonly title?: string;
-  readonly voiceIds: readonly VoiceId[];
+  readonly meter?: string;
+  readonly key?: string;
+  readonly tempo?: {
+    readonly beatUnit: "quarter";
+    readonly bpm: QuarterNoteBpm;
+  };
+  readonly voices: readonly ScoreVoice[];
   readonly source: AbcSource;
+}
+
+export type VoiceKind = "pitched" | "unpitched_percussion";
+
+export interface ScoreVoice {
+  readonly id: VoiceId;
+  readonly kind: VoiceKind;
 }
 
 export interface ScoreSnapshot {
@@ -68,4 +82,11 @@ export function asTuneId(value: string): TuneId {
 
 export function asVoiceId(value: string): VoiceId {
   return value as VoiceId;
+}
+
+export function asQuarterNoteBpm(value: number): QuarterNoteBpm {
+  if (!Number.isInteger(value) || value < 20 || value > 300) {
+    throw new Error("Quarter-note tempo must be an integer from 20 to 300 BPM.");
+  }
+  return value as QuarterNoteBpm;
 }

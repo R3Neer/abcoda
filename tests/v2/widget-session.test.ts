@@ -28,7 +28,7 @@ function snapshot(revision: number, title = `Revision ${revision}`): unknown {
       document: {
         tuneId: String(revision),
         title,
-        voiceIds: ["default"],
+        voices: [{ id: "default", kind: "pitched" }],
         source: { format: "abc", text: `X:${revision}\nT:${title}\nK:C\nC4|]` },
       },
       diagnostics: [],

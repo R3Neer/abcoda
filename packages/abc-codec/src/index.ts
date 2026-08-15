@@ -2,6 +2,7 @@ import type { ScoreCodec } from "../../application/src/index";
 import {
   asTuneId,
   asVoiceId,
+  asQuarterNoteBpm,
   type DecodeScoreResult,
   type Diagnostic,
   type SourceRange,
@@ -38,7 +39,17 @@ function headers(source: string, name: string): HeaderMatch[] {
   return matches;
 }
 
-function voiceIds(source: string): string[] {
+function voices(source: string): Array<{ id: string; kind: "pitched" | "unpitched_percussion" }> {
+  const declarations = new Map<string, "pitched" | "unpitched_percussion">();
+  for (const match of source.matchAll(/^V:\s*([^\s]+)(.*)$/gm)) {
+    const id = match[1];
+    if (id && !declarations.has(id)) {
+      declarations.set(id, /(?:^|\s)clef\s*=\s*perc(?:ussion)?(?:\s|$)/i.test(match[2] ?? "")
+        ? "unpitched_percussion"
+        : "pitched");
+    }
+  }
+
   const ids: string[] = [];
   const seen = new Set<string>();
   const patterns = [/^V:\s*([^\s]+)/gm, /\[V:\s*([^\]\s]+)/g];
@@ -53,7 +64,16 @@ function voiceIds(source: string): string[] {
     }
   }
 
-  return ids.length > 0 ? ids : ["default"];
+  const ordered = ids.length > 0 ? ids : ["default"];
+  return ordered.map((id) => ({ id, kind: declarations.get(id) ?? "pitched" }));
+}
+
+function quarterNoteTempo(value: string | undefined): number | undefined {
+  if (!value) return undefined;
+  const match = /^(?:1\s*\/\s*4\s*=\s*)?(\d+)$/.exec(value);
+  if (!match) return undefined;
+  const bpm = Number(match[1]);
+  return Number.isInteger(bpm) && bpm >= 20 && bpm <= 300 ? bpm : undefined;
 }
 
 export class BaselineAbcCodec implements ScoreCodec {
@@ -112,7 +132,13 @@ export class BaselineAbcCodec implements ScoreCodec {
     }
 
     const title = headers(source, "T")[0]?.value;
-    const voices = voiceIds(source).map(asVoiceId);
+    const meter = headers(source, "M")[0]?.value;
+    const key = headers(source, "K")[0]?.value;
+    const bpm = quarterNoteTempo(headers(source, "Q")[0]?.value);
+    const scoreVoices = voices(source).map((voice) => ({
+      id: asVoiceId(voice.id),
+      kind: voice.kind,
+    }));
 
     return {
       ok: true,
@@ -120,7 +146,12 @@ export class BaselineAbcCodec implements ScoreCodec {
       document: {
         tuneId: asTuneId(reference.value),
         ...(title ? { title } : {}),
-        voiceIds: voices,
+        ...(meter ? { meter } : {}),
+        ...(key ? { key } : {}),
+        ...(bpm === undefined
+          ? {}
+          : { tempo: { beatUnit: "quarter" as const, bpm: asQuarterNoteBpm(bpm) } }),
+        voices: scoreVoices,
         source: { format: "abc", text: source },
       },
     };

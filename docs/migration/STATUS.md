@@ -9,8 +9,8 @@
 |---|---|---|
 | 0. Congelar y caracterizar | in progress | Baseline reproducido, corpus inicial y contratos legacy. Falta caracterización visual/browser. |
 | 1. Esqueleto y dependencias | in progress | Workspaces, paquetes, apps Worker/widget, ESLint tipado, límites automáticos y detección de ciclos. |
-| 2. Contratos y modelo canónico | in progress | Primer `ScoreDocument`, snapshot y schemas v2 de request/widget. |
-| 3. Codec y diagnósticos | in progress | Scanner de cabeceras conservador para la primera vertical; no es todavía el codec ABC completo. |
+| 2. Contratos y modelo canónico | in progress | `ScoreDocument` representa voces tipadas, metro, tonalidad, tempo de negra, fuente y snapshot revisionado. |
+| 3. Codec y diagnósticos | in progress | Scanner conservador extrae semántica de cabeceras y percusión con rangos; no es todavía el codec ABC completo. |
 | 4. Casos de uso | in progress | `EvaluateScore` implementado detrás de `ScoreCodec`. |
 | 5. MCP y Worker seguro | in progress | Herramientas separadas `validate_score`/`render_score`, recurso UI, health, límites HTTP, CORS por allowlist y tests workerd. Falta compatibilidad schema 1. |
 | 6. Shell y bridge | in progress | `HostBridge` aísla el shell; adaptadores MCP Apps y standalone comparten sesión revisionada y teardown idempotente. El host simulado cubre `ready`, `invalid`, `malformed` y `race`. |
@@ -40,7 +40,7 @@ Este corte demuestra inversión de dependencias y cierra el comportamiento v2 de
 
 ## Limitaciones conscientes
 
-- `BaselineAbcCodec` solo extrae la envolvente necesaria para la primera vertical; aún no representa eventos y compases.
+- `BaselineAbcCodec` extrae la envolvente y metadatos necesarios para las primeras verticales; aún no representa eventos, compases ni variantes complejas de `Q:`.
 - Los límites de capas y ciclos se validan automáticamente, pero las reglas tendrán que crecer con cada paquete nuevo.
 - El HTML autocontenido mide 237,2 kB gzip tras incorporar el SDK MCP Apps; este es el presupuesto de partida del shell con bridge y grabador.
 - Los escenarios del laboratorio se seleccionan con `?scenario=ready|invalid|malformed|race`; falta automatizarlos con pruebas Playwright.

@@ -18,6 +18,7 @@ import {
   widgetResourceUri,
 } from "../../../../packages/contracts/src/index";
 import {
+  asQuarterNoteBpm,
   asTuneId,
   asVoiceId,
   type ScoreSnapshot,
@@ -32,10 +33,27 @@ function toDomainSnapshot(snapshot: ScoreSnapshotDto): ScoreSnapshot {
     document: {
       source: snapshot.document.source,
       tuneId: asTuneId(snapshot.document.tuneId),
-      voiceIds: snapshot.document.voiceIds.map(asVoiceId),
+      voices: snapshot.document.voices.map((voice) => ({
+        id: asVoiceId(voice.id),
+        kind: voice.kind,
+      })),
       ...(snapshot.document.title === undefined
         ? {}
         : { title: snapshot.document.title }),
+      ...(snapshot.document.meter === undefined
+        ? {}
+        : { meter: snapshot.document.meter }),
+      ...(snapshot.document.key === undefined
+        ? {}
+        : { key: snapshot.document.key }),
+      ...(snapshot.document.tempo === undefined
+        ? {}
+        : {
+            tempo: {
+              beatUnit: "quarter" as const,
+              bpm: asQuarterNoteBpm(snapshot.document.tempo.bpm),
+            },
+          }),
     },
     diagnostics: snapshot.diagnostics.map((diagnostic) => ({
       code: diagnostic.code,
@@ -79,7 +97,7 @@ export function createV2McpServer(loadWidget?: WidgetLoader): McpServer {
         const command = evaluateScoreRequestSchema.parse(rawInput);
         const result = evaluateScore.execute(command);
         const text = result.status === "success"
-          ? `Validated revision ${result.snapshot.revision} with ${result.snapshot.document.voiceIds.length} voice${result.snapshot.document.voiceIds.length === 1 ? "" : "s"}.`
+          ? `Validated revision ${result.snapshot.revision} with ${result.snapshot.document.voices.length} voice${result.snapshot.document.voices.length === 1 ? "" : "s"}.`
           : `Score validation found ${result.diagnostics.length} blocking diagnostic${result.diagnostics.length === 1 ? "" : "s"}.`;
         return {
           structuredContent: result,

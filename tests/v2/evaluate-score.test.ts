@@ -35,12 +35,48 @@ describe("architecture v2 first vertical slice", () => {
         document: {
           tuneId: "1",
           title: "Two voice baseline",
-          voiceIds: ["RH", "LH"],
+          meter: "4/4",
+          key: "C",
+          tempo: { beatUnit: "quarter", bpm: 84 },
+          voices: [
+            { id: "RH", kind: "pitched" },
+            { id: "LH", kind: "pitched" },
+          ],
           source: { format: "abc" },
         },
         diagnostics: [],
       },
     });
+  });
+
+  it("extracts percussion as canonical voice semantics", async () => {
+    const result = evaluate.execute({
+      abc: await readFixture("percussion"),
+      revision: 9,
+    });
+
+    expect(result).toMatchObject({
+      status: "success",
+      snapshot: {
+        document: {
+          key: "none",
+          tempo: { beatUnit: "quarter", bpm: 100 },
+          voices: [{ id: "DR", kind: "unpitched_percussion" }],
+        },
+      },
+    });
+  });
+
+  it("does not invent a playback tempo when ABC does not express one canonically", () => {
+    const absent = evaluate.execute({ abc: "X:1\nK:C\nC4|]", revision: 10 });
+    const unsupported = evaluate.execute({
+      abc: 'X:1\nQ:"Allegro" 1/8=160\nK:C\nC4|]',
+      revision: 11,
+    });
+
+    expect(absent).toMatchObject({ status: "success", snapshot: { document: {} } });
+    expect(absent.status === "success" && absent.snapshot.document.tempo).toBeUndefined();
+    expect(unsupported.status === "success" && unsupported.snapshot.document.tempo).toBeUndefined();
   });
 
   it("rejects a tunebook instead of merging voices across tunes", async () => {
