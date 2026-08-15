@@ -35,22 +35,6 @@ export class DomScoreCursor implements CursorView {
     this.cursor.style.transition = "none";
   }
 
-  bindSeek(onPoint: (x: number, y: number) => void): () => void {
-    const click = (event: MouseEvent) => {
-      const note = event.target instanceof Element
-        ? event.target.closest<SVGGraphicsElement>(".abcjs-note")
-        : null;
-      const noteRect = note?.getBoundingClientRect();
-      const point = this.toScorePoint(
-        noteRect ? noteRect.left + noteRect.width / 2 : event.clientX,
-        noteRect ? noteRect.top + noteRect.height / 2 : event.clientY,
-      );
-      if (point) onPoint(point.x, point.y);
-    };
-    this.scoreTarget.addEventListener("click", click);
-    return () => this.scoreTarget.removeEventListener("click", click);
-  }
-
   private toCssPosition(x: number, y: number, height: number): { x: number; y: number; height: number } | undefined {
     const svg = this.scoreTarget.querySelector("svg");
     if (!svg) return undefined;
@@ -66,15 +50,4 @@ export class DomScoreCursor implements CursorView {
     };
   }
 
-  private toScorePoint(clientX: number, clientY: number): { x: number; y: number } | undefined {
-    const svg = this.scoreTarget.querySelector("svg");
-    if (!svg) return undefined;
-    const rect = svg.getBoundingClientRect();
-    const viewBox = svg.viewBox.baseVal;
-    if (rect.width <= 0 || rect.height <= 0) return undefined;
-    return {
-      x: viewBox.x + (clientX - rect.left) * viewBox.width / rect.width,
-      y: viewBox.y + (clientY - rect.top) * viewBox.height / rect.height,
-    };
-  }
 }

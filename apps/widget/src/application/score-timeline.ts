@@ -60,18 +60,33 @@ export function eventProgress(
 export function cursorMotionFrom(
   events: readonly ScoreTimingEvent[],
   current: ScoreTimingEvent,
+  totalDurationMs?: number,
 ): CursorMotion | undefined {
   const index = events.findIndex((event) => event === current || samePosition(event, current));
   const next = index < 0
     ? undefined
     : events.slice(index + 1).find((event) => event.timeMs > current.timeMs);
-  if (!next) return undefined;
+  if (!next) {
+    const durationMs = (totalDurationMs ?? current.timeMs) - current.timeMs;
+    if (durationMs <= 0 || current.endX === undefined || current.endX <= current.x) return undefined;
+    return { x: current.endX, durationMs, wrapsLine: false };
+  }
   const durationMs = next.timeMs - current.timeMs;
   if (durationMs <= 0) return undefined;
   const wrapsLine = next.line !== current.line || next.y !== current.y;
   const currentEnd = current.endX ?? current.x + (current.width ?? 12);
   const x = wrapsLine ? Math.min(currentEnd, current.x + 32) : next.x;
   return x > current.x ? { x, durationMs, wrapsLine } : undefined;
+}
+
+export function eventForSourceOffsets(
+  events: readonly ScoreTimingEvent[],
+  sourceOffsets: readonly number[],
+): ScoreTimingEvent | undefined {
+  const offsets = new Set(sourceOffsets);
+  return offsets.size === 0
+    ? undefined
+    : events.find((event) => event.sourceOffsets.some((offset) => offsets.has(offset)));
 }
 
 export function measureAtPoint(

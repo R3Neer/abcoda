@@ -45,9 +45,13 @@ const controller = new ScoreSessionController(
     onPlaybackStarted: () => cursor.setPlaying(true),
     onPlaybackFinished: () => {
       playback.playbackFinished();
-      cursor.rewind();
+      cursor.finish();
     },
     onPlaybackEvent: (event) => cursor.onPlaybackEvent(event),
+    onScoreSelection: (sourceOffsets) => {
+      const progress = cursor.seekSourceOffsets(sourceOffsets);
+      if (progress !== undefined) playback.seek(progress);
+    },
   }),
   (state) => {
     if (state.status === "loading" || state.status === "invalid" || state.status === "failed") {
@@ -106,11 +110,6 @@ const unbindDraft = view.bindDraft({
   restoreVersion: (id) => draft.restoreVersion(id),
   transpose: (semitones) => draft.transpose(semitones),
 });
-const unbindSeek = cursorView.bindSeek((x, y) => {
-  const progress = cursor.seekPoint(x, y);
-  if (progress !== undefined) playback.seek(progress);
-});
-
 void runtime.start().catch((cause: unknown) => {
   const message = cause instanceof Error ? cause.message : "Could not connect to the host.";
   view.showScore({ status: "failed", message });
@@ -120,7 +119,6 @@ window.addEventListener("pagehide", () => {
   unbindPlayback();
   unbindVoiceMix();
   unbindDraft();
-  unbindSeek();
   void playback.dispose();
   draft.dispose();
   void runtime.dispose();

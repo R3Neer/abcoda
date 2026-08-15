@@ -17,6 +17,7 @@ export class AbcjsEngraver implements Engraver {
       readonly onPlaybackStarted: () => void;
       readonly onPlaybackFinished: () => void;
       readonly onPlaybackEvent: (event: PlaybackTimingCallback) => void;
+      readonly onScoreSelection: (sourceOffsets: readonly number[]) => void;
     },
   ) {}
 
@@ -35,6 +36,11 @@ export class AbcjsEngraver implements Engraver {
       add_classes: true,
       expandToWidest: true,
       foregroundColor: "currentColor",
+      clickListener: (abcElement) => {
+        if (typeof abcElement.startChar === "number") {
+          this.callbacks.onScoreSelection([abcElement.startChar]);
+        }
+      },
       staffwidth: availableWidth > 0 ? Math.max(280, availableWidth - 32) : 720,
       ...(presentation?.preferredMeasuresPerLine === undefined
         ? {}

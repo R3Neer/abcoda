@@ -1,6 +1,7 @@
 import {
   cursorMotionFrom,
   eventAtPoint,
+  eventForSourceOffsets,
   eventProgress,
   firstTimingEvent,
   firstEventInMeasure,
@@ -53,7 +54,11 @@ export class ScoreCursorController {
     ) return;
     this.ignoreMismatchedCallbacksUntil = 0;
     this.selected = event;
-    this.view.show(event, cursorMotionFrom(this.timeline.events, event));
+    this.view.show(event, cursorMotionFrom(
+      this.timeline.events,
+      event,
+      this.timeline.totalDurationMs,
+    ));
   }
 
   seekMeasure(measure: number): number | undefined {
@@ -72,6 +77,26 @@ export class ScoreCursorController {
     this.ignoreMismatchedCallbacksUntil = Date.now() + 150;
     this.view.show(event);
     return eventProgress(event, this.timeline.totalDurationMs);
+  }
+
+  seekSourceOffsets(sourceOffsets: readonly number[]): number | undefined {
+    const event = eventForSourceOffsets(this.timeline.events, sourceOffsets);
+    if (!event) return undefined;
+    this.selected = event;
+    this.ignoreMismatchedCallbacksUntil = Date.now() + 150;
+    this.view.show(event);
+    return eventProgress(event, this.timeline.totalDurationMs);
+  }
+
+  finish(): void {
+    const last = this.timeline.events.at(-1);
+    if (!last) {
+      this.view.hide();
+      return;
+    }
+    this.selected = last;
+    const endX = last.endX ?? last.x + (last.width ?? 12);
+    this.view.show({ ...last, x: endX });
   }
 
   rewind(): void {

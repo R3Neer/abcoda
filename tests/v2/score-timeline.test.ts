@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   cursorMotionFrom,
   eventAtPoint,
+  eventForSourceOffsets,
   eventProgress,
   firstEventInMeasure,
   matchingTimingEvent,
@@ -46,5 +47,19 @@ describe("v2 score timeline", () => {
       durationMs: 2000,
       wrapsLine: true,
     });
+  });
+
+  it("moves from the last note to the final bar for the remaining duration", () => {
+    const last = { ...events[3]!, endX: 180 };
+    expect(cursorMotionFrom([...events.slice(0, 3), last], last, 5500)).toEqual({
+      x: 180,
+      durationMs: 1500,
+      wrapsLine: false,
+    });
+  });
+
+  it("resolves an ABCJS selection by its source offset", () => {
+    expect(eventForSourceOffsets(events, [24])).toBe(events[1]);
+    expect(eventForSourceOffsets(events, [999])).toBeUndefined();
   });
 });

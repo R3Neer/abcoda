@@ -54,8 +54,11 @@ export class DomWidgetView {
   private readonly versionHistory: HTMLElement;
   private readonly versionPicker: HTMLDetailsElement;
   private readonly copyDraftButton: HTMLButtonElement;
+  private readonly copyIcon: SVGElement;
+  private readonly copiedIcon: SVGElement;
   private readonly copyStatus: HTMLOutputElement;
   private readonly transposeButtons: readonly HTMLButtonElement[];
+  private copyResetTimer: ReturnType<typeof setTimeout> | undefined;
 
   constructor(private readonly documentObject: Document = document) {
     this.scoreTarget = this.required("score");
@@ -79,6 +82,8 @@ export class DomWidgetView {
     this.versionHistory = this.required("version-history");
     this.versionPicker = this.required("version-picker");
     this.copyDraftButton = this.required("copy-draft");
+    this.copyIcon = this.requiredInside(this.copyDraftButton, ".copy-icon");
+    this.copiedIcon = this.requiredInside(this.copyDraftButton, ".copied-icon");
     this.copyStatus = this.required("copy-status");
     this.transposeButtons = [
       "transpose-down-octave",
@@ -295,6 +300,16 @@ export class DomWidgetView {
       actions.restoreVersion(button.dataset.versionId);
       this.versionPicker.open = false;
     };
+    const openVersions = () => { this.versionPicker.open = true; };
+    const closeVersions = () => { this.versionPicker.open = false; };
+    const keepVersionsOpen = (event: MouseEvent) => {
+      event.preventDefault();
+      openVersions();
+    };
+    const closeVersionsAfterFocus = (event: FocusEvent) => {
+      const next = event.relatedTarget;
+      if (!(next instanceof Node) || !this.versionPicker.contains(next)) closeVersions();
+    };
     const transposeListeners = this.transposeButtons.map((button) => {
       const transpose = () => actions.transpose(Number(button.dataset.semitones));
       button.addEventListener("click", transpose);
@@ -303,10 +318,21 @@ export class DomWidgetView {
     this.draftInput.addEventListener("input", edit);
     this.versionHistory.addEventListener("click", restoreVersion);
     this.copyDraftButton.addEventListener("click", copy);
+    this.versionPicker.addEventListener("pointerenter", openVersions);
+    this.versionPicker.addEventListener("pointerleave", closeVersions);
+    this.versionPicker.addEventListener("focusin", openVersions);
+    this.versionPicker.addEventListener("focusout", closeVersionsAfterFocus);
+    this.versionPicker.querySelector("summary")?.addEventListener("click", keepVersionsOpen);
     return () => {
       this.draftInput.removeEventListener("input", edit);
       this.versionHistory.removeEventListener("click", restoreVersion);
       this.copyDraftButton.removeEventListener("click", copy);
+      this.versionPicker.removeEventListener("pointerenter", openVersions);
+      this.versionPicker.removeEventListener("pointerleave", closeVersions);
+      this.versionPicker.removeEventListener("focusin", openVersions);
+      this.versionPicker.removeEventListener("focusout", closeVersionsAfterFocus);
+      this.versionPicker.querySelector("summary")?.removeEventListener("click", keepVersionsOpen);
+      if (this.copyResetTimer) clearTimeout(this.copyResetTimer);
       for (const { button, transpose } of transposeListeners) {
         button.removeEventListener("click", transpose);
       }
@@ -319,6 +345,21 @@ export class DomWidgetView {
       if (!clipboard) throw new Error("Clipboard access is unavailable.");
       await clipboard.writeText(this.draftInput.value);
       this.copyStatus.value = "Copied";
+      this.copyDraftButton.disabled = true;
+      this.copyDraftButton.setAttribute("aria-label", "Copied");
+      this.copyDraftButton.title = "Copied";
+      this.copyIcon.toggleAttribute("hidden", true);
+      this.copiedIcon.toggleAttribute("hidden", false);
+      if (this.copyResetTimer) clearTimeout(this.copyResetTimer);
+      this.copyResetTimer = setTimeout(() => {
+        this.copyResetTimer = undefined;
+        this.copyDraftButton.disabled = false;
+        this.copyDraftButton.setAttribute("aria-label", "Copy ABC");
+        this.copyDraftButton.title = "Copy ABC";
+        this.copyIcon.toggleAttribute("hidden", false);
+        this.copiedIcon.toggleAttribute("hidden", true);
+        this.copyStatus.value = "";
+      }, 1400);
     } catch {
       this.copyStatus.value = "Copy failed";
     }

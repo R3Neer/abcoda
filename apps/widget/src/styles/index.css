@@ -407,6 +407,12 @@ body {
   backdrop-filter: blur(8px);
 }
 
+.copy-button:disabled {
+  color: var(--accent);
+  opacity: 1;
+  cursor: default;
+}
+
 .copy-status {
   position: absolute;
   top: 3.05rem;

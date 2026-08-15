@@ -56,4 +56,19 @@ describe("ScoreCursorController", () => {
     cursor.rewind();
     expect(show).toHaveBeenLastCalledWith(timeline.events[0]);
   });
+
+  it("seeks by ABC source identity and finishes at the final bar", () => {
+    const show = vi.fn();
+    const view: CursorView = { show, hide: vi.fn() };
+    const cursor = new ScoreCursorController(view);
+    const endingTimeline: ScoreTimeline = {
+      ...timeline,
+      events: [...timeline.events.slice(0, 2), { ...timeline.events[2]!, endX: 180 }],
+    };
+    cursor.setTimeline(endingTimeline);
+    expect(cursor.seekSourceOffsets([15])).toBe(0.25);
+    expect(show).toHaveBeenLastCalledWith(endingTimeline.events[1]);
+    cursor.finish();
+    expect(show).toHaveBeenLastCalledWith({ ...endingTimeline.events[2], x: 180 });
+  });
 });

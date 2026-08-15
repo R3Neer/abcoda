@@ -156,6 +156,36 @@ test("clicking an engraved note seeks and places the cursor immediately before i
   expect(Math.abs(cursorBox!.x + cursorBox!.width - noteBox!.x)).toBeLessThan(8);
 });
 
+test("a near-note click follows ABCJS selection instead of the previous timing span", async ({ page }) => {
+  await page.goto("/?scenario=ready");
+  const note = page.locator("#score .abcjs-note").nth(1);
+  const noteBox = await note.boundingBox();
+  expect(noteBox).not.toBeNull();
+  await page.mouse.click(noteBox!.x - 6, noteBox!.y + noteBox!.height / 2);
+  await expect(note).toHaveClass(/abcjs-note_selected/);
+  const cursorBox = await page.locator(".score-cursor").boundingBox();
+  expect(cursorBox).not.toBeNull();
+  expect(Math.abs(cursorBox!.x + cursorBox!.width - noteBox!.x)).toBeLessThan(8);
+});
+
+test("the cursor reaches the final bar when playback finishes", async ({ page }) => {
+  await page.goto("/?scenario=ready");
+  const lastNote = page.locator("#score .abcjs-note").last();
+  const lastNoteBox = await lastNote.boundingBox();
+  expect(lastNoteBox).not.toBeNull();
+  await page.mouse.click(
+    lastNoteBox!.x + lastNoteBox!.width / 2,
+    lastNoteBox!.y + lastNoteBox!.height / 2,
+  );
+  await page.locator("#playback").click();
+  await expect(page.locator("#playback")).toHaveAttribute("aria-label", "Play", { timeout: 15000 });
+  const cursorBox = await page.locator(".score-cursor").boundingBox();
+  const finalBarBox = await page.locator("#score .abcjs-bar").last().boundingBox();
+  expect(cursorBox).not.toBeNull();
+  expect(finalBarBox).not.toBeNull();
+  expect(Math.abs(cursorBox!.x - finalBarBox!.x)).toBeLessThan(12);
+});
+
 test("play starts at the first note and seeking while playing keeps playback alive", async ({ page }) => {
   await page.goto("/?scenario=ready");
   const cursor = page.locator(".score-cursor");
@@ -230,7 +260,21 @@ test("copy ABC is an explicit user action with visible feedback", async ({ page,
   await page.locator("#copy-draft").click();
 
   await expect(page.locator("#copy-status")).toHaveText("Copied");
+  await expect(page.locator("#copy-draft")).toBeDisabled();
+  await expect(page.locator("#copy-draft")).toHaveAttribute("aria-label", "Copied");
+  await expect(page.locator("#copy-draft .copied-icon")).toBeVisible();
   expect((await page.evaluate(() => navigator.clipboard.readText())).replace(/\r\n/g, "\n")).toBe(expected);
+  await expect(page.locator("#copy-draft")).toBeEnabled({ timeout: 2500 });
+  await expect(page.locator("#copy-draft")).toHaveAttribute("aria-label", "Copy ABC");
+});
+
+test("version history opens and closes with hover", async ({ page }) => {
+  await page.goto("/?scenario=ready");
+  await page.locator("#editor > summary").click();
+  await page.locator("#version-picker > summary").hover();
+  await expect(page.locator("#version-picker")).toHaveAttribute("open", "");
+  await page.locator("#abc-draft").hover();
+  await expect(page.locator("#version-picker")).not.toHaveAttribute("open", "");
 });
 
 test("transposition is reviewable before it creates a new score revision", async ({ page }) => {
@@ -293,6 +337,8 @@ test("primary controls follow a visible and operable keyboard path", async ({ pa
   await expect(page.locator("#editor")).toHaveAttribute("open", "");
   await page.keyboard.press("Tab");
   await expect(page.locator("#version-picker > summary")).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(page.locator('#version-history button[data-version-id="original"]')).toBeFocused();
   await page.keyboard.press("Tab");
   await expect(page.locator("#abc-draft")).toBeFocused();
 });
