@@ -1,3 +1,5 @@
+import type { VoiceKind } from "./instruments";
+
 export type Brand<Value, Name extends string> = Value & {
   readonly __brand: Name;
 };
@@ -51,8 +53,6 @@ export interface ScoreDocument {
   readonly source: AbcSource;
 }
 
-export type VoiceKind = "pitched" | "unpitched_percussion";
-
 export interface ScoreVoice {
   readonly id: VoiceId;
   readonly kind: VoiceKind;
@@ -90,3 +90,5 @@ export function asQuarterNoteBpm(value: number): QuarterNoteBpm {
   }
   return value as QuarterNoteBpm;
 }
+
+export * from "./instruments";
