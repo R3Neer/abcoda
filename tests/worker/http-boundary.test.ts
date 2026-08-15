@@ -5,6 +5,15 @@ import { MAX_MCP_BODY_BYTES } from "../../apps/worker/src/http/security";
 
 const allowedOrigin = "https://chatgpt.com";
 
+function isHealthBody(value: unknown): value is { artifactHash: string } {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "artifactHash" in value &&
+    typeof value.artifactHash === "string"
+  );
+}
+
 async function rpcRequest(body: object): Promise<Response> {
   return SELF.fetch("https://abcoda.test/mcp", {
     method: "POST",
@@ -45,6 +54,57 @@ describe("ABCoda v2 Worker HTTP boundary", () => {
     });
     expect(response.headers.get("Access-Control-Allow-Origin")).toBeNull();
     expect(response.headers.get("Vary")).toContain("Origin");
+  });
+
+  it("keeps concurrent health and MCP evaluations isolated", async () => {
+    const healthResponses = await Promise.all(
+      Array.from({ length: 12 }, () => SELF.fetch("https://abcoda.test/health")),
+    );
+    const healthBodies = await Promise.all(healthResponses.map((response) => response.json()));
+    expect(healthResponses.every((response) => response.status === 200)).toBe(true);
+    if (!healthBodies.every(isHealthBody)) throw new Error("Health response omitted artifactHash.");
+    expect(new Set(healthBodies.map((body) => body.artifactHash))).toHaveLength(1);
+
+    const requests = Array.from({ length: 12 }, (_, index) => ({
+      id: 100 + index,
+      revision: 1_000 + index,
+      title: `Concurrent score ${index}`,
+    }));
+    const responses = await Promise.all(
+      requests.map(({ id, revision, title }) =>
+        rpcRequest({
+          jsonrpc: "2.0",
+          id,
+          method: "tools/call",
+          params: {
+            name: "validate_score",
+            arguments: {
+              schemaVersion: 2,
+              revision,
+              abc: `X:${id}\nT:${title}\nM:4/4\nL:1/4\nK:C\nC D E F|]`,
+            },
+          },
+        }),
+      ),
+    );
+    const bodies = await Promise.all(responses.map((response) => response.json()));
+
+    expect(responses.every((response) => response.status === 200)).toBe(true);
+    for (const [index, request] of requests.entries()) {
+      expect(bodies[index]).toMatchObject({
+        jsonrpc: "2.0",
+        id: request.id,
+        result: {
+          structuredContent: {
+            status: "success",
+            snapshot: {
+              revision: request.revision,
+              document: { tuneId: String(request.id), title: request.title },
+            },
+          },
+        },
+      });
+    }
   });
 
   it("reflects an explicitly allowed origin instead of using a wildcard", async () => {

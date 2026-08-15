@@ -23,7 +23,7 @@
 | CAP-14 | Tema del host y layout móvil | partial | Contexto neutral, temas/safe areas explícitos, sin mínimo rígido y E2E móvil/escritorio | Dimensiones declaradas del contenedor y matriz de hosts reales. |
 | CAP-15 | Transporte siempre accesible | implemented-v2 | Sticky salvo edición móvil; foco visible, recorrido teclado y reduced motion en Playwright | Auditar lector de pantalla dentro del host real. |
 | CAP-16 | Demo independiente | implemented | Host simulado v2 y ocho recorridos Playwright móvil/escritorio | Paridad funcional al completar controles interactivos. |
-| CAP-17 | Operación stateless | characterized | inspección de Worker/servidor | Pruebas de aislamiento en runtime. |
+| CAP-17 | Operación stateless | implemented-v2 | Doce evaluaciones MCP y lecturas de health concurrentes verifican revisiones, títulos e identidad de artefacto sin contaminación cruzada en workerd | Ampliar con carga sostenida en preview real. |
 | CAP-18 | Claves, transposición sonora y claves de octava | characterized | tests añadidos en `ae36154` | Modelo canónico y pruebas browser/audio. |
 
 ## Defectos
