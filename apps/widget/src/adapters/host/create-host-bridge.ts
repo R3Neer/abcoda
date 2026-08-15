@@ -7,6 +7,7 @@ const scenarios = new Set<LaboratoryScenario>([
   "ready",
   "legacy",
   "mixed",
+  "ranges",
   "invalid",
   "malformed",
   "race",

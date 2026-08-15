@@ -46,4 +46,70 @@ describe("abcjs playback source mapping", () => {
     expect(sequence[0]?.[0]).toMatchObject({ instrument: "violin", volume: 80 });
     expect(sequence[1]?.[0]).toMatchObject({ instrument: "percussion", volume: 0 });
   });
+
+  it("keeps unplayable events in the timeline while preventing impossible sample requests", () => {
+    const trumpetMix: VoiceMixSnapshot = {
+      revision: 4,
+      voices: [
+        { id: "TR", kind: "pitched", instrument: "trumpet", muted: false },
+      ],
+    };
+    const audio = {
+      tracks: [[
+        { cmd: "program", instrument: 0 },
+        {
+          cmd: "note",
+          instrument: 0,
+          pitch: 84,
+          volume: 80,
+          start: 0,
+          duration: 0.25,
+          gap: 0,
+          startChar: 10,
+          endChar: 11,
+        },
+        {
+          cmd: "note",
+          instrument: 0,
+          pitch: 86,
+          volume: 80,
+          start: 0.25,
+          duration: 0.25,
+          gap: 0,
+          startChar: 12,
+          endChar: 13,
+        },
+        {
+          cmd: "note",
+          instrument: 0,
+          pitch: 88,
+          volume: 80,
+          start: 0.5,
+          duration: 0.25,
+          gap: 0,
+          startChar: 14,
+          endChar: 15,
+        },
+      ]],
+    } as ABCJS.AudioTracks;
+    const tune = {
+      setUpAudio: () => audio,
+    } as unknown as ABCJS.TuneObject;
+
+    const configured = tuneWithInstrumentPrograms(tune, trumpetMix).setUpAudio({});
+    const notes = configured.tracks[0]?.filter(
+      (event): event is ABCJS.AudioTrackNoteItem => event.cmd === "note",
+    ) ?? [];
+
+    expect(notes).toHaveLength(3);
+    expect(notes.map((event) => event.pitch)).toEqual([84, 86, 84]);
+    expect(notes.map((event) => event.volume)).toEqual([80, 80, 0]);
+    expect(notes.map((event) => event.instrument)).toEqual([56, 56, 56]);
+    expect(notes[2]).toMatchObject({
+      start: 0.5,
+      duration: 0.25,
+      startChar: 14,
+      endChar: 15,
+    });
+  });
 });

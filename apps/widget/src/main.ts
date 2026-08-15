@@ -1,7 +1,9 @@
 import "./styles/index.css";
+import "./styles/ranges.css";
 import { AbcjsEngraver } from "./adapters/abcjs/abcjs-engraver";
 import { CanonicalDraftTransformer } from "./adapters/local/canonical-draft-transformer";
 import { DomWidgetView } from "./adapters/dom/dom-widget-view";
+import { applyVoiceRangePresentation } from "./adapters/dom/dom-range-presentation";
 import { DomScoreCursor } from "./adapters/dom/dom-score-cursor";
 import { createHostBridge } from "./adapters/host/create-host-bridge";
 import { WidgetRuntime } from "./application/host-bridge";
@@ -42,24 +44,29 @@ let cursorRevision = -1;
 let renderedStaffWidth: number | undefined;
 let activePreferredMeasuresPerLine: number | undefined;
 
+const engraver = new AbcjsEngraver(view.scoreTarget, view.audioTarget, {
+  onPlaybackStarted: () => cursor.setPlaying(true),
+  onPlaybackFinished: () => {
+    const looping = playback.snapshot().loop;
+    cursor.playbackFinished(looping);
+    playback.playbackFinished();
+  },
+  onPlaybackEvent: (event) => cursor.onPlaybackEvent(event),
+  onScoreSelection: (sourceOffsets) => {
+    const progress = cursor.seekSourceOffsets(sourceOffsets);
+    if (progress !== undefined) playback.seek(progress);
+  },
+});
+
 const mix = new VoiceMixController((state) => {
-  view.showMix(state, assessVoiceRanges(state, voicePitches));
+  const rangeAssessments = assessVoiceRanges(state, voicePitches);
+  view.showMix(state, rangeAssessments);
+  applyVoiceRangePresentation(document, rangeAssessments);
+  engraver.showVoiceRanges(state);
   void playbackMix.apply(state);
 });
 const controller = new ScoreSessionController(
-  new AbcjsEngraver(view.scoreTarget, view.audioTarget, {
-    onPlaybackStarted: () => cursor.setPlaying(true),
-    onPlaybackFinished: () => {
-      const looping = playback.snapshot().loop;
-      cursor.playbackFinished(looping);
-      playback.playbackFinished();
-    },
-    onPlaybackEvent: (event) => cursor.onPlaybackEvent(event),
-    onScoreSelection: (sourceOffsets) => {
-      const progress = cursor.seekSourceOffsets(sourceOffsets);
-      if (progress !== undefined) playback.seek(progress);
-    },
-  }),
+  engraver,
   (state) => {
     if (state.status === "loading") {
       voicePitches = {};
@@ -92,7 +99,10 @@ const controller = new ScoreSessionController(
       activePreferredMeasuresPerLine,
     );
 
-    if (reason === "reflow") return;
+    if (reason === "reflow") {
+      engraver.showVoiceRanges(mix.snapshot());
+      return;
+    }
 
     const scoreTempo = snapshot.document.tempo?.bpm ?? 96;
     const effectiveTempo = presentation?.tempo ?? scoreTempo;

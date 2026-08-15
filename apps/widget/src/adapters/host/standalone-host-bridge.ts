@@ -4,7 +4,7 @@ import type {
   HostPresentationContext,
 } from "../../application/host-bridge";
 
-export type LaboratoryScenario = "ready" | "legacy" | "mixed" | "invalid" | "malformed" | "race" | "invalid-after-ready";
+export type LaboratoryScenario = "ready" | "legacy" | "mixed" | "ranges" | "invalid" | "malformed" | "race" | "invalid-after-ready";
 
 const laboratoryResult = {
   status: "success",
@@ -95,6 +95,54 @@ K:C
   },
 } as const;
 
+const rangeResult = {
+  status: "success",
+  snapshot: {
+    schemaVersion: 2,
+    revision: 1,
+    document: {
+      tuneId: "laboratory-ranges",
+      title: "Instrument range states",
+      meter: "4/4",
+      key: "C",
+      tempo: { beatUnit: "quarter", bpm: 96 },
+      voices: [
+        { id: "USUAL", kind: "pitched" },
+        { id: "EXTENDED", kind: "pitched" },
+        { id: "UNPLAYABLE", kind: "pitched" },
+      ],
+      source: {
+        format: "abc",
+        text: `X:1
+T:Instrument range states
+M:4/4
+L:1/4
+Q:1/4=96
+%%score USUAL EXTENDED UNPLAYABLE
+V:USUAL clef=treble
+V:EXTENDED clef=treble
+V:UNPLAYABLE clef=treble
+K:C
+[V:USUAL] G A B c|]
+[V:EXTENDED] d' d' c' d'|]
+[V:UNPLAYABLE] e' f' e' f'|]`,
+      },
+    },
+    diagnostics: [],
+  },
+  presentation: {
+    tempo: 96,
+    instruments: {
+      USUAL: "trumpet",
+      EXTENDED: "trumpet",
+      UNPLAYABLE: "trumpet",
+    },
+    mutedVoices: [],
+    loop: false,
+    title: "Instrument range states",
+  },
+} as const;
+
 export class StandaloneHostBridge implements HostBridge {
   private readonly timers = new Set<number>();
 
@@ -111,6 +159,8 @@ export class StandaloneHostBridge implements HostBridge {
       handlers.onResult(legacyResult);
     } else if (this.scenario === "mixed") {
       handlers.onResult(mixedResult);
+    } else if (this.scenario === "ranges") {
+      handlers.onResult(rangeResult);
     } else if (this.scenario === "invalid-after-ready") {
       handlers.onResult(laboratoryResult);
       this.schedule(() => handlers.onResult(invalidResult), 80);

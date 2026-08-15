@@ -1,5 +1,8 @@
 import ABCJS from "abcjs";
-import { instrumentDefinition } from "../../../../../packages/domain/src/index";
+import {
+  classifyInstrumentPitch,
+  instrumentDefinition,
+} from "../../../../../packages/domain/src/index";
 import type {
   VoiceMixPlaybackSource,
   VoiceMixSnapshot,
@@ -105,8 +108,26 @@ export function tuneWithInstrumentPrograms(
       const program = definition.voiceKind === "unpitched_percussion"
         ? 128
         : definition.midiProgram;
+
       track.forEach((event) => {
-        if ((event.cmd === "program" || event.cmd === "note") && program !== undefined) {
+        if (
+          event.cmd === "note"
+          && definition.voiceKind === "pitched"
+          && classifyInstrumentPitch(event.pitch, assignment.instrument) === "unplayable"
+        ) {
+          // CreateSynth gathers samples from event.pitch before sequenceCallback.
+          // Keep this event in place for timing/cursor callbacks, but make it
+          // silent and point its hidden sample request at a normal-range pitch.
+          event.pitch = event.pitch < definition.playableRange.min
+            ? definition.usualRange.min
+            : definition.usualRange.max;
+          event.volume = 0;
+        }
+
+        if (
+          (event.cmd === "program" || event.cmd === "note")
+          && program !== undefined
+        ) {
           event.instrument = program;
         }
       });

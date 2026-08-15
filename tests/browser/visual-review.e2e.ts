@@ -40,3 +40,20 @@ test("captures pitched and percussion controls together for visual review", asyn
     mixer,
   );
 });
+
+test("captures usual, extended, and unplayable instrument ranges for visual review", async ({ page }, testInfo) => {
+  await page.goto("/?scenario=ranges&theme=light");
+  await settleWidget(page, "Revision 1 ready");
+  const mixer = await openMixer(page);
+  await captureVisualReview(
+    page,
+    testInfo,
+    `ranges-light-viewport-${testInfo.project.name}`,
+  );
+  await captureVisualReview(
+    page,
+    testInfo,
+    `ranges-light-mixer-${testInfo.project.name}`,
+    mixer,
+  );
+});

@@ -29,68 +29,250 @@ export const instrumentIds = [
 ] as const;
 
 export type InstrumentId = (typeof instrumentIds)[number];
+export type PitchedInstrumentId = Exclude<InstrumentId, "standard_drum_kit">;
 
-export interface InstrumentDefinition {
-  readonly id: InstrumentId;
+export interface PitchRange {
+  readonly min: number;
+  readonly max: number;
   readonly label: string;
-  readonly voiceKind: VoiceKind;
-  readonly midiProgram?: number;
-  readonly range: {
-    readonly min: number;
-    readonly max: number;
-    readonly label: string;
-  };
 }
 
-const pitched = (
-  id: Exclude<InstrumentId, "standard_drum_kit">,
-  label: string,
-  midiProgram: number,
+export interface PitchedInstrumentDefinition {
+  readonly id: PitchedInstrumentId;
+  readonly label: string;
+  readonly voiceKind: "pitched";
+  readonly midiProgram: number;
+  readonly usualRange: PitchRange;
+  readonly playableRange: PitchRange;
+}
+
+export interface PercussionInstrumentDefinition {
+  readonly id: "standard_drum_kit";
+  readonly label: string;
+  readonly voiceKind: "unpitched_percussion";
+  readonly midiProgram?: undefined;
+  readonly noteRange: PitchRange;
+}
+
+export type InstrumentDefinition =
+  | PitchedInstrumentDefinition
+  | PercussionInstrumentDefinition;
+
+const pitchRange = (
   min: number,
   max: number,
-  rangeLabel: string,
-): InstrumentDefinition => ({
-  id,
-  label,
-  voiceKind: "pitched",
-  midiProgram,
-  range: { min, max, label: rangeLabel },
-});
+  label: string,
+): PitchRange => ({ min, max, label });
 
+const pitched = (
+  id: PitchedInstrumentId,
+  label: string,
+  midiProgram: number,
+  usualRange: PitchRange,
+  playableRange: PitchRange,
+): PitchedInstrumentDefinition => {
+  if (
+    usualRange.min < playableRange.min
+    || usualRange.max > playableRange.max
+  ) {
+    throw new Error(
+      `Instrument ${id} has a usual range outside its playable range.`,
+    );
+  }
+
+  return {
+    id,
+    label,
+    voiceKind: "pitched",
+    midiProgram,
+    usualRange,
+    playableRange,
+  };
+};
+
+// The former single catalog range becomes the hard musical/product boundary.
+// The narrower usual range is the comfortable/default writing range. Neither
+// range describes SoundFont sample coverage; that belongs to the audio adapter.
 export const instrumentCatalog: readonly InstrumentDefinition[] = [
-  pitched("acoustic_grand_piano", "Acoustic grand piano", 0, 21, 108, "A0–C8"),
-  pitched("bright_acoustic_piano", "Bright acoustic piano", 1, 21, 108, "A0–C8"),
-  pitched("church_organ", "Church organ", 19, 36, 96, "C2–C7"),
-  pitched("acoustic_guitar_nylon", "Nylon-string guitar", 24, 40, 88, "E2–E6"),
-  pitched("acoustic_bass", "Acoustic bass", 32, 28, 67, "E1–G4"),
-  pitched("violin", "Violin", 40, 55, 105, "G3–A7"),
-  pitched("viola", "Viola", 41, 48, 88, "C3–E6"),
-  pitched("cello", "Cello", 42, 36, 84, "C2–C6"),
-  pitched("contrabass", "Contrabass", 43, 28, 67, "E1–G4 sounding"),
-  pitched("string_ensemble_1", "String ensemble", 48, 36, 96, "C2–C7"),
-  pitched("choir_aahs", "Choir aahs", 52, 48, 84, "C3–C6"),
-  pitched("trumpet", "Trumpet", 56, 54, 86, "F♯3–D6 sounding"),
-  pitched("trombone", "Trombone", 57, 40, 72, "E2–C5"),
-  pitched("french_horn", "French horn", 60, 35, 77, "B1–F5 sounding"),
-  pitched("soprano_sax", "Soprano saxophone", 64, 56, 88, "A♭3–E6 sounding"),
-  pitched("alto_sax", "Alto saxophone", 65, 49, 80, "C♯3–A♭5 sounding"),
-  pitched("tenor_sax", "Tenor saxophone", 66, 44, 75, "A♭2–E♭5 sounding"),
-  pitched("oboe", "Oboe", 68, 58, 93, "B♭3–A6"),
-  pitched("english_horn", "English horn", 69, 52, 84, "E3–C6 sounding"),
-  pitched("bassoon", "Bassoon", 70, 34, 75, "B♭1–E♭5"),
-  pitched("clarinet", "Clarinet", 71, 52, 96, "E3–C7 sounding"),
-  pitched("piccolo", "Piccolo", 72, 74, 108, "D5–C8 sounding"),
-  pitched("flute", "Flute", 73, 60, 98, "C4–D7"),
-  pitched("recorder", "Recorder", 74, 60, 96, "C4–C7"),
+  pitched(
+    "acoustic_grand_piano",
+    "Acoustic grand piano",
+    0,
+    pitchRange(21, 108, "A0–C8"),
+    pitchRange(21, 108, "A0–C8"),
+  ),
+  pitched(
+    "bright_acoustic_piano",
+    "Bright acoustic piano",
+    1,
+    pitchRange(21, 108, "A0–C8"),
+    pitchRange(21, 108, "A0–C8"),
+  ),
+  pitched(
+    "church_organ",
+    "Church organ",
+    19,
+    pitchRange(36, 96, "C2–C7"),
+    pitchRange(36, 96, "C2–C7"),
+  ),
+  pitched(
+    "acoustic_guitar_nylon",
+    "Nylon-string guitar",
+    24,
+    pitchRange(40, 83, "E2–B5"),
+    pitchRange(40, 88, "E2–E6"),
+  ),
+  pitched(
+    "acoustic_bass",
+    "Acoustic bass",
+    32,
+    pitchRange(28, 62, "E1–D4"),
+    pitchRange(28, 67, "E1–G4"),
+  ),
+  pitched(
+    "violin",
+    "Violin",
+    40,
+    pitchRange(55, 100, "G3–E7"),
+    pitchRange(55, 105, "G3–A7"),
+  ),
+  pitched(
+    "viola",
+    "Viola",
+    41,
+    pitchRange(48, 84, "C3–C6"),
+    pitchRange(48, 88, "C3–E6"),
+  ),
+  pitched(
+    "cello",
+    "Cello",
+    42,
+    pitchRange(36, 81, "C2–A5"),
+    pitchRange(36, 84, "C2–C6"),
+  ),
+  pitched(
+    "contrabass",
+    "Contrabass",
+    43,
+    pitchRange(28, 62, "E1–D4 sounding"),
+    pitchRange(28, 67, "E1–G4 sounding"),
+  ),
+  pitched(
+    "string_ensemble_1",
+    "String ensemble",
+    48,
+    pitchRange(36, 84, "C2–C6"),
+    pitchRange(36, 96, "C2–C7"),
+  ),
+  pitched(
+    "choir_aahs",
+    "Choir aahs",
+    52,
+    pitchRange(48, 84, "C3–C6"),
+    pitchRange(48, 84, "C3–C6"),
+  ),
+  pitched(
+    "trumpet",
+    "Trumpet",
+    56,
+    pitchRange(54, 84, "F♯3–C6 sounding"),
+    pitchRange(54, 86, "F♯3–D6 sounding"),
+  ),
+  pitched(
+    "trombone",
+    "Trombone",
+    57,
+    pitchRange(40, 70, "E2–B♭4"),
+    pitchRange(40, 72, "E2–C5"),
+  ),
+  pitched(
+    "french_horn",
+    "French horn",
+    60,
+    pitchRange(36, 77, "C2–F5 sounding"),
+    pitchRange(35, 77, "B1–F5 sounding"),
+  ),
+  pitched(
+    "soprano_sax",
+    "Soprano saxophone",
+    64,
+    pitchRange(58, 86, "B♭3–D6 sounding"),
+    pitchRange(56, 88, "A♭3–E6 sounding"),
+  ),
+  pitched(
+    "alto_sax",
+    "Alto saxophone",
+    65,
+    pitchRange(50, 78, "D3–F♯5 sounding"),
+    pitchRange(49, 80, "C♯3–A♭5 sounding"),
+  ),
+  pitched(
+    "tenor_sax",
+    "Tenor saxophone",
+    66,
+    pitchRange(45, 74, "A2–D5 sounding"),
+    pitchRange(44, 75, "A♭2–E♭5 sounding"),
+  ),
+  pitched(
+    "oboe",
+    "Oboe",
+    68,
+    pitchRange(58, 91, "B♭3–G6"),
+    pitchRange(58, 93, "B♭3–A6"),
+  ),
+  pitched(
+    "english_horn",
+    "English horn",
+    69,
+    pitchRange(52, 82, "E3–B♭5 sounding"),
+    pitchRange(52, 84, "E3–C6 sounding"),
+  ),
+  pitched(
+    "bassoon",
+    "Bassoon",
+    70,
+    pitchRange(34, 74, "B♭1–D5"),
+    pitchRange(34, 75, "B♭1–E♭5"),
+  ),
+  pitched(
+    "clarinet",
+    "Clarinet",
+    71,
+    pitchRange(52, 91, "E3–G6 sounding"),
+    pitchRange(52, 96, "E3–C7 sounding"),
+  ),
+  pitched(
+    "piccolo",
+    "Piccolo",
+    72,
+    pitchRange(74, 108, "D5–C8 sounding"),
+    pitchRange(74, 108, "D5–C8 sounding"),
+  ),
+  pitched(
+    "flute",
+    "Flute",
+    73,
+    pitchRange(60, 96, "C4–C7"),
+    pitchRange(60, 98, "C4–D7"),
+  ),
+  pitched(
+    "recorder",
+    "Recorder",
+    74,
+    pitchRange(60, 93, "C4–A6"),
+    pitchRange(60, 96, "C4–C7"),
+  ),
   {
     id: "standard_drum_kit",
     label: "Standard drum kit",
     voiceKind: "unpitched_percussion",
-    range: { min: 35, max: 81, label: "GM percussion notes 35–81" },
+    noteRange: pitchRange(35, 81, "GM percussion notes 35–81"),
   },
 ] as const;
 
-const definitions = new Map(instrumentCatalog.map((instrument) => [instrument.id, instrument]));
+const definitions = new Map(
+  instrumentCatalog.map((instrument) => [instrument.id, instrument]),
+);
 
 export function instrumentDefinition(id: InstrumentId): InstrumentDefinition {
   const definition = definitions.get(id);
@@ -103,30 +285,98 @@ export function instrumentsForVoice(kind: VoiceKind): readonly InstrumentDefinit
 }
 
 export function defaultInstrument(kind: VoiceKind): InstrumentId {
-  return kind === "unpitched_percussion" ? "standard_drum_kit" : "acoustic_grand_piano";
+  return kind === "unpitched_percussion"
+    ? "standard_drum_kit"
+    : "acoustic_grand_piano";
 }
 
-export function isInstrumentCompatible(kind: VoiceKind, instrument: InstrumentId): boolean {
+export function isInstrumentCompatible(
+  kind: VoiceKind,
+  instrument: InstrumentId,
+): boolean {
   return instrumentDefinition(instrument).voiceKind === kind;
 }
 
-export type RangeFit = "empty" | "inside" | "partial" | "outside";
+export type PitchRangeClassification =
+  | "usual"
+  | "extended"
+  | "unplayable";
 
-export function instrumentRangeFit(pitches: readonly number[], instrument: InstrumentId): {
-  readonly fit: RangeFit;
-  readonly inside: number;
-  readonly outside: number;
-  readonly range: InstrumentDefinition["range"];
-} {
-  const range = instrumentDefinition(instrument).range;
-  const inside = pitches.filter((pitch) => pitch >= range.min && pitch <= range.max).length;
-  const outside = pitches.length - inside;
-  const fit: RangeFit = pitches.length === 0
+export type InstrumentRangeStatus = "empty" | PitchRangeClassification;
+
+export interface InstrumentRangeAssessment {
+  readonly status: InstrumentRangeStatus;
+  readonly usual: number;
+  readonly extended: number;
+  readonly unplayable: number;
+  readonly usualRange: PitchRange;
+  readonly playableRange: PitchRange;
+}
+
+export function classifyInstrumentPitch(
+  pitch: number,
+  instrument: InstrumentId,
+): PitchRangeClassification {
+  const definition = instrumentDefinition(instrument);
+  if (definition.voiceKind !== "pitched") {
+    throw new Error(
+      `Instrument ${instrument} does not use melodic range classification.`,
+    );
+  }
+
+  if (
+    pitch < definition.playableRange.min
+    || pitch > definition.playableRange.max
+  ) {
+    return "unplayable";
+  }
+
+  if (
+    pitch >= definition.usualRange.min
+    && pitch <= definition.usualRange.max
+  ) {
+    return "usual";
+  }
+
+  return "extended";
+}
+
+export function assessInstrumentPitches(
+  pitches: readonly number[],
+  instrument: InstrumentId,
+): InstrumentRangeAssessment {
+  const definition = instrumentDefinition(instrument);
+  if (definition.voiceKind !== "pitched") {
+    throw new Error(
+      `Instrument ${instrument} does not use melodic range classification.`,
+    );
+  }
+
+  let usual = 0;
+  let extended = 0;
+  let unplayable = 0;
+
+  for (const pitch of pitches) {
+    const classification = classifyInstrumentPitch(pitch, instrument);
+    if (classification === "usual") usual += 1;
+    if (classification === "extended") extended += 1;
+    if (classification === "unplayable") unplayable += 1;
+  }
+
+  const status: InstrumentRangeStatus = pitches.length === 0
     ? "empty"
-    : inside === 0
-      ? "outside"
-      : outside > 0
-        ? "partial"
-        : "inside";
-  return { fit, inside, outside, range };
+    : unplayable > 0
+      ? "unplayable"
+      : extended > 0
+        ? "extended"
+        : "usual";
+
+  return {
+    status,
+    usual,
+    extended,
+    unplayable,
+    usualRange: definition.usualRange,
+    playableRange: definition.playableRange,
+  };
 }

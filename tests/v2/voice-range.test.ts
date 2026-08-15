@@ -11,25 +11,27 @@ const mix: VoiceMixSnapshot = {
 };
 
 describe("assessVoiceRanges", () => {
-  it("reports only actionable partial and outside fits", () => {
-    expect(assessVoiceRanges(mix, { FL: [40, 60], DR: [36, 42] })).toEqual([
+  it("distinguishes extended writing from hard unplayable pitches", () => {
+    expect(assessVoiceRanges(mix, { FL: [60, 98], DR: [36, 42] })).toEqual([
       {
         voiceId: "FL",
-        fit: "partial",
-        message: "1 note outside the usual C4–D7 range.",
+        status: "extended",
+        message: "Some notes are outside the usual C4–C7 range but remain within the playable C4–D7 range.",
       },
-      { voiceId: "DR", fit: "inside" },
+      { voiceId: "DR", status: "not_applicable" },
     ]);
+
+    expect(assessVoiceRanges(mix, { FL: [60, 99] })[0]).toEqual({
+      voiceId: "FL",
+      status: "unplayable",
+      message: "Some notes are outside the usual C4–C7 range and exceed the playable C4–D7 range. Notes outside the playable range are shown in red and played silently.",
+    });
   });
 
-  it("distinguishes a completely outside voice from one with no notes", () => {
-    expect(assessVoiceRanges(mix, { FL: [40, 41] })).toEqual([
-      {
-        voiceId: "FL",
-        fit: "outside",
-        message: "All 2 notes are outside the usual C4–D7 range.",
-      },
-      { voiceId: "DR", fit: "empty" },
+  it("keeps empty pitched voices separate from percussion", () => {
+    expect(assessVoiceRanges(mix, {})).toEqual([
+      { voiceId: "FL", status: "empty" },
+      { voiceId: "DR", status: "not_applicable" },
     ]);
   });
 });

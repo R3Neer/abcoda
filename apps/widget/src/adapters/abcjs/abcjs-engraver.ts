@@ -8,11 +8,18 @@ import type {
   ScorePresentationDto,
   ScoreSnapshotDto,
 } from "../../../../../packages/contracts/src/index";
+import {
+  classifyInstrumentPitch,
+} from "../../../../../packages/domain/src/index";
 import { timelineForTune } from "./abcjs-timeline";
 import type { PlaybackTimingCallback } from "../../application/score-cursor";
 import { AbcjsPlaybackSource } from "./abcjs-playback-source";
-import { pitchesForVoices } from "./abcjs-voice-pitches";
+import {
+  analyzeVoicePitches,
+  type VoicePitchTarget,
+} from "./abcjs-voice-pitches";
 import { scoreStaffWidth } from "../../application/score-layout";
+import type { VoiceMixSnapshot } from "../../application/voice-mix";
 
 interface SelectionRange {
   readonly start: number;
@@ -27,6 +34,8 @@ type HighlightableTune = {
 
 export class AbcjsEngraver implements Engraver {
   private selectedRange: SelectionRange | undefined;
+  private rangeTargets: Readonly<Record<string, readonly VoicePitchTarget[]>> = {};
+
   constructor(
     private readonly target: HTMLElement,
     private readonly audioTarget: HTMLElement,
@@ -105,16 +114,18 @@ export class AbcjsEngraver implements Engraver {
 
     const bpm = snapshot.document.tempo?.bpm ?? 96;
     const timeline = timelineForTune(tunes[0], bpm);
+    const pitchAnalysis = analyzeVoicePitches(
+      tunes[0],
+      snapshot.document.voices.map((voice) => voice.id),
+      bpm,
+    );
+    this.rangeTargets = pitchAnalysis.targetsByVoice;
 
     if (options.includePlayback === false) {
       return { timeline };
     }
 
-    const voicePitches = pitchesForVoices(
-      tunes[0],
-      snapshot.document.voices.map((voice) => voice.id),
-      bpm,
-    );
+    const voicePitches = pitchAnalysis.pitchesByVoice;
     if (!ABCJS.synth.supportsAudio()) return { timeline, voicePitches };
     return {
       timeline,
@@ -128,7 +139,58 @@ export class AbcjsEngraver implements Engraver {
     };
   }
 
+  showVoiceRanges(mix: VoiceMixSnapshot): void {
+    this.clearVoiceRangeClasses();
+
+    for (const voice of mix.voices) {
+      if (voice.kind !== "pitched") continue;
+
+      for (const target of this.rangeTargets[voice.id] ?? []) {
+        const status = targetRangeStatus(
+          target.pitches,
+          voice.instrument,
+        );
+
+        target.element.setAttribute("data-range-status", status);
+        if (status === "extended") {
+          target.element.classList.add("abcoda-range-extended");
+        }
+        if (status === "unplayable") {
+          target.element.classList.add("abcoda-range-unplayable");
+        }
+      }
+    }
+  }
+
   clear(): void {
+    this.rangeTargets = {};
     this.target.replaceChildren();
   }
+
+  private clearVoiceRangeClasses(): void {
+    for (const targets of Object.values(this.rangeTargets)) {
+      for (const target of targets) {
+        target.element.classList.remove(
+          "abcoda-range-extended",
+          "abcoda-range-unplayable",
+        );
+        target.element.removeAttribute("data-range-status");
+      }
+    }
+  }
+}
+
+function targetRangeStatus(
+  pitches: readonly number[],
+  instrument: VoiceMixSnapshot["voices"][number]["instrument"],
+): "usual" | "extended" | "unplayable" {
+  let status: "usual" | "extended" | "unplayable" = "usual";
+
+  for (const pitch of pitches) {
+    const classification = classifyInstrumentPitch(pitch, instrument);
+    if (classification === "unplayable") return "unplayable";
+    if (classification === "extended") status = "extended";
+  }
+
+  return status;
 }

@@ -1,0 +1,65 @@
+:root {
+  --range-extended: light-dark(#b45309, #f59e0b);
+  --range-unplayable: var(--danger);
+}
+
+.voice-instrument[data-range-status="extended"] {
+  border-color: color-mix(in srgb, var(--range-extended) 72%, var(--control-border));
+  background: color-mix(in srgb, var(--range-extended) 13%, Canvas);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--range-extended) 18%, transparent);
+}
+
+.voice-instrument[data-range-status="unplayable"] {
+  border-color: color-mix(in srgb, var(--range-unplayable) 76%, var(--control-border));
+  background: color-mix(in srgb, var(--range-unplayable) 14%, Canvas);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--range-unplayable) 22%, transparent);
+}
+
+.voice-range-warning.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.score :where(.abcoda-range-extended, .abcoda-range-extended *) {
+  color: var(--range-extended) !important;
+  fill: var(--range-extended) !important;
+  stroke: var(--range-extended) !important;
+}
+
+.score :where(.abcoda-range-unplayable, .abcoda-range-unplayable *) {
+  color: var(--range-unplayable) !important;
+  fill: var(--range-unplayable) !important;
+  stroke: var(--range-unplayable) !important;
+}
+
+/* Selection remains the strongest transient visual state. */
+.score :where(.abcjs-note_selected, .abcjs-note_selected *) {
+  color: var(--accent) !important;
+  fill: var(--accent) !important;
+  stroke: var(--accent) !important;
+}
+
+@media (forced-colors: active) {
+  .voice-instrument[data-range-status="extended"] {
+    border-style: dashed;
+    border-color: Mark;
+  }
+
+  .voice-instrument[data-range-status="unplayable"] {
+    border-width: 2px;
+    border-color: Mark;
+  }
+
+  .score :where(.abcoda-range-extended, .abcoda-range-extended *),
+  .score :where(.abcoda-range-unplayable, .abcoda-range-unplayable *) {
+    forced-color-adjust: none;
+  }
+}
