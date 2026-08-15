@@ -101,13 +101,13 @@ function transposeChordLexeme(lexeme: string, semitones: number): string {
 
 function transposeKeyValue(value: string, semitones: number): string {
   if (/^(?:none|perc)/i.test(value.trim())) return value;
-  const match = /^(\s*)([A-Ga-g])([#b]?)(.*)$/.exec(value);
+  const match = /^([A-Ga-g])([#b]?)(.*)$/.exec(value);
   if (!match) return value;
-  const accidental = match[3] === "#" ? 1 : match[3] === "b" ? -1 : 0;
-  const pitch = pitchClasses[match[2]!.toUpperCase()]! + accidental + semitones;
+  const accidental = match[2] === "#" ? 1 : match[2] === "b" ? -1 : 0;
+  const pitch = pitchClasses[match[1]!.toUpperCase()]! + accidental + semitones;
   const abcSpelling = sharpSpellings[modulo(pitch, 12)]!;
   const spelling = abcSpelling.startsWith("^") ? `${abcSpelling.slice(1)}#` : abcSpelling;
-  return `${match[1]}${spelling}${match[4]}`;
+  return `${spelling}${match[3]}`;
 }
 
 function transposeChordSymbol(lexeme: string, semitones: number): string {
@@ -120,16 +120,27 @@ function transposeChordSymbol(lexeme: string, semitones: number): string {
   return `"${root}${match[3]}${bass}${match[7]}"`;
 }
 
-function transposeKeys(source: string, semitones: number): string {
-  return source
-    .replace(/^K:([^\n]*)$/gm, (_, value: string) => `K:${transposeKeyValue(value, semitones)}`)
-    .replace(/\[K:([^\]]*)\]/g, (_, value: string) => `[K:${transposeKeyValue(value, semitones)}]`);
-}
-
 interface Replacement {
   readonly start: number;
   readonly end: number;
   readonly text: string;
+}
+
+function keyFieldReplacements(
+  document: ScoreDocument,
+  semitones: number,
+): Replacement[] {
+  return document.fields.flatMap((field) => {
+    if (field.name !== "K") return [];
+    const text = transposeKeyValue(field.value, semitones);
+    return text === field.value
+      ? []
+      : [{
+          start: field.valueSource.start.offset,
+          end: field.valueSource.end.offset,
+          text,
+        }];
+  });
 }
 
 function assertTransposition(semitones: number): void {
@@ -141,7 +152,7 @@ function assertTransposition(semitones: number): void {
 export function transposeDocument(document: ScoreDocument, semitones: number): ScoreDocument {
   if (semitones === 0) return document;
   assertTransposition(semitones);
-  const replacements: Replacement[] = [];
+  const replacements: Replacement[] = keyFieldReplacements(document, semitones);
   for (const voice of document.voices) {
     if (voice.kind === "unpitched_percussion") continue;
     for (const measure of voice.measures) {
@@ -167,7 +178,6 @@ export function transposeDocument(document: ScoreDocument, semitones: number): S
   for (const replacement of replacements.sort((left, right) => right.start - left.start)) {
     source = source.slice(0, replacement.start) + replacement.text + source.slice(replacement.end);
   }
-  source = transposeKeys(source, semitones);
   const decoded = parseAbc(source);
   if (!decoded.ok) throw new Error(decoded.diagnostics[0]?.message ?? "Transposition failed.");
   return decoded.document;
