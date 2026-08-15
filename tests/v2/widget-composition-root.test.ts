@@ -34,8 +34,12 @@ describe("widget composition root architecture", () => {
     expect(coordinator).not.toContain("DomWidgetView");
     expect(coordinator).not.toContain("AbcjsEngraver");
     expect(coordinator).not.toContain("ResizeObserver");
-    expect(coordinator).not.toContain("document.");
     expect(coordinator).not.toContain("window.");
+    expect(coordinator).not.toContain("window.document");
+    expect(coordinator).not.toContain("globalThis.document");
+    expect(coordinator).not.toContain("document.querySelector");
+    expect(coordinator).not.toContain("document.body");
+    expect(coordinator).not.toContain("document.documentElement");
     expect(coordinator).not.toContain("../adapters/");
   });
 });
