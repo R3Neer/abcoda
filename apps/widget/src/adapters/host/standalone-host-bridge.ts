@@ -4,7 +4,7 @@ import type {
   HostPresentationContext,
 } from "../../application/host-bridge";
 
-export type LaboratoryScenario = "ready" | "invalid" | "malformed" | "race" | "invalid-after-ready";
+export type LaboratoryScenario = "ready" | "mixed" | "invalid" | "malformed" | "race" | "invalid-after-ready";
 
 const laboratoryResult = {
   status: "success",
@@ -49,6 +49,40 @@ const invalidResult = {
   }],
 } as const;
 
+const mixedResult = {
+  status: "success",
+  snapshot: {
+    schemaVersion: 2,
+    revision: 1,
+    document: {
+      tuneId: "laboratory-mixed",
+      title: "Melody and percussion",
+      meter: "4/4",
+      key: "C",
+      tempo: { beatUnit: "quarter", bpm: 96 },
+      voices: [
+        { id: "P", kind: "pitched" },
+        { id: "D", kind: "unpitched_percussion" },
+      ],
+      source: {
+        format: "abc",
+        text: `X:1
+T:Melody and percussion
+M:4/4
+L:1/4
+Q:1/4=96
+V:P clef=treble
+V:D clef=perc
+%%score { P D }
+K:C
+[V:P] C D E F|G A B c|]
+[V:D][K:none clef=perc] C D E F|C D E F|]`,
+      },
+    },
+    diagnostics: [],
+  },
+} as const;
+
 export class StandaloneHostBridge implements HostBridge {
   private readonly timers = new Set<number>();
 
@@ -61,6 +95,8 @@ export class StandaloneHostBridge implements HostBridge {
     handlers.onContext(this.context);
     if (this.scenario === "invalid") {
       handlers.onResult(invalidResult);
+    } else if (this.scenario === "mixed") {
+      handlers.onResult(mixedResult);
     } else if (this.scenario === "invalid-after-ready") {
       handlers.onResult(laboratoryResult);
       this.schedule(() => handlers.onResult(invalidResult), 80);

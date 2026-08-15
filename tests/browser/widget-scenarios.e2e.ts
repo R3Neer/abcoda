@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 
 const cases = [
   { scenario: "ready", state: "ready", status: "Revision 1 ready", error: "" },
+  { scenario: "mixed", state: "ready", status: "Revision 1 ready", error: "" },
   {
     scenario: "invalid",
     state: "invalid",
@@ -192,4 +193,20 @@ test("transposition is reviewable before it creates a new score revision", async
   await expect(page.locator("#status")).toHaveText("Revision 2 ready");
   await expect(page.locator("#editor-state")).toHaveText("Revision 2 saved");
   await expect(page.locator("#score")).toContainText("First architecture v2 vertical");
+});
+
+test("mixed pitched and percussion voices keep compatible controls and transposition", async ({ page }) => {
+  await page.goto("/?scenario=mixed");
+  const percussionInstrument = page.getByLabel("Instrument for D");
+  await expect(percussionInstrument.locator("option")).toHaveCount(1);
+  await expect(percussionInstrument).toHaveValue("standard_drum_kit");
+
+  await page.locator("#editor summary").click();
+  await page.locator("#transpose-up").click();
+  const draft = page.locator("#abc-draft");
+  await expect(draft).toHaveValue(/K:Db/);
+  await expect(draft).toHaveValue(/\[V:D\]\[K:none clef=perc\] C D E F\|C D E F\|\]/);
+  await page.locator("#apply-draft").click();
+  await expect(page.locator("#status")).toHaveText("Revision 2 ready");
+  await expect(percussionInstrument).toHaveValue("standard_drum_kit");
 });

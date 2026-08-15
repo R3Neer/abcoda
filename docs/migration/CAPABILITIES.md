@@ -17,7 +17,7 @@
 | CAP-08 | Instrumento y mute por voz | implemented-v2 | Estado tipado, carreras unitarias y Playwright móvil/escritorio | Falta audición humana de cambios en reproducción real. |
 | CAP-09 | Compatibilidad y rango instrumental | implemented-v2 | Catálogo puro, alturas adaptadas desde abcjs, avisos por voz y Playwright | Validar criterios de tesitura musical frente a corpus real. |
 | CAP-10 | Transposición de ABC, tonalidad y acordes | implemented-v2 | Operación de borrador revisable, adaptador abcjs y Playwright móvil/escritorio | Sustituir adaptador por operación canónica al ampliar el codec. |
-| CAP-11 | Percusión inmune a transposición tonal | implemented-v2 | Fixture mixto v2 conserva voz `K:none clef=perc` y sus notas | Añadir escenario visual mixto. |
+| CAP-11 | Percusión inmune a transposición tonal | implemented-v2 | Fixture y escenario Playwright mixto conservan voz `K:none clef=perc`, notas y kit único | Audición humana del mapa GM. |
 | CAP-12 | Editar, copiar, aplicar y restaurar | implemented-v2 | Borrador/último válido/original separados; carreras unitarias y E2E de diagnóstico/revisiones/restauración | Verificar portapapeles dentro del host MCP real. |
 | CAP-13 | Cursor y seek por compás | partial | Timeline neutral, matching por fuente/tiempo, cursor DOM y click-to-seek E2E móvil/escritorio | Movimiento durante audio real, reflow y touch explícito. |
 | CAP-14 | Tema del host y layout móvil | partial | Contexto neutral, temas/safe areas explícitos, sin mínimo rígido y E2E móvil/escritorio | Dimensiones declaradas del contenedor y matriz de hosts reales. |
