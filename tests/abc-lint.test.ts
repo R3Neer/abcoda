@@ -125,6 +125,20 @@ describe("ABC mechanical normalization", () => {
     expect(result.score.abc).not.toContain("transpose=");
     expect(ABCJS.parseOnly(result.score.abc)[0]?.lines[0]?.staff?.[0]?.clef?.type).toBe("treble-8");
   });
+
+  it("keeps an inline octave-clef change attached to its section and audible", () => {
+    const abc = 'X:1\nT:Section clef\nM:4/4\nL:1/4\nQ:1/4=96\nV:S clef=treble\nK:C\n[V:S] CDEF|[K:C clef=treble+8]CDEF|]';
+    const tune = ABCJS.parseOnly(abc)[0]!;
+    const voice = tune.lines[0]?.staff?.[0]?.voices?.[0];
+    expect(voice).toBeDefined();
+    const items = voice ?? [];
+    const clefIndex = items.findIndex((item) => item.el_type === "clef");
+    expect(items[clefIndex]).toMatchObject({ el_type: "clef", type: "treble+8" });
+    expect(items.slice(clefIndex + 1).some((item) => item.el_type === "note")).toBe(true);
+    expect(ABCJS.synth.sequence(tune, {})[0]).toEqual(expect.arrayContaining([
+      expect.objectContaining({ el_type: "transpose", transpose: 12 }),
+    ]));
+  });
 });
 
 describe("ABC contract lint", () => {
