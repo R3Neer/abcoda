@@ -32,6 +32,8 @@ describe("widget editing controls", () => {
     expect(css).toMatch(/\.control-dock\s*\{[\s\S]*?position:\s*fixed;/);
     expect(html.indexOf('class="mixer"')).toBeGreaterThan(html.indexOf('class="transport"'));
     expect(css).toContain(".mixer[open]");
+    expect(css).toContain("--abcoda-chat-clearance: 112px");
+    expect(css).toMatch(/html\[data-display-mode="fullscreen"\] \.control-dock\s*\{/);
     expect(css).toContain('html[data-display-mode="fullscreen"] #fullscreen { display: none; }');
   });
 

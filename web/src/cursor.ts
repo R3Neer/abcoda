@@ -110,6 +110,33 @@ export type CursorMotion = {
   wrapsLine: boolean;
 };
 
+export type ScoreBounds = { x: number; y: number; width: number; height: number };
+
+export function expandedScoreBounds(
+  viewport: ScoreBounds,
+  content: ScoreBounds,
+  maximumOverflow = { horizontal: 56, vertical: 72 },
+): ScoreBounds {
+  const viewportRight = viewport.x + viewport.width;
+  const viewportBottom = viewport.y + viewport.height;
+  const contentRight = content.x + content.width;
+  const contentBottom = content.y + content.height;
+  const left = Math.min(maximumOverflow.horizontal, Math.max(0, viewport.x - content.x + 4));
+  const right = Math.min(maximumOverflow.horizontal, Math.max(0, contentRight - viewportRight + 4));
+  const top = Math.min(maximumOverflow.vertical, Math.max(0, viewport.y - content.y + 4));
+  const bottom = Math.min(maximumOverflow.vertical, Math.max(0, contentBottom - viewportBottom + 4));
+  return {
+    x: viewport.x - left,
+    y: viewport.y - top,
+    width: viewport.width + left + right,
+    height: viewport.height + top + bottom,
+  };
+}
+
+export function clampCursorX(x: number, viewport: Pick<ScoreBounds, "x" | "width">): number {
+  return Math.max(viewport.x + 2, Math.min(viewport.x + viewport.width - 2, x));
+}
+
 export function cursorMotionFrom(
   events: VisibleTimingEvent[],
   current: VisibleTimingEvent,
@@ -120,13 +147,13 @@ export function cursorMotionFrom(
   const duration = next.milliseconds - current.milliseconds;
   if (duration <= 0) return undefined;
   const wrapsLine = next.line !== current.line || next.top !== current.top;
-  const lineRight = events
-    .filter((event) => event.line === current.line && event.top === current.top)
-    .reduce(
-      (right, event) => Math.max(right, event.endX ?? event.left + (event.width ?? 0)),
-      current.endX ?? current.left + (current.width ?? 12),
-    );
-  const x = wrapsLine ? lineRight : next.left;
+  // A wrapped system is not one enormous horizontal interval. Sweeping to the
+  // furthest engraving bound makes the cursor race when a chord symbol or
+  // voice label protrudes outside the nominal SVG viewport. Move only across
+  // the current glyph, fade, and let the next timed event place it on the new
+  // system.
+  const currentEnd = current.endX ?? current.left + (current.width ?? 12);
+  const x = wrapsLine ? Math.min(currentEnd, current.left + 32) : next.left;
   return x > current.left ? { x, duration, wrapsLine } : undefined;
 }
 

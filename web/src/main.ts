@@ -18,6 +18,8 @@ import { abcTitle, extractVoiceIds } from "../../shared/voices";
 import { abcGlobalKey, inferVoiceKind, setVoiceKind, transposeAbc, type VoiceKind } from "../../shared/abc-edit";
 import {
   eventProgress,
+  expandedScoreBounds,
+  clampCursorX,
   cursorMotionFrom,
   cursorPlaybackActive,
   firstEventInMeasure,
@@ -62,7 +64,7 @@ const sample: RenderScoreOutput = {
   },
 };
 
-const app = new App({ name: "ABCoda score", version: "0.6.0" });
+const app = new App({ name: "ABCoda score", version: "0.7.0" });
 const byId = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const scoreElement = byId<HTMLElement>("score");
 const notice = byId<HTMLElement>("notice");
@@ -172,11 +174,17 @@ class ScoreCursor {
 
   private place(x: number, event: VisibleTimingEvent): void {
     this.ensureLine();
-    this.x = x;
-    this.line?.setAttribute("x1", String(x));
-    this.line?.setAttribute("x2", String(x));
-    this.line?.setAttribute("y1", String(event.top - 2));
-    this.line?.setAttribute("y2", String(event.top + event.height + 2));
+    const viewport = this.line?.ownerSVGElement?.viewBox.baseVal;
+    const boundedX = viewport ? clampCursorX(x, viewport) : x;
+    const top = viewport ? Math.max(viewport.y + 2, event.top - 2) : event.top - 2;
+    const bottom = viewport
+      ? Math.min(viewport.y + viewport.height - 2, event.top + event.height + 2)
+      : event.top + event.height + 2;
+    this.x = boundedX;
+    this.line?.setAttribute("x1", String(boundedX));
+    this.line?.setAttribute("x2", String(boundedX));
+    this.line?.setAttribute("y1", String(top));
+    this.line?.setAttribute("y2", String(Math.max(top, bottom)));
     this.line?.classList.add("is-visible");
   }
 
@@ -202,6 +210,21 @@ class ScoreCursor {
 }
 
 const scoreCursor = new ScoreCursor();
+
+function containScoreEngraving(): void {
+  const svg = scoreElement.querySelector("svg");
+  if (!svg) return;
+  try {
+    const viewport = svg.viewBox.baseVal;
+    const content = svg.getBBox();
+    if (viewport.width <= 0 || viewport.height <= 0 || content.width <= 0 || content.height <= 0) return;
+    const fitted = expandedScoreBounds(viewport, content);
+    svg.setAttribute("viewBox", `${fitted.x} ${fitted.y} ${fitted.width} ${fitted.height}`);
+  } catch {
+    // Some embedded browsers can deny getBBox while an SVG is being attached.
+    // The original abcjs viewport remains a safe fallback.
+  }
+}
 
 type ChatGptBridge = {
   toolInput?: unknown;
@@ -655,6 +678,7 @@ async function render(
     showNotice("The score could not be rendered.", true);
     return;
   }
+  containScoreEngraving();
   try {
     voicePitches = pitchesByVoice(visualTune, output.voiceIds, output.score.playback.tempo);
   } catch {

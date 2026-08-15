@@ -15,6 +15,7 @@
   --abcoda-radius-sm: var(--border-radius-sm, 8px);
   --abcoda-radius-md: var(--border-radius-md, 12px);
   --abcoda-radius-full: var(--border-radius-full, 999px);
+  --abcoda-chat-clearance: 112px;
 }
 
 * { box-sizing: border-box; }
@@ -68,7 +69,7 @@ html[data-display-mode="fullscreen"] {
 }
 html[data-display-mode="fullscreen"] body { height: 100%; overflow: hidden; }
 html[data-display-mode="fullscreen"] .app-shell {
-  height: 100%;
+  height: calc(100% - var(--abcoda-chat-clearance));
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -106,7 +107,7 @@ h1 { margin: 1px 0 0; font-size: var(--font-heading-sm-size, 19px); line-height:
   background: var(--abcoda-surface);
   border-radius: var(--abcoda-radius-md);
 }
-.score svg { display: block; width: 100% !important; height: auto; max-width: 100%; overflow: visible; }
+.score svg { display: block; width: 100% !important; height: auto; max-width: 100%; overflow: hidden; }
 .score.is-seekable svg { cursor: pointer; }
 .score .abcoda-cursor {
   opacity: 0;
@@ -153,6 +154,9 @@ h1 { margin: 1px 0 0; font-size: var(--font-heading-sm-size, 19px); line-height:
   background: color-mix(in srgb, var(--color-background-primary, #fff) 94%, transparent);
   box-shadow: 0 8px 28px color-mix(in srgb, #000 14%, transparent);
   backdrop-filter: blur(14px);
+}
+html[data-display-mode="fullscreen"] .control-dock {
+  bottom: max(calc(var(--abcoda-chat-clearance) + 4px), calc(var(--abcoda-safe-bottom, 0px) + var(--abcoda-chat-clearance)));
 }
 .transport {
   display: grid;

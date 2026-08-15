@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   cursorMotionFrom,
+  clampCursorX,
+  expandedScoreBounds,
   cursorPlaybackActive,
   eventProgress,
   firstEventInMeasure,
@@ -55,9 +57,30 @@ describe("score seeking helpers", () => {
     expect(nextCursorEvent(events, events.at(-1)!)).toBeUndefined();
   });
 
-  it("sweeps to the end and fades before wrapping to the next system", () => {
+  it("moves continuously but only across the current glyph before a system wrap", () => {
     expect(cursorMotionFrom(events, events[1]!)).toEqual({ x: 120, duration: 1500, wrapsLine: false });
-    expect(cursorMotionFrom(events, events[2]!)).toEqual({ x: 180, duration: 2000, wrapsLine: true });
+    expect(cursorMotionFrom(events, events[2]!)).toEqual({ x: 152, duration: 2000, wrapsLine: true });
+  });
+
+  it("does not chase protruding engraving across a system break", () => {
+    const protruding = visibleTimingEvents([
+      { type: "event", milliseconds: 0, millisecondsPerMeasure: 2000, left: 700, endX: 1400, top: 10, height: 50, line: 0, measureNumber: 0 },
+      { type: "event", milliseconds: 1000, millisecondsPerMeasure: 2000, left: 20, top: 80, height: 50, line: 1, measureNumber: 1 },
+    ]);
+    expect(cursorMotionFrom(protruding, protruding[0]!)).toEqual({ x: 732, duration: 1000, wrapsLine: true });
+  });
+
+  it("expands modest engraving overflow and clamps the cursor to the viewport", () => {
+    expect(expandedScoreBounds(
+      { x: 0, y: 0, width: 740, height: 500 },
+      { x: -20, y: -8, width: 790, height: 540 },
+    )).toEqual({ x: -24, y: -12, width: 798, height: 548 });
+    expect(expandedScoreBounds(
+      { x: 0, y: 0, width: 740, height: 500 },
+      { x: -500, y: -500, width: 2000, height: 2000 },
+    )).toEqual({ x: -56, y: -72, width: 852, height: 644 });
+    expect(clampCursorX(-40, { x: -20, width: 780 })).toBe(-18);
+    expect(clampCursorX(900, { x: -20, width: 780 })).toBe(758);
   });
 
   it("matches abcjs playback callbacks by source position despite geometry or timing drift", () => {
