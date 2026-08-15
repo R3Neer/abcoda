@@ -13,6 +13,17 @@
       </header>
       <section id="error" class="error" role="alert" hidden></section>
       <section id="score" class="score" aria-label="Music score"></section>
+      <footer class="transport" aria-label="Playback controls">
+        <button id="rewind" type="button" disabled aria-label="Return to beginning">↶</button>
+        <button id="playback" type="button" disabled>Play</button>
+        <button id="loop" type="button" disabled aria-pressed="false">Loop</button>
+        <label class="tempo">
+          <span>Tempo</span>
+          <input id="tempo" type="range" min="20" max="300" step="1" value="96" disabled />
+          <output id="tempo-value" for="tempo">96 BPM</output>
+        </label>
+      </footer>
+      <div id="abcjs-audio" class="audio-host" aria-hidden="true"></div>
     </main>
     <script type="module" src="/src/main.ts"></script>
   </body>

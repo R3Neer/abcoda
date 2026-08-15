@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   ScoreSessionController,
   type Engraver,
+  type EngravingResult,
   type ScoreSessionState,
 } from "../../apps/widget/src/application/score-session";
 
@@ -43,8 +44,8 @@ describe("v2 widget score session", () => {
     const render = vi.fn<Engraver["render"]>((_abc, signal) => {
       const call = render.mock.calls.length;
       const pending = call === 1 ? first : second;
-      return new Promise<void>((resolve, reject) => {
-        pending.promise.then(resolve, reject);
+      return new Promise<EngravingResult>((resolve, reject) => {
+        pending.promise.then(() => resolve({}), reject);
         signal.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")));
       });
     });
@@ -66,7 +67,7 @@ describe("v2 widget score session", () => {
   });
 
   it("rejects malformed host data before invoking the engraver", async () => {
-    const render = vi.fn<Engraver["render"]>(() => Promise.resolve());
+    const render = vi.fn<Engraver["render"]>(() => Promise.resolve({}));
     const engraver: Engraver = { render, clear: vi.fn() };
     const states: ScoreSessionState[] = [];
     const controller = new ScoreSessionController(engraver, (state) => states.push(state));
@@ -78,7 +79,7 @@ describe("v2 widget score session", () => {
   });
 
   it("shows domain diagnostics without invoking the engraver", async () => {
-    const render = vi.fn<Engraver["render"]>(() => Promise.resolve());
+    const render = vi.fn<Engraver["render"]>(() => Promise.resolve({}));
     const engraver: Engraver = { render, clear: vi.fn() };
     const states: ScoreSessionState[] = [];
     const controller = new ScoreSessionController(engraver, (state) => states.push(state));
@@ -102,7 +103,7 @@ describe("v2 widget score session", () => {
   });
 
   it("ignores snapshots older than the active revision", async () => {
-    const render = vi.fn<Engraver["render"]>(() => Promise.resolve());
+    const render = vi.fn<Engraver["render"]>(() => Promise.resolve({}));
     const engraver: Engraver = { render, clear: vi.fn() };
     const states: ScoreSessionState[] = [];
     const controller = new ScoreSessionController(engraver, (state) => states.push(state));

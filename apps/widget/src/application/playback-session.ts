@@ -63,12 +63,13 @@ export class PlaybackSessionController {
     engine: PlaybackEngine,
     baseTempo: number,
     continuity?: PlaybackContinuity,
+    tempo: number = this.state.tempo,
   ): Promise<void> {
     const generation = ++this.generation;
     const previous = this.engine;
     this.engine = undefined;
     this.baseTempo = validTempo(baseTempo);
-    this.state = { status: "configuring", tempo: this.state.tempo, loop: this.state.loop };
+    this.state = { status: "configuring", tempo: validTempo(tempo), loop: this.state.loop };
     this.emit();
 
     try {

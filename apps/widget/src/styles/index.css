@@ -73,8 +73,61 @@ body {
   background: color-mix(in srgb, #d22 10%, Canvas);
 }
 
+.transport {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border: 1px solid color-mix(in srgb, CanvasText 16%, transparent);
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, Canvas 92%, transparent);
+  backdrop-filter: blur(12px);
+}
+
+.transport button {
+  min-height: 2.75rem;
+  padding-inline: 0.9rem;
+  border: 1px solid color-mix(in srgb, CanvasText 24%, transparent);
+  border-radius: 999px;
+  color: CanvasText;
+  background: color-mix(in srgb, CanvasText 8%, Canvas);
+  font: inherit;
+}
+
+.transport button[aria-pressed="true"] {
+  background: color-mix(in srgb, Highlight 25%, Canvas);
+}
+
+.tempo {
+  display: grid;
+  grid-template-columns: auto minmax(5rem, 1fr) auto;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+  min-width: 0;
+  font-size: 0.8rem;
+}
+
+.audio-host {
+  position: fixed;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
 @media (max-width: 32rem) {
   .header {
     flex-direction: column;
+  }
+
+  .transport {
+    flex-wrap: wrap;
+  }
+
+  .tempo {
+    flex-basis: 100%;
   }
 }

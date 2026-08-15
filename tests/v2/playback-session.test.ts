@@ -105,6 +105,14 @@ describe("PlaybackSessionController", () => {
     expect(controller.snapshot()).toMatchObject({ status: "ready", tempo: 125, loop: true });
   });
 
+  it("adopts an explicit tempo when a new host score replaces the session", async () => {
+    const { controller, engine, spies } = setup();
+    await controller.configure(engine, 84, undefined, 84);
+
+    expect(spies.setTempoRatio).toHaveBeenCalledWith(1);
+    expect(controller.snapshot()).toMatchObject({ status: "ready", tempo: 84 });
+  });
+
   it("turns engine failures into explicit state", async () => {
     const { controller, engine, spies } = setup();
     spies.setTempoRatio.mockRejectedValue(new Error("decode failed"));

@@ -42,3 +42,26 @@ test("standalone host theme is explicit and overridable", async ({ page }) => {
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await expect(page.locator("html")).toHaveCSS("color-scheme", "dark");
 });
+
+test("playback controls adopt score tempo and remain operable without starting audio", async ({ page }) => {
+  await page.goto("/?scenario=ready");
+  const play = page.locator("#playback");
+  const loop = page.locator("#loop");
+  const tempo = page.locator("#tempo");
+
+  await expect(play).toBeVisible();
+  await expect(play).toBeEnabled();
+  await expect(page.locator("#tempo-value")).toHaveText("84 BPM");
+  await loop.click();
+  await expect(loop).toHaveAttribute("aria-pressed", "true");
+  await tempo.fill("110");
+  await tempo.dispatchEvent("change");
+  await expect(page.locator("#tempo-value")).toHaveText("110 BPM");
+});
+
+test("invalid scores never expose active playback controls", async ({ page }) => {
+  await page.goto("/?scenario=invalid");
+  await expect(page.locator("#playback")).toBeDisabled();
+  await expect(page.locator("#rewind")).toBeDisabled();
+  await expect(page.locator("#loop")).toBeDisabled();
+});
