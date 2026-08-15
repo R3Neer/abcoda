@@ -15,7 +15,7 @@
 | 5. MCP y Worker seguro | in progress | Herramientas separadas `validate_score`/`render_score`, recurso UI, health, límites HTTP, CORS por allowlist y tests workerd. Falta compatibilidad schema 1. |
 | 6. Shell y bridge | in progress | `HostBridge` aísla resultados, teardown y contexto visual; adaptadores MCP Apps/standalone comparten sesión. Playwright cubre estados y tema claro/oscuro en móvil/escritorio. |
 | 7. Grabado | in progress | Adaptador abcjs estático comprobado en escritorio y 390 px. |
-| 8. Reproducción | in progress | `PlaybackSessionController` usa estados discriminados, puerto de motor, continuidad y generaciones contra carreras; falta adaptador abcjs y controles. |
+| 8. Reproducción | in progress | Estado discriminado y generaciones contra carreras; `AbcjsPlaybackEngine` difiere AudioContext hasta el gesto, restaura loop/tempo/seek y usa pausa explícita. Falta conectarlo al grabado y a controles. |
 | 9–11 | pending | No iniciadas. |
 
 ## Primer corte vertical
