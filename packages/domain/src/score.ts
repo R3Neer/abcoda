@@ -80,6 +80,17 @@ export interface ScoreDirective {
   readonly source: SourceRange;
 }
 
+export type ScoreFieldPlacement = "header" | "body" | "inline";
+
+/** Source-preserving index of an ABC information field. */
+export interface ScoreField {
+  readonly name: string;
+  readonly value: string;
+  readonly placement: ScoreFieldPlacement;
+  readonly source: SourceRange;
+  readonly valueSource: SourceRange;
+}
+
 export interface AbcSource {
   readonly format: "abc";
   readonly text: string;
@@ -91,6 +102,7 @@ export interface ScoreDocument {
   readonly header: ScoreHeader;
   readonly voices: readonly ScoreVoiceDocument[];
   readonly directives: readonly ScoreDirective[];
+  readonly fields: readonly ScoreField[];
   readonly source: AbcSource;
 }
 
