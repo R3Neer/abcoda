@@ -25,10 +25,11 @@
     "test": "vitest run",
     "test:v2-worker": "vitest run --config apps/worker/vitest.config.ts",
     "test:browser": "playwright test",
+    "verify:v2-artifacts": "node scripts/verify-v2-artifacts.mjs",
     "test:watch": "vitest",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.server.json --noEmit && tsc -p tsconfig.test.json --noEmit && tsc -p tsconfig.worker.json --noEmit && npm run typecheck:v2",
     "typecheck:v2": "tsc -p packages/domain/tsconfig.json --noEmit && tsc -p tsconfig.v2.json --noEmit",
-    "check": "npm run lint && npm run typecheck && npm test && npm run build:v2-widget && npm run test:v2-worker && npm run build && npm run build:v2-worker && npm run build:worker",
+    "check": "npm run lint && npm run typecheck && npm test && npm run build:v2-widget && npm run test:v2-worker && npm run build && npm run build:v2-worker && npm run verify:v2-artifacts && npm run build:worker",
     "check:browser": "npm run check && npm run test:browser"
   },
   "dependencies": {

@@ -36,7 +36,7 @@
 | FIX-04 | `main.ts` concentra responsabilidades | implemented | Composition root pequeño; DOM, host, grabado, reproducción y estados viven en adaptadores/controladores separados con límites de imports. |
 | FIX-05 | Sin pruebas reales Worker/browser | implemented | Suites workerd y Playwright móvil/escritorio forman parte de `check:browser` en CI. |
 | FIX-06 | Dominio, URI y versiones manuales | implemented | URI/versiones centralizadas; health y recurso MCP exponen SHA-256 del HTML exacto servido. |
-| FIX-07 | abcjs completo importado en servidor | implemented | Bundle Worker v2 comprobado sin `abcjs`, `SynthController` ni `renderAbc`. |
+| FIX-07 | abcjs completo importado en servidor | implemented | `verify:v2-artifacts` falla si el bundle Worker contiene `abcjs`, `SynthController` o `renderAbc`. |
 | FIX-08 | Sin lint/no-floating-promises | implemented | ESLint tipado forma parte de `npm run check`. |
 | FIX-09 | Errores UI dispersos | implemented | Estados centralizados; invalidación desmonta efectos y el editor conserva último válido, diagnostica y recupera. |
 | FIX-10 | UX evaluada tarde | partial | Laboratorio y escenarios E2E por corte; faltan snapshots y pruebas de interacción/audio. |
