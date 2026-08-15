@@ -32,3 +32,13 @@ for (const scenario of cases) {
     expect(pageErrors).toEqual([]);
   });
 }
+
+test("standalone host theme is explicit and overridable", async ({ page }) => {
+  await page.goto("/?scenario=ready&theme=light");
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  await expect(page.locator("html")).toHaveCSS("color-scheme", "light");
+
+  await page.goto("/?scenario=ready&theme=dark");
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await expect(page.locator("html")).toHaveCSS("color-scheme", "dark");
+});

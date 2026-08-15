@@ -1,6 +1,7 @@
 import type {
   HostBridge,
   HostBridgeHandlers,
+  HostPresentationContext,
 } from "../../application/host-bridge";
 
 export type LaboratoryScenario = "ready" | "invalid" | "malformed" | "race";
@@ -42,9 +43,13 @@ K:C
 export class StandaloneHostBridge implements HostBridge {
   private readonly timers = new Set<number>();
 
-  constructor(private readonly scenario: LaboratoryScenario = "ready") {}
+  constructor(
+    private readonly scenario: LaboratoryScenario = "ready",
+    private readonly context: HostPresentationContext = {},
+  ) {}
 
   connect(handlers: HostBridgeHandlers): Promise<void> {
+    handlers.onContext(this.context);
     if (this.scenario === "invalid") {
       handlers.onResult({
         status: "invalid",

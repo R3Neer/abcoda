@@ -14,5 +14,9 @@ export function createHostBridge(windowObject: Window = window): HostBridge {
   const scenario = requested !== null && scenarios.has(requested as LaboratoryScenario)
     ? requested as LaboratoryScenario
     : "ready";
-  return new StandaloneHostBridge(scenario);
+  const requestedTheme = new URLSearchParams(windowObject.location.search).get("theme");
+  const theme = requestedTheme === "light" || requestedTheme === "dark"
+    ? requestedTheme
+    : windowObject.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  return new StandaloneHostBridge(scenario, { theme, displayMode: "inline" });
 }

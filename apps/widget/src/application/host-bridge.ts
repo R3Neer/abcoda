@@ -1,6 +1,12 @@
 export interface HostBridgeHandlers {
   readonly onResult: (result: unknown) => void;
+  readonly onContext: (context: HostPresentationContext) => void;
   readonly onTeardown: () => void;
+}
+
+export interface HostPresentationContext {
+  readonly theme?: "light" | "dark";
+  readonly displayMode?: "inline" | "fullscreen" | "pip";
 }
 
 export interface HostBridge {
@@ -20,6 +26,7 @@ export class WidgetRuntime {
   constructor(
     private readonly session: ScoreSession,
     private readonly host: HostBridge,
+    private readonly onContext: (context: HostPresentationContext) => void = () => undefined,
   ) {}
 
   async start(): Promise<void> {
@@ -28,6 +35,7 @@ export class WidgetRuntime {
         if (this.sessionDisposed) return;
         void this.session.receive(result);
       },
+      onContext: this.onContext,
       onTeardown: () => this.disposeSession(),
     });
     this.connected = true;

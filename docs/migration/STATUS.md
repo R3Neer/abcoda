@@ -13,7 +13,7 @@
 | 3. Codec y diagnósticos | in progress | Scanner conservador extrae semántica de cabeceras y percusión con rangos; no es todavía el codec ABC completo. |
 | 4. Casos de uso | in progress | `EvaluateScore` implementado detrás de `ScoreCodec`. |
 | 5. MCP y Worker seguro | in progress | Herramientas separadas `validate_score`/`render_score`, recurso UI, health, límites HTTP, CORS por allowlist y tests workerd. Falta compatibilidad schema 1. |
-| 6. Shell y bridge | in progress | `HostBridge` aísla el shell; adaptadores MCP Apps y standalone comparten sesión revisionada y teardown idempotente. Playwright cubre `ready`, `invalid`, `malformed` y `race` en móvil/escritorio. |
+| 6. Shell y bridge | in progress | `HostBridge` aísla resultados, teardown y contexto visual; adaptadores MCP Apps/standalone comparten sesión. Playwright cubre estados y tema claro/oscuro en móvil/escritorio. |
 | 7. Grabado | in progress | Adaptador abcjs estático comprobado en escritorio y 390 px. |
 | 8–11 | pending | No iniciadas. |
 

@@ -30,12 +30,27 @@ describe("WidgetRuntime", () => {
     await runtime.start();
     const result = { status: "success", snapshot: { revision: 4 } };
     host.handlers?.onResult(result);
+    host.handlers?.onContext({ theme: "dark", displayMode: "inline" });
     host.handlers?.onTeardown();
     await runtime.dispose();
 
     expect(receive).toHaveBeenCalledWith(result);
     expect(dispose).toHaveBeenCalledOnce();
     expect(host.disconnect).toHaveBeenCalledOnce();
+  });
+
+  it("forwards neutral host presentation context without exposing the MCP SDK", async () => {
+    const host = new FakeHostBridge();
+    const contextListener = vi.fn();
+    const runtime = new WidgetRuntime({
+      receive: vi.fn(() => Promise.resolve()),
+      dispose: vi.fn(),
+    }, host, contextListener);
+
+    await runtime.start();
+    host.handlers?.onContext({ theme: "light", displayMode: "fullscreen" });
+
+    expect(contextListener).toHaveBeenCalledWith({ theme: "light", displayMode: "fullscreen" });
   });
 
   it("does not disconnect a bridge whose connection failed", async () => {

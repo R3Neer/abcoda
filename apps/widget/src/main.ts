@@ -34,7 +34,10 @@ function showState(state: ScoreSessionState): void {
 }
 
 const controller = new ScoreSessionController(new AbcjsEngraver(score), showState);
-const runtime = new WidgetRuntime(controller, createHostBridge());
+const runtime = new WidgetRuntime(controller, createHostBridge(), (context) => {
+  if (context.theme) document.documentElement.dataset.theme = context.theme;
+  if (context.displayMode) document.documentElement.dataset.displayMode = context.displayMode;
+});
 
 void runtime.start().catch((cause: unknown) => {
   const message = cause instanceof Error ? cause.message : "Could not connect to the host.";

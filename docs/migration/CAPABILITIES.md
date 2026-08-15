@@ -20,7 +20,7 @@
 | CAP-11 | Percusión inmune a transposición tonal | characterized | lint, edit y score tests | Invariante de dominio v2. |
 | CAP-12 | Editar, copiar, aplicar y restaurar | partial | tests de markup y funciones | E2E de revisiones y diagnóstico. |
 | CAP-13 | Cursor y seek por compás | partial | `tests/cursor.test.ts` y transport | Reloj, reflow y click/touch en navegador. |
-| CAP-14 | Tema del host y layout móvil | partial | código y build del widget | Matriz visual y capacidades de host. |
+| CAP-14 | Tema del host y layout móvil | partial | Contexto neutral `HostPresentationContext`, temas explícitos y E2E móvil/escritorio | Safe areas, dimensiones del contenedor y matriz de hosts reales. |
 | CAP-15 | Transporte siempre accesible | partial | markup y CSS | Screenshots y teclado en viewports límite. |
 | CAP-16 | Demo independiente | implemented | Host simulado v2 y ocho recorridos Playwright móvil/escritorio | Paridad funcional al completar controles interactivos. |
 | CAP-17 | Operación stateless | characterized | inspección de Worker/servidor | Pruebas de aislamiento en runtime. |
