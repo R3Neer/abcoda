@@ -1,11 +1,14 @@
 import type {
   DecodeScoreResult,
   Diagnostic,
+  ScoreDocument,
   ScoreSnapshot,
 } from "../../domain/src/index";
+import { asRevisionId } from "../../domain/src/index";
 
 export interface ScoreCodec {
   decode(source: string): DecodeScoreResult;
+  encode(document: ScoreDocument): string;
 }
 
 export interface EvaluateScoreCommand {
@@ -36,8 +39,27 @@ export class EvaluateScore {
       status: "success",
       snapshot: {
         schemaVersion: 2,
-        revision: command.revision,
-        document: decoded.document,
+        revision: asRevisionId(command.revision),
+        document: {
+          tuneId: decoded.document.tuneId,
+          ...(decoded.document.header.title
+            ? { title: decoded.document.header.title }
+            : {}),
+          ...(decoded.document.header.meter
+            ? { meter: decoded.document.header.meter }
+            : {}),
+          ...(decoded.document.header.key
+            ? { key: decoded.document.header.key }
+            : {}),
+          ...(decoded.document.header.tempo
+            ? { tempo: decoded.document.header.tempo }
+            : {}),
+          voices: decoded.document.voices.map((voice) => ({
+            id: voice.id,
+            kind: voice.kind,
+          })),
+          source: decoded.document.source,
+        },
         diagnostics: decoded.diagnostics,
       },
     };

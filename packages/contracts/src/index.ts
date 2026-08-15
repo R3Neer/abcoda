@@ -49,10 +49,14 @@ export const diagnosticSchema = z.object({
     "ABC_VOICE_ID_INVALID",
     "ABC_SOURCE_EMPTY",
     "ABC_TRANSPOSITION_FAILED",
+    "ABC_MEASURE_DURATION_MISMATCH",
+    "ABC_VOICE_MEASURE_COUNT_MISMATCH",
+    "UNSUPPORTED_ABC_FEATURE",
   ]),
   severity: z.enum(["info", "warning", "error"]),
   message: z.string().min(1),
   range: sourceRangeSchema.optional(),
+  suggestedCorrection: z.string().min(1).optional(),
 });
 
 export const instrumentIdSchema = z.enum([
@@ -94,6 +98,35 @@ export const scorePresentationSchema = z.object({
 
 export type ScorePresentationDto = z.infer<typeof scorePresentationSchema>;
 
+export const playbackProfileSchema = z.object({
+  tempo: z.number().int().min(20).max(300).optional(),
+  instruments: z.record(z.string(), instrumentIdSchema).default({}),
+  mutedVoices: z.array(z.string().min(1)).default([]),
+  loop: z.boolean().default(false),
+});
+
+export type PlaybackProfileDto = z.infer<typeof playbackProfileSchema>;
+
+export const scoreOperationSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("transpose"),
+    semitones: z.number().int().min(-24).max(24),
+  }),
+  z.object({
+    kind: z.literal("assign_instrument"),
+    voiceId: z.string().min(1),
+    instrumentId: instrumentIdSchema,
+  }),
+  z.object({
+    kind: z.literal("set_voice_muted"),
+    voiceId: z.string().min(1),
+    muted: z.boolean(),
+  }),
+  z.object({ kind: z.literal("restore_original") }),
+]);
+
+export type ScoreOperationDto = z.infer<typeof scoreOperationSchema>;
+
 export const scoreSnapshotSchema = z.object({
   schemaVersion: z.literal(2),
   revision: z.number().int().min(0),
@@ -121,7 +154,7 @@ export const scoreSnapshotSchema = z.object({
 export type ScoreSnapshotDto = z.infer<typeof scoreSnapshotSchema>;
 
 export const evaluateScoreResultSchema = z.object({
-  status: z.enum(["success", "invalid"]),
+  status: z.enum(["success", "invalid", "unsupported", "failure"]),
   snapshot: scoreSnapshotSchema.optional(),
   diagnostics: z.array(diagnosticSchema).optional(),
   presentation: scorePresentationSchema.optional(),
@@ -133,7 +166,7 @@ export const evaluateScoreResultSchema = z.object({
       path: ["snapshot"],
     });
   }
-  if (result.status === "invalid" && !result.diagnostics) {
+  if (result.status !== "success" && !result.diagnostics) {
     context.addIssue({
       code: "custom",
       message: "An invalid score evaluation requires diagnostics.",

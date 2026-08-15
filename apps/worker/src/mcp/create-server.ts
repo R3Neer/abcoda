@@ -4,7 +4,7 @@ import {
   registerAppTool,
 } from "@modelcontextprotocol/ext-apps/server";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { BaselineAbcCodec } from "../../../../packages/abc-codec/src/index";
+import { CanonicalAbcCodec } from "../../../../packages/abc-codec/src/index";
 import {
   abcodaComposerInstructions,
   buildCompositionPlan,
@@ -28,6 +28,7 @@ import {
 } from "../../../../packages/contracts/src/index";
 import {
   asQuarterNoteBpm,
+  asRevisionId,
   asTuneId,
   asVoiceId,
   type ScoreSnapshot,
@@ -73,7 +74,7 @@ function applyLegacyVoiceKinds(
 function toDomainSnapshot(snapshot: ScoreSnapshotDto): ScoreSnapshot {
   return {
     schemaVersion: snapshot.schemaVersion,
-    revision: snapshot.revision,
+    revision: asRevisionId(snapshot.revision),
     document: {
       source: snapshot.document.source,
       tuneId: asTuneId(snapshot.document.tuneId),
@@ -116,7 +117,7 @@ export function createV2McpServer(loadWidget?: WidgetLoader): McpServer {
     },
     { instructions: abcodaComposerInstructions },
   );
-  const evaluateScore = new EvaluateScore(new BaselineAbcCodec());
+  const evaluateScore = new EvaluateScore(new CanonicalAbcCodec());
   const presentScore = new PresentScore(evaluateScore);
 
   registerAppTool(

@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { BaselineAbcCodec } from "../../packages/abc-codec/src/index";
+import { CanonicalAbcCodec } from "../../packages/abc-codec/src/index";
 import { EvaluateScore } from "../../packages/application/src/index";
 import {
   createBuildManifest,
@@ -18,7 +18,7 @@ const readFixture = (name: string) =>
   );
 
 describe("architecture v2 first vertical slice", () => {
-  const evaluate = new EvaluateScore(new BaselineAbcCodec());
+  const evaluate = new EvaluateScore(new CanonicalAbcCodec());
 
   it("turns one ABC tune into a revisioned domain snapshot", async () => {
     const request = evaluateScoreRequestSchema.parse({
