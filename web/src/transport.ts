@@ -2,9 +2,15 @@ export interface PlaybackBackend {
   play(): Promise<void> | void;
   pause(): Promise<void> | void;
   restart(): void;
+  getProgress(): number;
   setProgress(percent: number): void;
   toggleLoop(): void;
   setWarp(percent: number): Promise<void> | void;
+}
+
+export interface PlaybackContinuity {
+  progress: number;
+  playing: boolean;
 }
 
 export interface TransportState {
@@ -34,6 +40,14 @@ export class TransportController {
     return { ...this.state };
   }
 
+  captureContinuity(): PlaybackContinuity | undefined {
+    if (!this.backend || !this.state.ready || this.state.busy) return undefined;
+    return {
+      progress: Math.max(0, Math.min(1, this.backend.getProgress())),
+      playing: this.state.playing,
+    };
+  }
+
   private emit(): void {
     this.onChange(this.snapshot());
   }
@@ -53,7 +67,7 @@ export class TransportController {
     this.emit();
   }
 
-  async completeConfiguration(backend: PlaybackBackend): Promise<void> {
+  async completeConfiguration(backend: PlaybackBackend, continuity?: PlaybackContinuity): Promise<void> {
     if (this.backend !== backend) this.backendLoop = false;
     this.backend = backend;
     if (this.state.loop !== this.backendLoop) {
@@ -61,9 +75,25 @@ export class TransportController {
       this.backendLoop = this.state.loop;
     }
     await backend.setWarp((this.state.tempo / this.baseTempo) * 100);
+    if (continuity) backend.setProgress(continuity.progress);
     this.state.ready = true;
     this.state.busy = false;
+    this.state.playing = false;
     this.emit();
+    if (continuity?.playing) {
+      this.state.busy = true;
+      this.state.playing = true;
+      this.emit();
+      try {
+        await backend.play();
+      } catch (error) {
+        this.state.playing = false;
+        throw error;
+      } finally {
+        this.state.busy = false;
+        this.emit();
+      }
+    }
   }
 
   failConfiguration(): void {

@@ -39,25 +39,32 @@
       </section>
       <div id="abcjs-audio" class="abcjs-audio-host" hidden></div>
 
-      <section class="transport" aria-label="Playback controls">
-        <div class="transport-buttons">
-          <button id="playback-toggle" class="primary" type="button" aria-label="Play" aria-pressed="false" disabled>
-            <span id="playback-icon" class="control-icon playback-glyph" data-state="play" aria-hidden="true">
-              <svg class="play-glyph" viewBox="0 0 16 16"><path d="M4 2.5v11l9-5.5z" /></svg>
-              <svg class="pause-glyph" viewBox="0 0 16 16"><rect x="3" y="2.5" width="3.5" height="11" rx="1" /><rect x="9.5" y="2.5" width="3.5" height="11" rx="1" /></svg>
-              <span class="loading-glyph">…</span>
-            </span>
-            <span id="playback-label">Play</span>
-          </button>
-          <button id="rewind" type="button" aria-label="Return to beginning" title="Return to beginning" disabled><span class="control-icon rewind-icon" aria-hidden="true">|◀</span><span>Beginning</span></button>
-          <button id="loop" type="button" aria-label="Loop" aria-pressed="false"><span class="control-icon" aria-hidden="true">↻</span><span>Loop</span></button>
-        </div>
-        <label class="tempo-control" for="tempo">
-          <span>Tempo</span>
-          <input id="tempo" type="range" min="20" max="300" value="96" />
-          <output id="tempo-output" for="tempo">96 BPM</output>
-        </label>
-      </section>
+      <aside class="control-dock" aria-label="Score controls">
+        <section class="transport" aria-label="Playback controls">
+          <div class="transport-buttons">
+            <button id="playback-toggle" class="primary" type="button" aria-label="Play" aria-pressed="false" disabled>
+              <span id="playback-icon" class="control-icon playback-glyph" data-state="play" aria-hidden="true">
+                <svg class="play-glyph" viewBox="0 0 16 16"><path d="M4 2.5v11l9-5.5z" /></svg>
+                <svg class="pause-glyph" viewBox="0 0 16 16"><rect x="3" y="2.5" width="3.5" height="11" rx="1" /><rect x="9.5" y="2.5" width="3.5" height="11" rx="1" /></svg>
+                <span class="loading-glyph">…</span>
+              </span>
+              <span id="playback-label">Play</span>
+            </button>
+            <button id="rewind" type="button" aria-label="Return to beginning" title="Return to beginning" disabled><span class="control-icon rewind-icon" aria-hidden="true">|◀</span><span>Beginning</span></button>
+            <button id="loop" type="button" aria-label="Loop" aria-pressed="false"><span class="control-icon" aria-hidden="true">↻</span><span>Loop</span></button>
+          </div>
+          <label class="tempo-control" for="tempo">
+            <span>Tempo</span>
+            <input id="tempo" type="range" min="20" max="300" value="96" />
+            <output id="tempo-output" for="tempo">96 BPM</output>
+          </label>
+        </section>
+
+        <details id="mixer" class="mixer">
+          <summary>Voices and instruments</summary>
+          <div id="voice-controls" class="voice-controls"></div>
+        </details>
+      </aside>
 
       <section class="transpose-control" aria-label="Transpose score">
         <span>Transpose</span>
@@ -66,13 +73,6 @@
         <button id="transpose-up" type="button" title="Up one semitone" aria-label="Transpose up one semitone">+</button>
         <button id="transpose-reset" type="button" disabled>Reset</button>
       </section>
-
-      <details id="mixer" class="mixer">
-        <summary>Voices and instruments</summary>
-        <div id="voice-controls" class="voice-controls"></div>
-      </details>
-
-      <datalist id="instrument-options"></datalist>
 
       <button id="sample-credits" class="credits" type="button">FluidR3_GM samples · CC BY 3.0</button>
     </main>

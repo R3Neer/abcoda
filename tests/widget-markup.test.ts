@@ -18,16 +18,27 @@ describe("widget editing controls", () => {
 
   it("uses accessible widget controls for notices, playback, and instrument search", () => {
     expect(html).toContain('id="notice-dismiss"');
-    expect(html).toContain('id="instrument-options"');
+    expect(html).not.toContain('id="instrument-options"');
     expect(html).toContain('class="pause-glyph"');
     expect(html).toContain('<rect x="3" y="2.5" width="3.5" height="11" rx="1"');
     expect(html).not.toContain("Ⅱ");
-    expect(main).toContain('instrumentInput.setAttribute("list", "instrument-options")');
+    expect(main).toContain('instrumentInput.setAttribute("aria-controls", menuId)');
+    expect(main).toContain('instrumentMenu.setAttribute("role", "listbox")');
+    expect(main).toContain('option.setAttribute("role", "option")');
     expect(main).toContain('byId<HTMLButtonElement>("notice-dismiss").addEventListener');
   });
 
-  it("pins transport to the viewport and removes the redundant fullscreen control", () => {
-    expect(css).toMatch(/\.transport\s*\{[\s\S]*?position:\s*fixed;/);
+  it("pins transport and mixer together and removes the redundant fullscreen control", () => {
+    expect(css).toMatch(/\.control-dock\s*\{[\s\S]*?position:\s*fixed;/);
+    expect(html.indexOf('class="mixer"')).toBeGreaterThan(html.indexOf('class="transport"'));
+    expect(css).toContain(".mixer[open]");
     expect(css).toContain('html[data-display-mode="fullscreen"] #fullscreen { display: none; }');
+  });
+
+  it("uses theme-aware custom checkbox and combobox presentation", () => {
+    expect(css).toMatch(/\.mute-label input\s*\{[\s\S]*?appearance:\s*none;/);
+    expect(css).toContain('.mute-label input:checked');
+    expect(css).toContain(".instrument-menu");
+    expect(css).toContain('.instrument-option[aria-selected="true"]');
   });
 });

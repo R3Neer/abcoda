@@ -41,7 +41,7 @@ import {
 } from "./music";
 import { decodeStandaloneScore, encodeStandaloneScore } from "./standalone";
 import { hiddenSynthVisualOptions } from "./synth-options";
-import { TransportController, type TransportState } from "./transport";
+import { TransportController, type PlaybackContinuity, type TransportState } from "./transport";
 import "./style.css";
 
 const sample: RenderScoreOutput = {
@@ -62,7 +62,7 @@ const sample: RenderScoreOutput = {
   },
 };
 
-const app = new App({ name: "ABCoda score", version: "0.5.0" });
+const app = new App({ name: "ABCoda score", version: "0.6.0" });
 const byId = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const scoreElement = byId<HTMLElement>("score");
 const notice = byId<HTMLElement>("notice");
@@ -83,7 +83,6 @@ const transposeUp = byId<HTMLButtonElement>("transpose-up");
 const transposeReset = byId<HTMLButtonElement>("transpose-reset");
 const transposeOutput = byId<HTMLOutputElement>("transpose-output");
 const fullscreenButton = byId<HTMLButtonElement>("fullscreen");
-const instrumentOptions = byId<HTMLDataListElement>("instrument-options");
 
 let payload: RenderScoreOutput | undefined;
 let visualTune: ABCJS.TuneObject | undefined;
@@ -94,6 +93,7 @@ let mutedVoices = new Set<string>();
 let requestedConfiguration = 0;
 let appliedConfiguration = 0;
 let configurationRunning = false;
+let pendingContinuity: PlaybackContinuity | undefined;
 let sourceAbc = "";
 let initialAbc = "";
 let transposeOffset = 0;
@@ -101,10 +101,9 @@ let codeView = false;
 let pitchedKeys: Record<string, string> = {};
 let voicePitches: Record<string, number[]> = {};
 
-instrumentOptions.replaceChildren(...instrumentNames.map((instrument) => {
-  const option = document.createElement("option");
-  option.value = instrumentLabel(instrument);
-  return option;
+const instrumentChoices = instrumentNames.map((instrument) => ({
+  instrument,
+  label: instrumentLabel(instrument),
 }));
 
 class ScoreCursor {
@@ -152,6 +151,12 @@ class ScoreCursor {
   rewind(): void {
     const first = this.events[0];
     if (first) this.seek(first);
+  }
+
+  seekProgress(progress: number): void {
+    const event = this.events.find((candidate) => eventProgress(candidate, this.events) >= progress)
+      ?? this.events.at(-1);
+    if (event) this.seek(event);
   }
 
   private ensureLine(): void {
@@ -274,6 +279,9 @@ function updateTransport(state: TransportState): void {
   playbackLabel.textContent = starting ? "Loading…" : state.playing ? "Pause" : "Play";
   loopButton.setAttribute("aria-pressed", String(state.loop));
   tempo.disabled = state.busy;
+  document.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLButtonElement>(
+    ".voice-controls input, .voice-controls select, .voice-controls button",
+  ).forEach((control) => { control.disabled = state.busy; });
   tempo.value = String(state.tempo);
   tempoOutput.value = `${state.tempo} BPM`;
   byId<HTMLElement>("app").classList.toggle("is-configuring", state.busy);
@@ -308,7 +316,8 @@ const cursorControl: ABCJS.CursorControl = {
   onEvent: (event) => scoreCursor.onEvent(event),
 };
 
-function requestAudioConfiguration(): void {
+function requestAudioConfiguration(continuity?: PlaybackContinuity): void {
+  if (continuity && !pendingContinuity) pendingContinuity = continuity;
   requestedConfiguration += 1;
   if (!configurationRunning) void runConfigurationQueue();
 }
@@ -316,6 +325,8 @@ function requestAudioConfiguration(): void {
 async function runConfigurationQueue(): Promise<void> {
   configurationRunning = true;
   let completed = false;
+  const continuity = pendingContinuity;
+  pendingContinuity = undefined;
   transport.beginConfiguration();
 
   try {
@@ -356,14 +367,15 @@ async function runConfigurationQueue(): Promise<void> {
           applyInstruments(sequence, voiceIds, selectedInstruments, selectedMutes),
       });
       appliedConfiguration = revision;
-      if (notice.hidden || noticeMessage.textContent === "Tap Play to enable audio.") {
+      if (!continuity?.playing && (notice.hidden || noticeMessage.textContent === "Tap Play to enable audio.")) {
         showNotice("Tap Play to enable audio.");
       }
     }
 
-    await transport.completeConfiguration(playbackBackend);
-    completed = true;
     refreshCursorEvents();
+    if (continuity) scoreCursor.seekProgress(continuity.progress);
+    await transport.completeConfiguration(playbackBackend, continuity);
+    completed = true;
   } catch (error) {
     transport.failConfiguration();
     showNotice(error instanceof Error ? error.message : "Audio could not be prepared.", true);
@@ -433,7 +445,7 @@ function renderMixer(): void {
   if (!payload) return;
   const container = byId<HTMLElement>("voice-controls");
   container.replaceChildren();
-  payload.voiceIds.forEach((voiceId) => {
+  payload.voiceIds.forEach((voiceId, voiceIndex) => {
     const row = document.createElement("div");
     row.className = "voice-row";
 
@@ -454,36 +466,136 @@ function renderMixer(): void {
     });
     kindSelect.addEventListener("change", () => changeVoiceKind(voiceId, kindSelect.value as VoiceKind));
 
+    const instrumentPicker = document.createElement("div");
+    instrumentPicker.className = "instrument-picker";
     const instrumentInput = document.createElement("input");
     instrumentInput.type = "text";
     instrumentInput.className = "instrument-combobox";
-    instrumentInput.setAttribute("list", "instrument-options");
     instrumentInput.setAttribute("role", "combobox");
     instrumentInput.setAttribute("aria-autocomplete", "list");
+    instrumentInput.setAttribute("aria-haspopup", "listbox");
+    instrumentInput.setAttribute("aria-expanded", "false");
     instrumentInput.setAttribute("aria-label", `Instrument for ${voiceId}`);
+    const menuId = `instrument-menu-${voiceIndex}`;
+    instrumentInput.setAttribute("aria-controls", menuId);
+    const instrumentMenu = document.createElement("div");
+    instrumentMenu.id = menuId;
+    instrumentMenu.className = "instrument-menu";
+    instrumentMenu.setAttribute("role", "listbox");
+    instrumentMenu.hidden = true;
     const currentInstrument = instruments[voiceId] ?? "acoustic_grand_piano";
     instrumentInput.value = instrumentLabel(currentInstrument);
     applyInstrumentRangeState(instrumentInput, voiceId, currentInstrument);
-    instrumentInput.addEventListener("input", () => instrumentInput.setCustomValidity(""));
-    instrumentInput.addEventListener("change", () => {
-      const selected = instrumentFromLabel(instrumentInput.value);
-      if (!selected) {
-        instrumentInput.setCustomValidity("Choose an instrument from the list.");
-        instrumentInput.reportValidity();
-        instrumentInput.value = instrumentLabel(instruments[voiceId] ?? "acoustic_grand_piano");
-        return;
+    let filteredChoices = instrumentChoices;
+    let activeOption = 0;
+
+    const setMenuOpen = (open: boolean): void => {
+      instrumentMenu.hidden = !open;
+      instrumentInput.setAttribute("aria-expanded", String(open));
+      if (!open) instrumentInput.removeAttribute("aria-activedescendant");
+    };
+
+    const updateActiveOption = (): void => {
+      const options = [...instrumentMenu.querySelectorAll<HTMLButtonElement>(".instrument-option")];
+      options.forEach((option, index) => {
+        option.setAttribute("aria-selected", String(index === activeOption));
+      });
+      const active = options[activeOption];
+      if (active) {
+        instrumentInput.setAttribute("aria-activedescendant", active.id);
+        active.scrollIntoView({ block: "nearest" });
       }
+    };
+
+    const selectInstrument = (selected: InstrumentName): void => {
+      const previous = instruments[voiceId] ?? "acoustic_grand_piano";
       instrumentInput.value = instrumentLabel(selected);
+      setMenuOpen(false);
       instruments[voiceId] = selected;
       applyInstrumentRangeState(instrumentInput, voiceId, selected);
+      if (selected === previous) return;
       const requiredKind = voiceKindForInstrument(selected);
       if (voiceKindFor(voiceId) !== requiredKind) {
         changeVoiceKind(voiceId, requiredKind);
         return;
       }
       if (payload) payload.score.playback.instruments = { ...instruments };
-      requestAudioConfiguration();
+      requestAudioConfiguration(transport.captureContinuity());
+    };
+
+    const renderInstrumentOptions = (query = ""): void => {
+      const normalized = query.trim().toLocaleLowerCase();
+      filteredChoices = instrumentChoices.filter(({ instrument, label }) =>
+        !normalized
+        || label.toLocaleLowerCase().includes(normalized)
+        || instrument.toLocaleLowerCase().includes(normalized),
+      );
+      activeOption = Math.min(activeOption, Math.max(0, filteredChoices.length - 1));
+      instrumentMenu.replaceChildren(...filteredChoices.map(({ instrument, label }, index) => {
+        const option = document.createElement("button");
+        option.type = "button";
+        option.id = `${menuId}-option-${index}`;
+        option.className = "instrument-option";
+        option.setAttribute("role", "option");
+        option.setAttribute("aria-selected", "false");
+        option.textContent = label;
+        option.addEventListener("pointerdown", (event) => event.preventDefault());
+        option.addEventListener("click", () => selectInstrument(instrument));
+        return option;
+      }));
+      if (filteredChoices.length === 0) {
+        const empty = document.createElement("div");
+        empty.className = "instrument-empty";
+        empty.textContent = "No matching instruments";
+        instrumentMenu.append(empty);
+      }
+      updateActiveOption();
+    };
+
+    instrumentInput.addEventListener("focus", () => {
+      activeOption = Math.max(0, instrumentChoices.findIndex(({ instrument }) => instrument === instruments[voiceId]));
+      renderInstrumentOptions();
+      setMenuOpen(true);
     });
+    instrumentInput.addEventListener("input", () => {
+      activeOption = 0;
+      delete instrumentInput.dataset.rangeFit;
+      instrumentInput.removeAttribute("aria-invalid");
+      renderInstrumentOptions(instrumentInput.value);
+      setMenuOpen(true);
+    });
+    instrumentInput.addEventListener("keydown", (event) => {
+      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+        event.preventDefault();
+        if (instrumentMenu.hidden) {
+          renderInstrumentOptions(instrumentInput.value);
+          setMenuOpen(true);
+        }
+        const direction = event.key === "ArrowDown" ? 1 : -1;
+        activeOption = Math.max(0, Math.min(filteredChoices.length - 1, activeOption + direction));
+        updateActiveOption();
+      } else if (event.key === "Enter" && !instrumentMenu.hidden) {
+        event.preventDefault();
+        const exact = instrumentFromLabel(instrumentInput.value);
+        const selected = exact ?? filteredChoices[activeOption]?.instrument;
+        if (selected) selectInstrument(selected);
+      } else if (event.key === "Escape") {
+        instrumentInput.value = instrumentLabel(instruments[voiceId] ?? "acoustic_grand_piano");
+        applyInstrumentRangeState(instrumentInput, voiceId, instruments[voiceId] ?? "acoustic_grand_piano");
+        setMenuOpen(false);
+      }
+    });
+    instrumentInput.addEventListener("blur", () => {
+      const selected = instrumentFromLabel(instrumentInput.value);
+      if (selected) selectInstrument(selected);
+      else {
+        const instrument = instruments[voiceId] ?? "acoustic_grand_piano";
+        instrumentInput.value = instrumentLabel(instrument);
+        applyInstrumentRangeState(instrumentInput, voiceId, instrument);
+        setMenuOpen(false);
+      }
+    });
+    instrumentPicker.append(instrumentInput, instrumentMenu);
 
     const muteLabel = document.createElement("label");
     muteLabel.className = "mute-label";
@@ -493,10 +605,10 @@ function renderMixer(): void {
     checkbox.addEventListener("change", () => {
       checkbox.checked ? mutedVoices.add(voiceId) : mutedVoices.delete(voiceId);
       if (payload) payload.score.playback.mutedVoices = [...mutedVoices];
-      requestAudioConfiguration();
+      requestAudioConfiguration(transport.captureContinuity());
     });
     muteLabel.append(checkbox, "Mute");
-    row.append(name, kindSelect, instrumentInput, muteLabel);
+    row.append(name, kindSelect, instrumentPicker, muteLabel);
     container.append(row);
   });
 }
@@ -505,6 +617,7 @@ async function render(
   output: RenderScoreOutput,
   options: { preserveEditState?: boolean } = {},
 ): Promise<void> {
+  const continuity = options.preserveEditState ? transport.captureContinuity() : undefined;
   payload = output;
   if (!options.preserveEditState) {
     sourceAbc = output.score.abc;
@@ -548,7 +661,7 @@ async function render(
     voicePitches = {};
   }
   renderMixer();
-  requestAudioConfiguration();
+  requestAudioConfiguration(continuity);
 }
 
 playbackButton.addEventListener("click", () => {
@@ -695,11 +808,6 @@ scoreElement.addEventListener("click", (event) => {
   const timings = visibleTimingEvents((visualTune as ABCJS.TuneObject & { noteTimings?: ABCJS.NoteTimingEvent[] }).noteTimings ?? []);
   const pointMeasure = measureAtPoint(timings, x, y);
   if (pointMeasure !== undefined) seekToMeasure(pointMeasure);
-});
-
-mixer.addEventListener("toggle", () => {
-  if (!mixer.open || document.documentElement.dataset.displayMode !== "fullscreen") return;
-  requestAnimationFrame(() => mixer.scrollIntoView({ block: "nearest", behavior: "smooth" }));
 });
 
 fullscreenButton.addEventListener("click", async () => {

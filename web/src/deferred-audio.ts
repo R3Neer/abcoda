@@ -13,6 +13,7 @@ export interface SynthControllerLike {
   setProgress(percent: number): void;
   toggleLoop(): void;
   setWarp(percent: number): Promise<void> | void;
+  percent?: number;
 }
 
 export type EnsureAudioContext = () => Promise<void>;
@@ -65,6 +66,13 @@ export class DeferredAudioBackend implements PlaybackBackend {
   restart(): void {
     this.progress = 0;
     if (this.prepared) this.synth.restart();
+  }
+
+  getProgress(): number {
+    const current = this.synth.percent;
+    return typeof current === "number" && Number.isFinite(current)
+      ? Math.max(0, Math.min(1, current))
+      : this.progress;
   }
 
   setProgress(percent: number): void {

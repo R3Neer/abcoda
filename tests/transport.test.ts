@@ -6,6 +6,7 @@ function setup(options: { tempo?: number; loop?: boolean } = {}) {
     play: vi.fn(),
     pause: vi.fn(),
     restart: vi.fn(),
+    getProgress: vi.fn(() => .375),
     setProgress: vi.fn(),
     toggleLoop: vi.fn(),
     setWarp: vi.fn().mockResolvedValue(undefined),
@@ -134,6 +135,40 @@ describe("loop, tempo and reconfiguration combinations", () => {
     expect(backend.setWarp).toHaveBeenNthCalledWith(2, 125);
     expect(backend.setWarp).toHaveBeenNthCalledWith(3, 125);
     expect(controller.snapshot()).toMatchObject({ ready: true, busy: false, tempo: 125, loop: true });
+  });
+
+  it("restores position and resumes playback after an edit rebuild", async () => {
+    const { backend, controller } = setup();
+    await controller.completeConfiguration(backend);
+    await controller.togglePlayback();
+    const continuity = controller.captureContinuity();
+    controller.beginConfiguration();
+    await controller.completeConfiguration(backend, continuity);
+
+    expect(continuity).toEqual({ progress: .375, playing: true });
+    expect(backend.setProgress).toHaveBeenCalledWith(.375);
+    expect(backend.play).toHaveBeenCalledTimes(2);
+    expect(controller.snapshot()).toMatchObject({ ready: true, busy: false, playing: true });
+  });
+
+  it("restores a paused edit position without starting playback", async () => {
+    const { backend, controller } = setup();
+    await controller.completeConfiguration(backend);
+    const continuity = controller.captureContinuity();
+    controller.beginConfiguration();
+    await controller.completeConfiguration(backend, continuity);
+
+    expect(backend.setProgress).toHaveBeenCalledWith(.375);
+    expect(backend.play).not.toHaveBeenCalled();
+    expect(controller.snapshot()).toMatchObject({ ready: true, playing: false });
+  });
+
+  it("does not capture a stale position while a rebuild is already running", async () => {
+    const { backend, controller } = setup();
+    await controller.completeConfiguration(backend);
+    controller.beginConfiguration();
+
+    expect(controller.captureContinuity()).toBeUndefined();
   });
 
   it("blocks transport controls while abcjs rebuilds audio for a tempo change", async () => {

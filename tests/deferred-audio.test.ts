@@ -68,6 +68,14 @@ describe("deferred abcjs audio", () => {
     expect(calls.filter((call) => call === "play")).toHaveLength(3);
   });
 
+  it("reads abcjs's live progress before rebuilding audio", async () => {
+    const { backend, synth } = setup();
+    synth.percent = .625;
+    expect(backend.getProgress()).toBe(.625);
+    synth.percent = 2;
+    expect(backend.getProgress()).toBe(1);
+  });
+
   it("does not start abcjs when the host keeps Web Audio blocked", async () => {
     const { backend, synth, tune, options } = setup();
     const blocked = new DeferredAudioBackend(synth, async () => {
