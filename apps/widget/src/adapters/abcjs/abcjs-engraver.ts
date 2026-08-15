@@ -1,5 +1,9 @@
 import ABCJS from "abcjs";
-import type { Engraver, EngravingResult } from "../../application/score-session";
+import type {
+  Engraver,
+  EngravingOptions,
+  EngravingResult,
+} from "../../application/score-session";
 import type {
   ScorePresentationDto,
   ScoreSnapshotDto,
@@ -26,6 +30,7 @@ export class AbcjsEngraver implements Engraver {
     snapshot: ScoreSnapshotDto,
     presentation: ScorePresentationDto | undefined,
     signal: AbortSignal,
+    options: EngravingOptions = {},
   ): Promise<EngravingResult> {
     signal.throwIfAborted();
     await Promise.resolve();
@@ -40,6 +45,8 @@ export class AbcjsEngraver implements Engraver {
       add_classes: true,
       expandToWidest: true,
       foregroundColor: "currentColor",
+      paddingleft: 32,
+      paddingright: 32,
       clickListener: (abcElement) => {
         if (typeof abcElement.startChar === "number") {
           this.callbacks.onScoreSelection([abcElement.startChar]);
@@ -65,6 +72,11 @@ export class AbcjsEngraver implements Engraver {
 
     const bpm = snapshot.document.tempo?.bpm ?? 96;
     const timeline = timelineForTune(tunes[0], bpm);
+
+    if (options.includePlayback === false) {
+      return { timeline };
+    }
+
     const voicePitches = pitchesForVoices(
       tunes[0],
       snapshot.document.voices.map((voice) => voice.id),

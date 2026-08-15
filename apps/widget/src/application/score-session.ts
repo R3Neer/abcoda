@@ -12,11 +12,18 @@ export interface EngravingResult {
   readonly voicePitches?: Readonly<Record<string, readonly number[]>>;
 }
 
+export interface EngravingOptions {
+  readonly includePlayback?: boolean;
+}
+
+export type EngravingReason = "content" | "reflow";
+
 export interface Engraver {
   render(
     snapshot: ScoreSnapshotDto,
     presentation: ScorePresentationDto | undefined,
     signal: AbortSignal,
+    options?: EngravingOptions,
   ): Promise<EngravingResult>;
   clear(): void;
 }
@@ -43,6 +50,7 @@ export class ScoreSessionController {
       snapshot: ScoreSnapshotDto,
       result: EngravingResult,
       presentation: ScorePresentationDto | undefined,
+      reason: EngravingReason,
     ) => void = () => undefined,
   ) {
     this.onState({ status: "booting" });
@@ -96,7 +104,7 @@ export class ScoreSessionController {
     try {
       const result = await this.engraver.render(snapshot, parsed.data.presentation, effect.signal);
       if (effect.signal.aborted || snapshot.revision !== this.activeRevision) return;
-      this.onEngraved(snapshot, result, parsed.data.presentation);
+      this.onEngraved(snapshot, result, parsed.data.presentation, "content");
       this.onState({ status: "ready", snapshot });
     } catch (error) {
       if (effect.signal.aborted || snapshot.revision !== this.activeRevision) return;
@@ -117,9 +125,10 @@ export class ScoreSessionController {
         snapshot,
         this.activePresentation,
         effect.signal,
+        { includePlayback: false },
       );
       if (effect.signal.aborted || snapshot.revision !== this.activeRevision) return;
-      this.onEngraved(snapshot, result, this.activePresentation);
+      this.onEngraved(snapshot, result, this.activePresentation, "reflow");
       this.onState({ status: "ready", snapshot });
     } catch (error) {
       if (effect.signal.aborted || snapshot.revision !== this.activeRevision) return;

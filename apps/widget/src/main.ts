@@ -19,6 +19,7 @@ import {
   type ScorePresentationDto,
 } from "../../../packages/contracts/src/index";
 import { assessVoiceRanges } from "./application/voice-range";
+import { scoreStaffWidth } from "./application/score-layout";
 
 const view = new DomWidgetView();
 const cursorView = new DomScoreCursor(view.scoreTarget);
@@ -38,6 +39,8 @@ const playbackMix = new PlaybackMixCoordinator(playback, (message) => {
 let voicePitches: Readonly<Record<string, readonly number[]>> = {};
 let hostPresentation: ScorePresentationDto | undefined;
 let cursorRevision = -1;
+let renderedStaffWidth: number | undefined;
+let activePreferredMeasuresPerLine: number | undefined;
 
 const mix = new VoiceMixController((state) => {
   view.showMix(state, assessVoiceRanges(state, voicePitches));
@@ -66,12 +69,21 @@ const controller = new ScoreSessionController(
     }
     view.showScore(state);
   },
-  (snapshot, engraving, resultPresentation) => {
+  (snapshot, engraving, resultPresentation, reason) => {
     const presentation = resultPresentation ?? hostPresentation;
     if (engraving.timeline) {
       cursor.setTimeline(engraving.timeline, cursorRevision === snapshot.revision);
       cursorRevision = snapshot.revision;
     }
+
+    activePreferredMeasuresPerLine = presentation?.preferredMeasuresPerLine;
+    renderedStaffWidth = scoreStaffWidth(
+      view.scoreTarget.clientWidth,
+      activePreferredMeasuresPerLine,
+    );
+
+    if (reason === "reflow") return;
+
     const scoreTempo = snapshot.document.tempo?.bpm ?? 96;
     const effectiveTempo = presentation?.tempo ?? scoreTempo;
     cursorBaseTempo = scoreTempo;
@@ -105,13 +117,55 @@ const runtime = new WidgetRuntime(
   },
 );
 let reflowTimer: ReturnType<typeof setTimeout> | undefined;
-const resizeObserver = new ResizeObserver(() => {
+let observedScoreWidth = view.scoreTarget.clientWidth;
+
+const resizeObserver = new ResizeObserver((entries) => {
+  const width = entries.at(-1)?.contentRect.width ?? view.scoreTarget.clientWidth;
+
+  // Ignore height-only changes caused by engraving itself.
+  if (Math.abs(width - observedScoreWidth) < 0.5) return;
+  observedScoreWidth = width;
+
+  // CSS is scaling/recentring the existing SVG immediately. Keep the cursor
+  // attached to the same musical point while that geometry changes.
+  cursor.refreshGeometry();
+
+  if (renderedStaffWidth === undefined) return;
+
+  const nextStaffWidth = scoreStaffWidth(
+    width,
+    activePreferredMeasuresPerLine,
+  );
+
+  // Wide-window changes often don't alter the actual staff layout at all.
+  if (Math.abs(nextStaffWidth - renderedStaffWidth) < 0.5) {
+    if (reflowTimer) clearTimeout(reflowTimer);
+    reflowTimer = undefined;
+    return;
+  }
+
   if (reflowTimer) clearTimeout(reflowTimer);
+
   reflowTimer = setTimeout(() => {
     reflowTimer = undefined;
+
+    const stableStaffWidth = scoreStaffWidth(
+      view.scoreTarget.clientWidth,
+      activePreferredMeasuresPerLine,
+    );
+
+    if (
+      renderedStaffWidth !== undefined
+      && Math.abs(stableStaffWidth - renderedStaffWidth) < 0.5
+    ) {
+      cursor.refreshGeometry();
+      return;
+    }
+
     void controller.reflow();
-  }, 140);
+  }, 320);
 });
+
 resizeObserver.observe(view.scoreTarget);
 const unbindPlayback = view.bindPlayback({
   togglePlayback: () => { void playback.togglePlayback(); },

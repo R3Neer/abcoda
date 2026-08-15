@@ -14,6 +14,7 @@ import {
 export interface CursorView {
   show(event: ScoreTimingEvent, motion?: CursorMotion): void;
   hide(): void;
+  refreshGeometry?(): void;
 }
 
 export interface PlaybackTimingCallback {
@@ -31,6 +32,10 @@ export class ScoreCursorController {
   private ignoreMismatchedCallbacksUntil = 0;
 
   constructor(private readonly view: CursorView) {}
+
+  refreshGeometry(): void {
+    this.view.refreshGeometry?.();
+  }
 
   setTempoRatio(ratio: number): void {
     this.tempoRatio = Number.isFinite(ratio) && ratio > 0 ? ratio : 1;

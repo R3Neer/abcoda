@@ -124,7 +124,7 @@ body {
 .score {
   position: relative;
   min-height: 12rem;
-  overflow-x: auto;
+  overflow: visible;
   padding-block: 1rem;
 }
 
