@@ -61,12 +61,22 @@ const controller = new ScoreSessionController(
     },
   }),
   (state) => {
-    if (state.status === "loading" || state.status === "invalid" || state.status === "failed") {
+    if (state.status === "loading") {
       voicePitches = {};
       playbackMix.clear();
-      mix.adoptVoices(state.status === "loading" ? state.revision : 0, []);
       void playback.dispose();
     }
+
+    if (
+      state.status === "invalid"
+      || state.status === "failed"
+    ) {
+      voicePitches = {};
+      playbackMix.clear();
+      mix.adoptVoices(0, []);
+      void playback.dispose();
+    }
+
     view.showScore(state);
   },
   (snapshot, engraving, resultPresentation, reason) => {
@@ -108,6 +118,13 @@ const runtime = new WidgetRuntime(
   (result) => {
     const parsed = evaluateScoreResultSchema.safeParse(result);
     if (parsed.success && parsed.data.status === "success" && parsed.data.snapshot) {
+      // A host result is a new score/session boundary. Local instrument
+      // and mute choices must not leak into a different composition.
+      mix.adoptVoices(
+        parsed.data.snapshot.revision,
+        [],
+      );
+
       hostPresentation = parsed.data.presentation;
       draft.adoptHostSnapshot(parsed.data.snapshot);
     } else {
@@ -176,6 +193,12 @@ const unbindPlayback = view.bindPlayback({
 const unbindVoiceMix = view.bindVoiceMix({
   setInstrument: (voiceId, instrument) => mix.setInstrument(voiceId, instrument),
   setMuted: (voiceId, muted) => mix.setMuted(voiceId, muted),
+  transposeVoice: (voiceId, semitones) => {
+    draft.transposeVoice(
+      voiceId,
+      semitones,
+    );
+  },
 });
 const unbindDraft = view.bindDraft({
   edit: (text) => draft.edit(text),

@@ -11,6 +11,11 @@ export interface DraftEvaluator {
 
 export interface DraftTransformer {
   transpose(abc: string, semitones: number): string;
+  transposeVoice?(
+    abc: string,
+    voiceId: string,
+    semitones: number,
+  ): string;
 }
 
 export interface DraftVersion {
@@ -170,6 +175,45 @@ export class DraftSessionController {
           code: "ABC_TRANSPOSITION_FAILED",
           severity: "error",
           message: error instanceof Error ? error.message : "The draft could not be transposed.",
+        }],
+      };
+      this.emit();
+    }
+  }
+
+  transposeVoice(
+    voiceId: string,
+    semitones: number,
+  ): void {
+    const context = this.requiredContext();
+
+    try {
+      if (!this.transformer?.transposeVoice) {
+        throw new Error(
+          "Per-voice transposition is unavailable.",
+        );
+      }
+
+      const transformed =
+        this.transformer.transposeVoice(
+          context.draft,
+          voiceId,
+          semitones,
+        );
+
+      this.edit(transformed);
+    } catch (error) {
+      this.cancelEvaluation();
+      this.state = {
+        status: "invalid",
+        ...context,
+        diagnostics: [{
+          code: "ABC_TRANSPOSITION_FAILED",
+          severity: "error",
+          message:
+            error instanceof Error
+              ? error.message
+              : `Voice ${voiceId} could not be transposed.`,
         }],
       };
       this.emit();

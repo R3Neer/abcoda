@@ -186,13 +186,31 @@ describe("DraftSessionController", () => {
       { evaluate: vi.fn() },
       () => undefined,
       () => undefined,
-      { transpose: (abc, semitones) => `${abc}\n% transposed ${semitones}` },
+      {
+        transpose: (abc, semitones) =>
+          `${abc}\n% transposed ${semitones}`,
+        transposeVoice: (abc, voiceId, semitones) =>
+          `${abc}\n% voice ${voiceId} transposed ${semitones}`,
+      },
     );
     draft.adoptHostSnapshot(snapshot(1, "X:1\nK:C\nC|]"));
     draft.transpose(2);
     expect(draft.snapshot()).toMatchObject({
       status: "dirty",
       draft: "X:1\nK:C\nC|]\n% transposed 2",
+      lastGood: { revision: 1 },
+    });
+
+    draft.transposeVoice(
+      "default",
+      -3,
+    );
+
+    expect(draft.snapshot()).toMatchObject({
+      status: "dirty",
+      draft:
+        "X:1\nK:C\nC|]\n% transposed 2"
+        + "\n% voice default transposed -3",
       lastGood: { revision: 1 },
     });
 

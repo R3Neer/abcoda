@@ -26,6 +26,7 @@ export interface PlaybackActions {
 export interface VoiceMixActions {
   readonly setInstrument: (voiceId: string, instrument: InstrumentId) => void;
   readonly setMuted: (voiceId: string, muted: boolean) => void;
+  readonly transposeVoice: (voiceId: string, semitones: number) => void;
 }
 
 export interface DraftActions {
@@ -68,6 +69,7 @@ export class DomWidgetView {
   private readonly copiedIcon: SVGElement;
   private readonly copyStatus: HTMLOutputElement;
   private readonly globalTranspose: HTMLElement;
+  private voiceMixActions: VoiceMixActions | undefined;
   private copyResetTimer: ReturnType<typeof setTimeout> | undefined;
   private draftStatus: DraftSessionState["status"] = "unavailable";
 
@@ -197,15 +199,37 @@ export class DomWidgetView {
       row.appendChild(select);
       row.appendChild(mute);
 
-      const voiceTranspose = createTransposeControl(
-        this.documentObject,
-        {
-          label: "Transpose",
-          ariaLabel: `voice ${voice.id}`,
-          disabled: true,
-          title: "Per-voice transposition is not enabled yet.",
-        },
-      );
+      const transposeVoice =
+        this.voiceMixActions?.transposeVoice;
+
+      const voiceTranspose =
+        voice.kind === "pitched"
+          && transposeVoice
+          ? createTransposeControl(
+              this.documentObject,
+              {
+                label: "Transpose",
+                ariaLabel: `voice ${voice.id}`,
+                onTranspose: (semitones) => {
+                  transposeVoice(
+                    voice.id,
+                    semitones,
+                  );
+                },
+              },
+            )
+          : createTransposeControl(
+              this.documentObject,
+              {
+                label: "Transpose",
+                ariaLabel: `voice ${voice.id}`,
+                disabled: true,
+                title:
+                  voice.kind === "unpitched_percussion"
+                    ? "Percussion voices are not transposed tonally."
+                    : "Per-voice transposition is unavailable.",
+              },
+            );
       voiceTranspose.element.classList.add("voice-transpose");
       row.appendChild(voiceTranspose.element);
 
@@ -317,6 +341,8 @@ export class DomWidgetView {
   }
 
   bindVoiceMix(actions: VoiceMixActions): () => void {
+    this.voiceMixActions = actions;
+
     const onChange = (event: Event) => {
       const target = event.target;
       if (target instanceof HTMLSelectElement && target.dataset.voiceId) {
@@ -336,6 +362,10 @@ export class DomWidgetView {
     return () => {
       this.voiceMix.removeEventListener("change", onChange);
       this.voiceMix.removeEventListener("click", onClick);
+
+      if (this.voiceMixActions === actions) {
+        this.voiceMixActions = undefined;
+      }
     };
   }
 

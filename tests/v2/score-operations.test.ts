@@ -60,6 +60,46 @@ describe("canonical score operations", () => {
     expect(serializeAbc(restored)).toBe(serializeAbc(original));
   });
 
+  it("transposes one selected voice without changing global harmony or percussion", () => {
+    const original = document();
+    const useCase =
+      new ApplyScoreOperation(
+        new CanonicalScoreOperations(),
+      );
+
+    const result = useCase.execute({
+      document: original,
+      original,
+      playback: playback(),
+      operation: {
+        kind: "transpose_voice",
+        voiceId: asVoiceId("P"),
+        semitones: 2,
+      },
+    });
+
+    expect(result.status).toBe("success");
+
+    if (result.status !== "success") {
+      throw new Error(
+        "Expected voice transposition success.",
+      );
+    }
+
+    const source =
+      serializeAbc(result.document);
+
+    expect(source).toContain("K:C");
+
+    expect(source).toContain(
+      '[V:P] "Am7/E"D E ^F G|[D^FA]4|]',
+    );
+
+    expect(source).toContain(
+      "[V:D][K:none clef=perc] C D E F|C4|]",
+    );
+  });
+
   it("applies presentation operations immutably and restores the original aggregate", () => {
     const original = document();
     const transposed = transposeDocument(original, 2);

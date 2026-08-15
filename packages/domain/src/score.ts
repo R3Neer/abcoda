@@ -156,6 +156,11 @@ export type ScoreOperation =
       readonly semitones: number;
     }
   | {
+      readonly kind: "transpose_voice";
+      readonly voiceId: VoiceId;
+      readonly semitones: number;
+    }
+  | {
       readonly kind: "assign_instrument";
       readonly voiceId: VoiceId;
       readonly instrumentId: InstrumentId;

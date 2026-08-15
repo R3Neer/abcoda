@@ -132,11 +132,15 @@ interface Replacement {
   readonly text: string;
 }
 
-export function transposeDocument(document: ScoreDocument, semitones: number): ScoreDocument {
-  if (semitones === 0) return document;
+function assertTransposition(semitones: number): void {
   if (!Number.isInteger(semitones) || semitones < -24 || semitones > 24) {
     throw new Error("Transposition must be a whole number between -24 and 24 semitones.");
   }
+}
+
+export function transposeDocument(document: ScoreDocument, semitones: number): ScoreDocument {
+  if (semitones === 0) return document;
+  assertTransposition(semitones);
   const replacements: Replacement[] = [];
   for (const voice of document.voices) {
     if (voice.kind === "unpitched_percussion") continue;
@@ -176,6 +180,98 @@ export function transposeAbc(source: string, semitones: number): string {
   return transposeDocument(decoded.document, semitones).source.text;
 }
 
+export function transposeVoiceDocument(
+  document: ScoreDocument,
+  voiceIdInput: string,
+  semitones: number,
+): ScoreDocument {
+  const voiceId = asVoiceId(voiceIdInput);
+  const voice = document.voices.find(
+    (candidate) => candidate.id === voiceId,
+  );
+
+  if (!voice) {
+    throw new Error(`Unknown voice ${voiceIdInput}.`);
+  }
+
+  if (voice.kind === "unpitched_percussion") {
+    throw new Error(
+      `Percussion voice ${voiceIdInput} cannot be transposed tonally.`,
+    );
+  }
+
+  if (semitones === 0) return document;
+  assertTransposition(semitones);
+
+  const replacements: Replacement[] = [];
+
+  for (const measure of voice.measures) {
+    for (const event of measure.events) {
+      // Per-voice transposition changes the musical material of this
+      // voice only. Global key signatures and harmony annotations
+      // continue to describe the complete score.
+      const text = event.kind === "note"
+        ? transposeNoteLexeme(event.lexeme, semitones)
+        : event.kind === "chord"
+          ? transposeChordLexeme(event.lexeme, semitones)
+          : event.lexeme;
+
+      if (text !== event.lexeme) {
+        replacements.push({
+          start: event.source.start.offset,
+          end: event.source.end.offset,
+          text,
+        });
+      }
+    }
+  }
+
+  let source = document.source.text;
+
+  for (
+    const replacement of replacements.sort(
+      (left, right) => right.start - left.start,
+    )
+  ) {
+    source =
+      source.slice(0, replacement.start) +
+      replacement.text +
+      source.slice(replacement.end);
+  }
+
+  const decoded = parseAbc(source);
+
+  if (!decoded.ok) {
+    throw new Error(
+      decoded.diagnostics[0]?.message
+        ?? `Voice ${voiceIdInput} transposition failed.`,
+    );
+  }
+
+  return decoded.document;
+}
+
+export function transposeVoiceAbc(
+  source: string,
+  voiceId: string,
+  semitones: number,
+): string {
+  const decoded = parseAbc(source);
+
+  if (!decoded.ok) {
+    throw new Error(
+      decoded.diagnostics[0]?.message
+        ?? "The ABC could not be parsed.",
+    );
+  }
+
+  return transposeVoiceDocument(
+    decoded.document,
+    voiceId,
+    semitones,
+  ).source.text;
+}
+
 export function assignInstrument(
   playback: PlaybackProfile,
   document: ScoreDocument,
@@ -211,6 +307,19 @@ export class CanonicalScoreOperations implements ScoreOperationExecutor {
       switch (command.operation.kind) {
         case "transpose": {
           const document = transposeDocument(command.document, command.operation.semitones);
+          return {
+            status: "success",
+            document,
+            playback: command.playback,
+            diagnostics: validateScore(document),
+          };
+        }
+        case "transpose_voice": {
+          const document = transposeVoiceDocument(
+            command.document,
+            command.operation.voiceId,
+            command.operation.semitones,
+          );
           return {
             status: "success",
             document,
@@ -258,9 +367,11 @@ export class CanonicalScoreOperations implements ScoreOperationExecutor {
       return {
         status: "failure",
         diagnostics: [{
-          code: command.operation.kind === "transpose"
-            ? "ABC_TRANSPOSITION_FAILED"
-            : "ABC_OPERATION_FAILED",
+          code:
+            command.operation.kind === "transpose"
+            || command.operation.kind === "transpose_voice"
+              ? "ABC_TRANSPOSITION_FAILED"
+              : "ABC_OPERATION_FAILED",
           severity: "error",
           message: cause instanceof Error ? cause.message : "The score operation failed.",
         }],
