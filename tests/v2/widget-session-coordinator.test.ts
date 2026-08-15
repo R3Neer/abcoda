@@ -163,19 +163,20 @@ function harness() {
     session,
     host,
     timers,
-    view,
     mixes,
     render,
     engraver,
     refreshGeometry,
     showPresentation,
+    showScore,
     presentVoiceRanges,
     setWidth(value: number) { width = value; },
   };
 }
 
-async function waitForReady(view: WidgetSessionView): Promise<void> {
-  const showScore = vi.mocked(view.showScore);
+async function waitForReady(
+  showScore: ReturnType<typeof vi.fn<WidgetSessionView["showScore"]>>,
+): Promise<void> {
   await vi.waitFor(() => {
     expect(showScore.mock.calls.at(-1)?.[0]).toMatchObject({ status: "ready" });
   });
@@ -186,7 +187,7 @@ describe("WidgetSessionCoordinator", () => {
     const h = harness();
     await h.session.start();
     h.host.result(scoreResult(1));
-    await waitForReady(h.view);
+    await waitForReady(h.showScore);
 
     h.session.setInstrument("RH", "cello");
     expect(h.mixes.at(-1)?.voices[0]?.instrument).toBe("cello");
@@ -204,7 +205,7 @@ describe("WidgetSessionCoordinator", () => {
     const h = harness();
     await h.session.start();
     h.host.result(scoreResult(1, { preferredMeasuresPerLine: 4 }));
-    await waitForReady(h.view);
+    await waitForReady(h.showScore);
     expect(h.render).toHaveBeenCalledTimes(1);
 
     h.setWidth(700);
@@ -230,7 +231,7 @@ describe("WidgetSessionCoordinator", () => {
     const h = harness();
     await h.session.start();
     h.host.result(scoreResult(1));
-    await waitForReady(h.view);
+    await waitForReady(h.showScore);
 
     h.session.viewportChanged(900.2);
     expect(h.timers.activeIds()).toEqual([]);
@@ -242,7 +243,7 @@ describe("WidgetSessionCoordinator", () => {
     const h = harness();
     await h.session.start();
     h.host.result(scoreResult(1));
-    await waitForReady(h.view);
+    await waitForReady(h.showScore);
 
     h.setWidth(600);
     h.session.viewportChanged(600);
