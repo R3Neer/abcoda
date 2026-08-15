@@ -183,11 +183,12 @@ export class AbcjsEngraver implements Engraver {
 function targetRangeStatus(
   pitches: readonly number[],
   instrument: VoiceMixSnapshot["voices"][number]["instrument"],
-): "usual" | "extended" | "unplayable" {
-  let status: "usual" | "extended" | "unplayable" = "usual";
+): "usual" | "extended" | "unplayable" | "unbounded" {
+  let status: "usual" | "extended" = "usual";
 
   for (const pitch of pitches) {
     const classification = classifyInstrumentPitch(pitch, instrument);
+    if (classification === "unbounded") return "unbounded";
     if (classification === "unplayable") return "unplayable";
     if (classification === "extended") status = "extended";
   }

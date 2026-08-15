@@ -120,14 +120,16 @@ export function tuneWithInstrumentPrograms(
         if (
           event.cmd === "note"
           && definition.voiceKind === "pitched"
+          && definition.rangePolicy.kind === "bounded"
           && classifyInstrumentPitch(event.pitch, assignment.instrument) === "unplayable"
         ) {
+          const policy = definition.rangePolicy;
           // CreateSynth gathers samples from event.pitch before sequenceCallback.
           // Keep this event in place for timing/cursor callbacks, but make it
           // silent and point its hidden sample request at a normal-range pitch.
-          event.pitch = event.pitch < definition.playableRange.min
-            ? definition.usualRange.min
-            : definition.usualRange.max;
+          event.pitch = event.pitch < policy.playableRange.min
+            ? policy.usualRange.min
+            : policy.usualRange.max;
           event.volume = 0;
         }
 

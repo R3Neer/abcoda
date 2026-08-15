@@ -1,20 +1,21 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Locator } from "@playwright/test";
 import {
   openMixer,
   settleWidget,
 } from "./helpers/visual-review";
+
+const rowFor = (mixer: Locator, voiceId: string) => mixer.locator(
+  `.voice-mix-row:has(.voice-instrument[data-voice-id="${voiceId}"])`,
+);
 
 test("instrument range states drive controls and engraved note colors", async ({ page }) => {
   await page.goto("/?scenario=ranges&theme=light");
   await settleWidget(page, "Revision 1 ready");
   const mixer = await openMixer(page);
 
-  const rowFor = (voiceId: string) => mixer.locator(
-    `.voice-mix-row:has(.voice-instrument[data-voice-id="${voiceId}"])`,
-  );
-  const usual = rowFor("USUAL");
-  const extended = rowFor("EXTENDED");
-  const unplayable = rowFor("UNPLAYABLE");
+  const usual = rowFor(mixer, "USUAL");
+  const extended = rowFor(mixer, "EXTENDED");
+  const unplayable = rowFor(mixer, "UNPLAYABLE");
 
   await expect(usual.locator(".voice-instrument")).toHaveAttribute(
     "data-range-status",
@@ -57,4 +58,25 @@ test("instrument range states drive controls and engraved note colors", async ({
   expect(extendedColor).not.toBe(usualColor);
   expect(unplayableColor).not.toBe(usualColor);
   expect(unplayableColor).not.toBe(extendedColor);
+});
+
+test("unbounded presets remove fabricated range warnings and restore them when returning to a bounded instrument", async ({ page }) => {
+  await page.goto("/?scenario=ranges&theme=light");
+  await settleWidget(page, "Revision 1 ready");
+  const mixer = await openMixer(page);
+  const row = rowFor(mixer, "UNPLAYABLE");
+  const select = row.locator(".voice-instrument");
+
+  await expect(select).toHaveAttribute("data-range-status", "unplayable");
+  expect(await page.locator("#score .abcoda-range-unplayable").count()).toBeGreaterThan(0);
+
+  await select.selectOption("choir_aahs");
+  await expect(select).toHaveAttribute("data-range-status", "unbounded");
+  await expect(row.locator(".voice-range-warning")).toHaveCount(0);
+  await expect(page.locator("#score .abcoda-range-unplayable")).toHaveCount(0);
+
+  await select.selectOption("trumpet");
+  await expect(select).toHaveAttribute("data-range-status", "unplayable");
+  await expect(row.locator(".voice-range-warning")).toHaveClass(/sr-only/);
+  expect(await page.locator("#score .abcoda-range-unplayable").count()).toBeGreaterThan(0);
 });

@@ -29,9 +29,9 @@ export function assessVoiceRanges(
       voice.instrument,
     );
 
-    const message = result.status === "extended"
+    const message = result.policy === "bounded" && result.status === "extended"
       ? `Some notes are outside the usual ${result.usualRange.label} range but remain within the playable ${result.playableRange.label} range.`
-      : result.status === "unplayable"
+      : result.policy === "bounded" && result.status === "unplayable"
         ? `Some notes are outside the usual ${result.usualRange.label} range and exceed the playable ${result.playableRange.label} range. Notes outside the playable range are shown in red and played silently.`
         : undefined;
 

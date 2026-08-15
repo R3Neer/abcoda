@@ -37,13 +37,30 @@ export interface PitchRange {
   readonly label: string;
 }
 
+export interface BoundedRangePolicy {
+  readonly kind: "bounded";
+  readonly usualRange: PitchRange;
+  readonly playableRange: PitchRange;
+}
+
+export interface UnboundedRangePolicy {
+  readonly kind: "unbounded";
+}
+
+export interface PercussionRangePolicy {
+  readonly kind: "percussion";
+  readonly noteRange: PitchRange;
+}
+
+export type PitchedRangePolicy = BoundedRangePolicy | UnboundedRangePolicy;
+export type InstrumentRangePolicy = PitchedRangePolicy | PercussionRangePolicy;
+
 export interface PitchedInstrumentDefinition {
   readonly id: PitchedInstrumentId;
   readonly label: string;
   readonly voiceKind: "pitched";
   readonly midiProgram: number;
-  readonly usualRange: PitchRange;
-  readonly playableRange: PitchRange;
+  readonly rangePolicy: PitchedRangePolicy;
 }
 
 export interface PercussionInstrumentDefinition {
@@ -51,7 +68,7 @@ export interface PercussionInstrumentDefinition {
   readonly label: string;
   readonly voiceKind: "unpitched_percussion";
   readonly midiProgram?: undefined;
-  readonly noteRange: PitchRange;
+  readonly rangePolicy: PercussionRangePolicy;
 }
 
 export type InstrumentDefinition =
@@ -64,209 +81,233 @@ const pitchRange = (
   label: string,
 ): PitchRange => ({ min, max, label });
 
-const pitched = (
-  id: PitchedInstrumentId,
-  label: string,
-  midiProgram: number,
+const bounded = (
   usualRange: PitchRange,
   playableRange: PitchRange,
-): PitchedInstrumentDefinition => {
+): BoundedRangePolicy => {
   if (
     usualRange.min < playableRange.min
     || usualRange.max > playableRange.max
   ) {
-    throw new Error(
-      `Instrument ${id} has a usual range outside its playable range.`,
-    );
+    throw new Error("Instrument usual range must be contained in its playable range.");
   }
 
-  return {
-    id,
-    label,
-    voiceKind: "pitched",
-    midiProgram,
-    usualRange,
-    playableRange,
-  };
+  return { kind: "bounded", usualRange, playableRange };
 };
 
-// The former single catalog range becomes the hard musical/product boundary.
-// The narrower usual range is the comfortable/default writing range. Neither
-// range describes SoundFont sample coverage; that belongs to the audio adapter.
+const pitched = (
+  id: PitchedInstrumentId,
+  label: string,
+  midiProgram: number,
+  rangePolicy: PitchedRangePolicy,
+): PitchedInstrumentDefinition => ({
+  id,
+  label,
+  voiceKind: "pitched",
+  midiProgram,
+  rangePolicy,
+});
+
+const unbounded: UnboundedRangePolicy = { kind: "unbounded" };
+
+// All bounded ranges use sounding MIDI pitch. `usualRange` is a practical,
+// idiomatic writing range; `playableRange` is a conservative hard envelope.
+// Generic/synthetic presets whose physical compass is not well-defined use an
+// unbounded policy instead of fabricated organological limits. SoundFont sample
+// coverage remains a separate adapter concern.
 export const instrumentCatalog: readonly InstrumentDefinition[] = [
   pitched(
     "acoustic_grand_piano",
     "Acoustic grand piano",
     0,
-    pitchRange(21, 108, "A0–C8"),
-    pitchRange(21, 108, "A0–C8"),
+    bounded(
+      pitchRange(21, 108, "A0–C8"),
+      pitchRange(21, 108, "A0–C8"),
+    ),
   ),
   pitched(
     "bright_acoustic_piano",
     "Bright acoustic piano",
     1,
-    pitchRange(21, 108, "A0–C8"),
-    pitchRange(21, 108, "A0–C8"),
+    bounded(
+      pitchRange(21, 108, "A0–C8"),
+      pitchRange(21, 108, "A0–C8"),
+    ),
   ),
-  pitched(
-    "church_organ",
-    "Church organ",
-    19,
-    pitchRange(36, 96, "C2–C7"),
-    pitchRange(36, 96, "C2–C7"),
-  ),
+  pitched("church_organ", "Church organ", 19, unbounded),
   pitched(
     "acoustic_guitar_nylon",
     "Nylon-string guitar",
     24,
-    pitchRange(40, 83, "E2–B5"),
-    pitchRange(40, 88, "E2–E6"),
+    bounded(
+      pitchRange(40, 83, "E2–B5"),
+      pitchRange(40, 84, "E2–C6"),
+    ),
   ),
   pitched(
     "acoustic_bass",
     "Acoustic bass",
     32,
-    pitchRange(28, 62, "E1–D4"),
-    pitchRange(28, 67, "E1–G4"),
+    bounded(
+      pitchRange(28, 62, "E1–D4"),
+      pitchRange(28, 67, "E1–G4"),
+    ),
   ),
   pitched(
     "violin",
     "Violin",
     40,
-    pitchRange(55, 100, "G3–E7"),
-    pitchRange(55, 105, "G3–A7"),
+    bounded(
+      pitchRange(55, 100, "G3–E7"),
+      pitchRange(55, 105, "G3–A7"),
+    ),
   ),
   pitched(
     "viola",
     "Viola",
     41,
-    pitchRange(48, 84, "C3–C6"),
-    pitchRange(48, 88, "C3–E6"),
+    bounded(
+      pitchRange(48, 88, "C3–E6"),
+      pitchRange(48, 93, "C3–A6"),
+    ),
   ),
   pitched(
     "cello",
     "Cello",
     42,
-    pitchRange(36, 81, "C2–A5"),
-    pitchRange(36, 84, "C2–C6"),
+    bounded(
+      pitchRange(36, 81, "C2–A5"),
+      pitchRange(36, 84, "C2–C6"),
+    ),
   ),
   pitched(
     "contrabass",
     "Contrabass",
     43,
-    pitchRange(28, 62, "E1–D4 sounding"),
-    pitchRange(28, 67, "E1–G4 sounding"),
+    bounded(
+      pitchRange(28, 62, "E1–D4 sounding"),
+      pitchRange(23, 67, "B0–G4 sounding"),
+    ),
   ),
-  pitched(
-    "string_ensemble_1",
-    "String ensemble",
-    48,
-    pitchRange(36, 84, "C2–C6"),
-    pitchRange(36, 96, "C2–C7"),
-  ),
-  pitched(
-    "choir_aahs",
-    "Choir aahs",
-    52,
-    pitchRange(48, 84, "C3–C6"),
-    pitchRange(48, 84, "C3–C6"),
-  ),
+  pitched("string_ensemble_1", "String ensemble", 48, unbounded),
+  pitched("choir_aahs", "Choir aahs", 52, unbounded),
   pitched(
     "trumpet",
     "Trumpet",
     56,
-    pitchRange(54, 84, "F♯3–C6 sounding"),
-    pitchRange(54, 86, "F♯3–D6 sounding"),
+    bounded(
+      pitchRange(54, 84, "F♯3–C6 sounding"),
+      pitchRange(54, 89, "F♯3–F6 sounding"),
+    ),
   ),
   pitched(
     "trombone",
     "Trombone",
     57,
-    pitchRange(40, 70, "E2–B♭4"),
-    pitchRange(40, 72, "E2–C5"),
+    bounded(
+      pitchRange(40, 70, "E2–B♭4"),
+      pitchRange(40, 77, "E2–F5"),
+    ),
   ),
   pitched(
     "french_horn",
     "French horn",
     60,
-    pitchRange(36, 77, "C2–F5 sounding"),
-    pitchRange(35, 77, "B1–F5 sounding"),
+    bounded(
+      pitchRange(35, 70, "B1–B♭4 sounding"),
+      pitchRange(35, 77, "B1–F5 sounding"),
+    ),
   ),
   pitched(
     "soprano_sax",
     "Soprano saxophone",
     64,
-    pitchRange(58, 86, "B♭3–D6 sounding"),
-    pitchRange(56, 88, "A♭3–E6 sounding"),
+    bounded(
+      pitchRange(60, 82, "C4–B♭5 sounding"),
+      pitchRange(56, 88, "A♭3–E6 sounding"),
+    ),
   ),
   pitched(
     "alto_sax",
     "Alto saxophone",
     65,
-    pitchRange(50, 78, "D3–F♯5 sounding"),
-    pitchRange(49, 80, "C♯3–A♭5 sounding"),
+    bounded(
+      pitchRange(53, 75, "F3–E♭5 sounding"),
+      pitchRange(49, 81, "D♭3–A5 sounding"),
+    ),
   ),
   pitched(
     "tenor_sax",
     "Tenor saxophone",
     66,
-    pitchRange(45, 74, "A2–D5 sounding"),
-    pitchRange(44, 75, "A♭2–E♭5 sounding"),
+    bounded(
+      pitchRange(48, 70, "C3–B♭4 sounding"),
+      pitchRange(44, 76, "A♭2–E5 sounding"),
+    ),
   ),
   pitched(
     "oboe",
     "Oboe",
     68,
-    pitchRange(58, 91, "B♭3–G6"),
-    pitchRange(58, 93, "B♭3–A6"),
+    bounded(
+      pitchRange(58, 91, "B♭3–G6"),
+      pitchRange(58, 93, "B♭3–A6"),
+    ),
   ),
   pitched(
     "english_horn",
     "English horn",
     69,
-    pitchRange(52, 82, "E3–B♭5 sounding"),
-    pitchRange(52, 84, "E3–C6 sounding"),
+    bounded(
+      pitchRange(52, 81, "E3–A5 sounding"),
+      pitchRange(52, 83, "E3–B5 sounding"),
+    ),
   ),
   pitched(
     "bassoon",
     "Bassoon",
     70,
-    pitchRange(34, 74, "B♭1–D5"),
-    pitchRange(34, 75, "B♭1–E♭5"),
+    bounded(
+      pitchRange(34, 75, "B♭1–E♭5"),
+      pitchRange(34, 77, "B♭1–F5"),
+    ),
   ),
   pitched(
     "clarinet",
-    "Clarinet",
+    "Clarinet in B♭",
     71,
-    pitchRange(52, 91, "E3–G6 sounding"),
-    pitchRange(52, 96, "E3–C7 sounding"),
+    bounded(
+      pitchRange(50, 91, "D3–G6 sounding"),
+      pitchRange(50, 94, "D3–B♭6 sounding"),
+    ),
   ),
   pitched(
     "piccolo",
     "Piccolo",
     72,
-    pitchRange(74, 108, "D5–C8 sounding"),
-    pitchRange(74, 108, "D5–C8 sounding"),
+    bounded(
+      pitchRange(74, 108, "D5–C8 sounding"),
+      pitchRange(74, 108, "D5–C8 sounding"),
+    ),
   ),
   pitched(
     "flute",
     "Flute",
     73,
-    pitchRange(60, 96, "C4–C7"),
-    pitchRange(60, 98, "C4–D7"),
+    bounded(
+      pitchRange(59, 98, "B3–D7"),
+      pitchRange(59, 101, "B3–F7"),
+    ),
   ),
-  pitched(
-    "recorder",
-    "Recorder",
-    74,
-    pitchRange(60, 93, "C4–A6"),
-    pitchRange(60, 96, "C4–C7"),
-  ),
+  pitched("recorder", "Recorder (generic)", 74, unbounded),
   {
     id: "standard_drum_kit",
     label: "Standard drum kit",
     voiceKind: "unpitched_percussion",
-    noteRange: pitchRange(35, 81, "GM percussion notes 35–81"),
+    rangePolicy: {
+      kind: "percussion",
+      noteRange: pitchRange(35, 81, "GM percussion notes 35–81"),
+    },
   },
 ] as const;
 
@@ -300,18 +341,32 @@ export function isInstrumentCompatible(
 export type PitchRangeClassification =
   | "usual"
   | "extended"
-  | "unplayable";
+  | "unplayable"
+  | "unbounded";
 
 export type InstrumentRangeStatus = "empty" | PitchRangeClassification;
 
-export interface InstrumentRangeAssessment {
-  readonly status: InstrumentRangeStatus;
+export interface BoundedInstrumentRangeAssessment {
+  readonly policy: "bounded";
+  readonly status: "empty" | "usual" | "extended" | "unplayable";
   readonly usual: number;
   readonly extended: number;
   readonly unplayable: number;
   readonly usualRange: PitchRange;
   readonly playableRange: PitchRange;
 }
+
+export interface UnboundedInstrumentRangeAssessment {
+  readonly policy: "unbounded";
+  readonly status: "empty" | "unbounded";
+  readonly usual: 0;
+  readonly extended: 0;
+  readonly unplayable: 0;
+}
+
+export type InstrumentRangeAssessment =
+  | BoundedInstrumentRangeAssessment
+  | UnboundedInstrumentRangeAssessment;
 
 export function classifyInstrumentPitch(
   pitch: number,
@@ -324,16 +379,19 @@ export function classifyInstrumentPitch(
     );
   }
 
+  const policy = definition.rangePolicy;
+  if (policy.kind === "unbounded") return "unbounded";
+
   if (
-    pitch < definition.playableRange.min
-    || pitch > definition.playableRange.max
+    pitch < policy.playableRange.min
+    || pitch > policy.playableRange.max
   ) {
     return "unplayable";
   }
 
   if (
-    pitch >= definition.usualRange.min
-    && pitch <= definition.usualRange.max
+    pitch >= policy.usualRange.min
+    && pitch <= policy.usualRange.max
   ) {
     return "usual";
   }
@@ -352,6 +410,17 @@ export function assessInstrumentPitches(
     );
   }
 
+  const policy = definition.rangePolicy;
+  if (policy.kind === "unbounded") {
+    return {
+      policy: "unbounded",
+      status: pitches.length === 0 ? "empty" : "unbounded",
+      usual: 0,
+      extended: 0,
+      unplayable: 0,
+    };
+  }
+
   let usual = 0;
   let extended = 0;
   let unplayable = 0;
@@ -363,7 +432,7 @@ export function assessInstrumentPitches(
     if (classification === "unplayable") unplayable += 1;
   }
 
-  const status: InstrumentRangeStatus = pitches.length === 0
+  const status: BoundedInstrumentRangeAssessment["status"] = pitches.length === 0
     ? "empty"
     : unplayable > 0
       ? "unplayable"
@@ -372,11 +441,12 @@ export function assessInstrumentPitches(
         : "usual";
 
   return {
+    policy: "bounded",
     status,
     usual,
     extended,
     unplayable,
-    usualRange: definition.usualRange,
-    playableRange: definition.playableRange,
+    usualRange: policy.usualRange,
+    playableRange: policy.playableRange,
   };
 }

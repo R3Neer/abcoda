@@ -73,7 +73,7 @@ describe("abcjs playback source mapping", () => {
         {
           cmd: "note",
           instrument: 0,
-          pitch: 86,
+          pitch: 89,
           volume: 80,
           start: 0.25,
           duration: 0.25,
@@ -84,7 +84,7 @@ describe("abcjs playback source mapping", () => {
         {
           cmd: "note",
           instrument: 0,
-          pitch: 88,
+          pitch: 90,
           volume: 80,
           start: 0.5,
           duration: 0.25,
@@ -107,7 +107,7 @@ describe("abcjs playback source mapping", () => {
     ) ?? [];
 
     expect(notes).toHaveLength(3);
-    expect(notes.map((event) => event.pitch)).toEqual([84, 86, 84]);
+    expect(notes.map((event) => event.pitch)).toEqual([84, 89, 84]);
     expect(notes.map((event) => event.volume)).toEqual([80, 80, 0]);
     expect(notes.map((event) => event.instrument)).toEqual([56, 56, 56]);
     expect(notes[2]).toMatchObject({
@@ -116,7 +116,7 @@ describe("abcjs playback source mapping", () => {
       startChar: 14,
       endChar: 15,
     });
-    expect(sourceNotes.map((event) => event.pitch)).toEqual([84, 86, 88]);
+    expect(sourceNotes.map((event) => event.pitch)).toEqual([84, 89, 90]);
     expect(sourceNotes.map((event) => event.volume)).toEqual([80, 80, 80]);
     expect(sourceNotes.map((event) => event.instrument)).toEqual([0, 0, 0]);
   });
@@ -171,5 +171,34 @@ describe("abcjs playback source mapping", () => {
     expect(originalNotes.map((event) => event.volume)).toEqual([
       80, 80, 80, 80, 80, 80, 80, 80,
     ]);
+  });
+
+  it("does not invent musical muting for unbounded presets", () => {
+    const choirMix: VoiceMixSnapshot = {
+      revision: 6,
+      voices: [
+        { id: "CH", kind: "pitched", instrument: "choir_aahs", muted: false },
+      ],
+    };
+    const audio = {
+      tracks: [[
+        { cmd: "program", instrument: 0 },
+        { cmd: "note", instrument: 0, pitch: 96, volume: 80 },
+      ]],
+    } as ABCJS.AudioTracks;
+    const tune = {
+      setUpAudio: () => audio,
+    } as unknown as ABCJS.TuneObject;
+
+    const configured = tuneWithInstrumentPrograms(tune, choirMix).setUpAudio({});
+    const note = configured.tracks[0]?.find(
+      (event): event is ABCJS.AudioTrackNoteItem => event.cmd === "note",
+    );
+
+    expect(note).toMatchObject({
+      pitch: 96,
+      volume: 80,
+      instrument: 52,
+    });
   });
 });

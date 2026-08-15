@@ -1,97 +1,111 @@
 # ABCoda · Instrument range research
 
-Status: working product note for Phase 9 range enforcement.
+Status: implemented reference for Phase 9 range enforcement.
 
-Purpose: freeze the evidence and product decisions behind `playableRange` before implementation. This document is intentionally separate from SoundFont/sample coverage. Musical playability and synth capability are different layers.
+Purpose: record the evidence and product decisions behind ABCoda's instrument-range policy. Musical playability and SoundFont/sample coverage are intentionally separate concerns.
 
 ## Policy
 
-For pitched instruments ABCoda will eventually distinguish:
+All numeric pitches below are **sounding pitches**, using scientific pitch notation with C4 = middle C and the equivalent MIDI values.
 
-- `usualRange`: normal/recommended tessitura used for warnings.
-- `playableRange`: conservative hard musical envelope used to classify notes as `unplayable`.
-- synth/sample capability: adapter concern; never infer it from `playableRange`.
+ABCoda distinguishes three range-policy kinds:
 
-All pitches below are **sounding pitches** and use scientific pitch notation with C4 = middle C. MIDI values follow the same sounding-pitch convention.
+- `bounded`: a concrete instrument with a defensible continuous musical compass.
+  - `usualRange`: practical/idiomatic writing range. Leaving it is a warning, not an error.
+  - `playableRange`: conservative hard musical envelope. Notes beyond it remain notated but are silent.
+- `unbounded`: a generic, synthetic, ensemble or otherwise underspecified preset for which ABCoda must not invent a physical hard limit.
+- `percussion`: unpitched GM percussion-note semantics; melodic tessitura rules do not apply.
 
-`usualRange` must be contained in `playableRange`. Where the current catalog contradicts the researched playable range, the catalog must be corrected rather than widening `playableRange` merely to preserve old data.
+For every bounded instrument, `usualRange ⊆ playableRange`.
 
-## Proposed playable ranges
+`playableRange` is **not** SoundFont coverage. The abcjs adapter is responsible for safe synthesis independently of organological classification.
 
-| ABCoda instrument | Proposed playableRange | MIDI | Confidence | Research note |
-|---|---:|---:|---|---|
-| `acoustic_grand_piano` | A0–C8 | 21–108 | high | Standard modern 88-key piano. |
-| `bright_acoustic_piano` | A0–C8 | 21–108 | high | Same physical keyboard compass as standard piano. |
-| `church_organ` | **do not hard-enforce yet** | — | low | Pipe-organ sounding compass depends on manuals, pedalboard and registration. A key may sound one octave lower or up to two octaves higher depending on stops. The GM preset is not a specific physical organ. Treat this as a product/synth profile, not a simple organological limit. |
-| `acoustic_guitar_nylon` | E2–C6 | 40–84 | high | Standard tuning low E2; Yamaha's classical-guitar range chart assumes playability through the 20th fret, giving C6 on the first string. Existing E6 maximum is too generous for a generic classical guitar unless ABCoda deliberately models a 24-fret instrument. |
-| `acoustic_bass` | E1–G4 | 28–67 | medium | Four-string standard tuning begins E1; modern 24-fret basses reach G4. Yamaha notes many modern basses have at least 21 frets and some 24. This is a product choice for a generic bass preset. |
-| `violin` | G3–A7 | 55–105 | high | VSL gives G3–A7, with D8 available as a harmonic. Harmonics are not treated as ordinary pitch playability unless ABCoda later models playing technique. |
-| `viola` | C3–A6 | 48–93 | high | VSL gives C3–A6; harmonic E7 exists but is technique-specific. Current catalog max E6 is a useful usual-range candidate. |
-| `cello` | C2–C6 | 36–84 | high | Orchestration references give C2–C6. VSL gives ordinary range to A5 and much higher harmonics; C6 is a conservative hard ordinary-note ceiling for the generic instrument. |
-| `contrabass` | B0–G4 | 23–67 | medium-high | VSL gives B0–G4 for a five-string double bass; standard four-string instruments begin at E1 and C extensions are common. Generic ABCoda `contrabass` may conservatively support the five-string envelope. |
-| `string_ensemble_1` | B0–D7 | 23–98 | medium | Not a single physical instrument. VSL's full-range string-ensemble mapping spans B0–D7. This is an ensemble/product envelope, not an individual-instrument limit. |
-| `choir_aahs` | **do not hard-enforce yet** | — | low | General MIDI `Choir Aahs` is a synthetic ensemble preset, not a defined SATB roster or individual voice type. A hard biological range would be arbitrary. Keep warning/enforcement disabled until ABCoda defines what ensemble this preset represents. |
-| `trumpet` | F#3–F6 | 54–89 | high | VSL trumpet in C: F#3–C6 as normal compass, occasionally F6; virtuosos can exceed it. Existing D6 maximum fits inside this hard envelope. |
-| `trombone` | E2–F5 | 40–77 | high | Standard tenor-trombone chromatic range E2–F5. Pedal/trigger notes below E2 are real but not a simple contiguous generic range, so they are excluded from the hard envelope for now. |
-| `french_horn` | B1–F5 | 35–77 | high | VSL gives sounding B1–F5. Existing catalog already matches it. |
-| `soprano_sax` | Ab3–F6 | 56–89 | medium-high | Generic written sax range Bb3–G6; Bb soprano sounds a major second lower. Avoid altissimo beyond the standard compass. |
-| `alto_sax` | Db3–Bb5 | 49–82 | medium-high | Generic written sax range Bb3–G6; Eb alto sounds a major sixth lower. Avoid altissimo beyond the standard compass. |
-| `tenor_sax` | Ab2–F5 | 44–77 | medium-high | Generic written sax range Bb3–G6; Bb tenor sounds a major ninth lower. Avoid altissimo beyond the standard compass. |
-| `oboe` | Bb3–A6 | 58–93 | high | VSL gives Bb3–G6 with A6 available; orchestration reference also gives Bb3–A6. |
-| `english_horn` | E3–B5 | 52–83 | medium-high | VSL gives sounding E3–A5 with B5 possible. Some orchestration charts extend farther; use B5 as conservative hard ceiling. **Current catalog E3–C6 should be corrected.** |
-| `bassoon` | Bb1–F5 | 34–77 | high | VSL gives Bb1–Eb5, F5 possible with considerable effort. Existing Eb5 maximum is a good usual-range candidate. |
-| `clarinet` | D3–Bb6 | 50–94 | high | For Bb clarinet, VSL gives sounding D3–Bb6, with orchestral use usually only to G6. **Current catalog label/range E3–C7 sounding is wrong for a Bb clarinet and should be corrected.** |
-| `piccolo` | D5–C8 | 74–108 | high | VSL gives sounding D5–C8. Rare instruments/works may reach C5 below, but D5 is the normal physical lower bound. |
-| `flute` | B3–F7 | 59–101 | high | VSL standard B3–D7, forced up to F7. Use B3–F7 as hard physical envelope and keep C4–D7 as a likely usual range. |
-| `recorder` | **product decision required** | — | low | `Recorder` is not one fixed instrument. Soprano and alto recorders have different compasses. Before hard enforcement, either rename/model a specific subtype (recommended: soprano recorder, roughly C5–D7 for the common two-octave-plus compass) or keep the generic preset exempt. |
-| `standard_drum_kit` | n/a | n/a | high | Unpitched percussion follows GM percussion-note semantics, not melodic `usualRange`/`playableRange`. |
+## Implemented catalog
 
-## Important corrections to the current catalog
+| ABCoda instrument | Policy | usualRange | playableRange | MIDI playable | Rationale |
+|---|---|---:|---:|---:|---|
+| `acoustic_grand_piano` | bounded | A0–C8 | A0–C8 | 21–108 | Standard modern 88-key piano. |
+| `bright_acoustic_piano` | bounded | A0–C8 | A0–C8 | 21–108 | Same physical keyboard compass as acoustic grand. |
+| `church_organ` | unbounded | — | — | — | Organ compass and sounding pitch depend on instrument, manuals, pedalboard and registration/stops. |
+| `acoustic_guitar_nylon` | bounded | E2–B5 | E2–C6 | 40–84 | Standard tuning; Yamaha's range chart assumes playability through the 20th fret. |
+| `acoustic_bass` | bounded | E1–D4 | E1–G4 | 28–67 | Generic four-string acoustic/upright-bass product profile; upper extension kept playable but outside normal writing. |
+| `violin` | bounded | G3–E7 | G3–A7 | 55–105 | VSL gives G3–A7; the very top is treated as extended rather than usual. |
+| `viola` | bounded | C3–E6 | C3–A6 | 48–93 | VSL gives C3–A6; its characteristic/ordinary writing lies lower. |
+| `cello` | bounded | C2–A5 | C2–C6 | 36–84 | A5 is a conservative normal ceiling; C6 remains available as extended professional writing. |
+| `contrabass` | bounded | E1–D4 | B0–G4 | 23–67 | Usual four-string writing begins at E1; B0 assumes a five-string/extended low instrument and is therefore extended. |
+| `string_ensemble_1` | unbounded | — | — | — | General MIDI ensemble preset, not one physical instrument with one continuous individual compass. |
+| `choir_aahs` | unbounded | — | — | — | General MIDI synthetic/ensemble preset; GM does not define a biological SATB roster or hard compass. |
+| `trumpet` | bounded | F♯3–C6 | F♯3–F6 | 54–89 | VSL: C trumpet F♯3–C6, F6 occasional/virtuosic. |
+| `trombone` | bounded | E2–B♭4 | E2–F5 | 40–77 | VSL tenor trombone E2–F5; top register is deliberately extended. Pedal notes are excluded because the low compass is not a single contiguous generic interval. |
+| `french_horn` | bounded | B1–B♭4 | B1–F5 | 35–77 | VSL sounding compass B1–F5; high C5–F5 is treated as demanding extended writing. |
+| `soprano_sax` | bounded | C4–B♭5 | A♭3–E6 | 56–88 | Standard non-altissimo written sax compass transformed to sounding pitch for B♭ soprano; narrower central band is the usual writing region. |
+| `alto_sax` | bounded | F3–E♭5 | D♭3–A5 | 49–81 | Standard non-altissimo written sax compass transformed to sounding pitch for E♭ alto. |
+| `tenor_sax` | bounded | C3–B♭4 | A♭2–E5 | 44–76 | Standard non-altissimo written sax compass transformed to sounding pitch for B♭ tenor. |
+| `oboe` | bounded | B♭3–G6 | B♭3–A6 | 58–93 | VSL gives B♭3–G6 with A6 available. |
+| `english_horn` | bounded | E3–A5 | E3–B5 | 52–83 | VSL gives E3–A5 with B5 possible. |
+| `bassoon` | bounded | B♭1–E♭5 | B♭1–F5 | 34–77 | VSL gives B♭1–E♭5; E5/F5 require considerable effort. |
+| `clarinet` | bounded | D3–G6 | D3–B♭6 | 50–94 | B♭ clarinet **sounding** compass. VSL explicitly gives D3–B♭6 and notes orchestral use normally only to G6. |
+| `piccolo` | bounded | D5–C8 | D5–C8 | 74–108 | VSL gives D5–C8 for standard C piccolo. |
+| `flute` | bounded | B3–D7 | B3–F7 | 59–101 | VSL standard range B3–D7; F7 is an extreme/forced extension. |
+| `recorder` | unbounded | — | — | — | `Recorder` is a family name. Yamaha and VSL distinguish soprano, alto, tenor, bass/great-bass instruments with different compasses. The existing GM id is kept for compatibility but the UI labels it `Recorder (generic)`. |
+| `standard_drum_kit` | percussion | — | — | GM 35–81 | GM unpitched percussion semantics. |
 
-The existing `range` values are not uniformly "usual" ranges and a few are inconsistent with the instrument they claim to model.
+## Important modeling decisions
 
-Before implementing `usualRange ⊆ playableRange`:
+### Sounding pitch
 
-1. `acoustic_guitar_nylon`: current E2–E6 should not be blindly retained as `usualRange`; generic classical guitar ordinary compass is better capped around C6 unless ABCoda explicitly models a 24-fret instrument.
-2. `english_horn`: current E3–C6 is too broad for the conservative VSL ordinary/extended range; proposed hard ceiling B5.
-3. `clarinet`: current E3–C7 labelled "sounding" corresponds to the generic written clarinet compass, not the sounding range of Bb clarinet. For a Bb model, sounding hard range is D3–Bb6.
-4. Saxophone current maxima are slightly narrower than the standard non-altissimo written compass transformed to sounding pitch. They are plausible `usualRange` values, with the proposed hard ranges above.
-5. `contrabass`: low bound depends on 4-string, C-extension, or 5-string hardware. ABCoda should deliberately model the generic instrument as five-string-capable if B0 is accepted.
+Transposing instruments are classified only after conversion to sounding MIDI pitch. No UI-specific compensation is permitted. This matters particularly for B♭ clarinet, F horn, soprano/tenor saxophones and E♭ alto saxophone.
 
-## Product decisions frozen for implementation
+### Registers versus hard limits
 
-- Hard-range classification is based on sounding MIDI pitch.
-- Harmonics, altissimo and other special techniques do **not** automatically widen ordinary `playableRange` unless ABCoda later models technique explicitly.
-- `church_organ`, `choir_aahs` and generic `recorder` are exempt from hard range enforcement until their product semantics are made specific.
-- `string_ensemble_1` may use a section-wide product envelope because it is explicitly an ensemble preset.
-- Percussion remains outside melodic range logic.
-- SoundFont coverage is separate. A note being musically playable does not guarantee a particular SoundFont sample exists; the abcjs adapter must separately guarantee safe synthesis.
+A player's absolute maximum is not automatically `usualRange`. Where a source explicitly distinguishes ordinary orchestral use from occasional/extreme notes, ABCoda maps the former to `usualRange` and the latter to `playableRange`.
+
+Examples:
+
+- trumpet: C6 usual ceiling, F6 extended;
+- bassoon: E♭5 usual ceiling, F5 extended;
+- English horn: A5 usual ceiling, B5 extended;
+- clarinet in B♭: G6 usual orchestral ceiling, B♭6 extended;
+- flute: D7 usual ceiling, F7 extended.
+
+### Non-contiguous special registers
+
+The current range model is one continuous interval. Therefore special disjoint registers are not folded into a misleading continuous `playableRange`. The clearest case is tenor-trombone pedal notes below E2: VSL documents a gap between the pedals and the normal chromatic register on a plain tenor trombone. ABCoda therefore keeps E2 as the generic hard lower bound until the domain can represent disjoint playable regions or explicit instrument variants.
+
+### Generic presets
+
+General MIDI defines program identities for interoperability but does not define the detailed acoustic characteristics of each implementation. `Choir Aahs` and `String Ensemble 1` therefore do not receive invented biological/organological hard limits. The same principle is applied to `church_organ`, whose sounding compass varies with the actual instrument and stop registration, and to the underspecified generic `recorder` family id.
 
 ## Sources consulted
 
-Primary/detailed references were preferred where available.
+Primary/manufacturer or specialist technical sources were preferred for concrete compass data.
 
-- Vienna Symphonic Library Academy, Violin: https://www.vsl.co.at/academy/strings/violin/
+- Vienna Symphonic Library Academy, Violin: https://www.vsl.co.at/academy/strings/violin
 - Vienna Symphonic Library Academy, Viola: https://www.vsl.co.at/academy/strings/viola
 - Vienna Symphonic Library Academy, Cello: https://www.vsl.co.at/academy/strings/cello
-- Vienna Symphonic Library Academy, Double bass: https://www.vsl.co.at/academy/strings/double-bass
-- Vienna Symphonic Library Academy, Horn in F: https://www.vsl.co.at/academy/brass/horn-f
+- Vienna Symphonic Library Academy / Studio Dimension Strings, Double Bass: https://www.vsl.co.at/instruments/synchronized/dimension-strings
 - Vienna Symphonic Library Academy, Trumpet in C: https://www.vsl.co.at/academy/brass/trumpet-c
+- Vienna Symphonic Library Academy, Tenor Trombone: https://www.vsl.co.at/academy/brass/tenor-trombone
+- Vienna Symphonic Library Academy, Horn in F: https://www.vsl.co.at/academy/brass/horn-f
 - Vienna Symphonic Library Academy, Oboe: https://www.vsl.co.at/academy/woodwinds/oboe
-- Vienna Symphonic Library Academy, English horn: https://www.vsl.co.at/academy/woodwinds/english-horn
-- Vienna Symphonic Library Academy, Bassoon: https://preview.vsl.co.at/academy/woodwinds/bassoon
-- Vienna Symphonic Library Academy, Clarinet in Bb: https://www.vsl.co.at/academy/woodwinds/clarinet
-- Vienna Symphonic Library Academy, Concert flute: https://www.vsl.co.at/academy/woodwinds/concert-flute
+- Vienna Symphonic Library Academy, English Horn: https://www.vsl.co.at/academy/woodwinds/english-horn
+- Vienna Symphonic Library Academy, Bassoon: https://www.vsl.co.at/academy/woodwinds/bassoon
+- Vienna Symphonic Library Academy, Clarinet in B♭: https://www.vsl.co.at/academy/woodwinds/clarinet
+- Vienna Symphonic Library Academy, Concert Flute: https://www.vsl.co.at/academy/woodwinds/concert-flute
 - Vienna Symphonic Library Academy, Piccolo: https://www.vsl.co.at/academy/woodwinds/piccolo
-- Vienna Symphonic Library, Prime Orchestra string/brass mappings: https://www.vsl.co.at/instruments/starter-editions/prime-orchestra
 - Vienna Symphonic Library, Studio Saxophones: https://www.vsl.co.at/instruments/synchronized/saxophones
-- Symphony Orchestra Library Center, Ranges of Orchestral Instruments: https://orchestralibrary.com/reftables/rang.html
-- Yamaha Musical Instrument Guide, Piano 88-key compass: https://www.yamaha.com/en/musical_instrument_guide/piano/trivia/trivia007.html
-- Yamaha Musical Instrument Guide, Classical guitar range: https://www.yamaha.com/en/musical_instrument_guide/classical_guitar/play/play003.html
-- Yamaha, Bass Fingering 101: https://hub.yamaha.com/guitars/bass/bass-fingering-101/
-- Yamaha Musical Instrument Guide, Pipe organ: https://www.yamaha.com/en/musical_instrument_guide/pipeorgan/play/
-- Yamaha Musical Instrument Guide, Recorder fingering/variants: https://www.yamaha.com/en/musical_instrument_guide/recorder/play/play002.html
+- Vienna Symphonic Library, Historic Winds / recorder family: https://preview.vsl.co.at/de/instruments/synchronized/historic-winds
+- MIDI Association, General MIDI Level 1: https://midi.org/general-midi-level-1
+- Yamaha Musical Instrument Guide, Classical Guitar Range: https://www.yamaha.com/en/musical_instrument_guide/classical_guitar/play/play003.html
+- Yamaha Musical Instrument Guide, Pipe Organ: https://www.yamaha.com/en/musical_instrument_guide/pipeorgan/play/
+- Yamaha Musical Instrument Guide, Recorder Variants: https://www.yamaha.com/en/musical_instrument_guide/recorder/structure/structure004.html
+- Yamaha Musical Instrument Guide, Saxophone Transposition: https://www.yamaha.com/en/musical_instrument_guide/saxophone/play/play003.html
 
-## Implementation consequence
+## Future refinement
 
-Patch 1 may now implement researched hard ranges for the high/medium-confidence concrete instruments and explicit `rangePolicy: "unbounded" | "melodic" | "percussion"` (name to be decided) for ambiguous presets. Do **not** fabricate numeric hard ranges for organ, choir or generic recorder just to make the TypeScript shape uniform.
+Two future domain improvements would allow greater precision without weakening the current policy:
+
+1. model explicit instrument variants (e.g. four-string vs five-string contrabass, soprano vs alto recorder);
+2. allow disjoint playable regions for special registers such as tenor-trombone pedals.
+
+Neither is required for the current `usual / extended / unplayable` behavior to remain musically coherent.

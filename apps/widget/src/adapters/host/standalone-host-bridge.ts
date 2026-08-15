@@ -124,8 +124,8 @@ V:EXTENDED clef=treble
 V:UNPLAYABLE clef=treble
 K:C
 [V:USUAL] G A B c|]
-[V:EXTENDED] d' d' c' d'|]
-[V:UNPLAYABLE] e' f' e' f'|]`,
+[V:EXTENDED] d' e' f' e'|]
+[V:UNPLAYABLE] g' a' g' a'|]`,
       },
     },
     diagnostics: [],
