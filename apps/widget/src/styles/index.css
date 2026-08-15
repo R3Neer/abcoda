@@ -701,7 +701,7 @@ body {
   clip-path: inset(50%);
 }
 
-@media (max-width: 32rem) {
+@media (max-width: 36rem) {
   .header {
     flex-direction: column;
   }

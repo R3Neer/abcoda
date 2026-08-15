@@ -9,11 +9,17 @@ for (const theme of ["light", "dark"] as const) {
   test(`captures the ready widget in ${theme} theme for visual review`, async ({ page }, testInfo) => {
     await page.goto(`/?scenario=ready&theme=${theme}`);
     await settleWidget(page, "Revision 1 ready");
-    await openMixer(page);
+    const mixer = await openMixer(page);
     await captureVisualReview(
       page,
       testInfo,
-      `ready-${theme}-${testInfo.project.name}`,
+      `ready-${theme}-viewport-${testInfo.project.name}`,
+    );
+    await captureVisualReview(
+      page,
+      testInfo,
+      `ready-${theme}-mixer-${testInfo.project.name}`,
+      mixer,
     );
   });
 }
@@ -21,10 +27,16 @@ for (const theme of ["light", "dark"] as const) {
 test("captures pitched and percussion controls together for visual review", async ({ page }, testInfo) => {
   await page.goto("/?scenario=mixed&theme=light");
   await settleWidget(page, "Revision 1 ready");
-  await openMixer(page);
+  const mixer = await openMixer(page);
   await captureVisualReview(
     page,
     testInfo,
-    `mixed-light-${testInfo.project.name}`,
+    `mixed-light-viewport-${testInfo.project.name}`,
+  );
+  await captureVisualReview(
+    page,
+    testInfo,
+    `mixed-light-mixer-${testInfo.project.name}`,
+    mixer,
   );
 });

@@ -46,15 +46,23 @@ export async function captureVisualReview(
   page: Page,
   testInfo: TestInfo,
   name: string,
-  target: Locator = page.locator(".shell"),
+  target?: Locator,
 ): Promise<void> {
   await stabilizeVisuals(page);
   const path = testInfo.outputPath("visual-review", `${name}.png`);
   await mkdir(dirname(path), { recursive: true });
-  await target.screenshot({
-    path,
-    animations: "disabled",
-  });
+  if (target) {
+    await target.screenshot({
+      path,
+      animations: "disabled",
+    });
+  } else {
+    await page.screenshot({
+      path,
+      animations: "disabled",
+      fullPage: false,
+    });
+  }
   await testInfo.attach(name, {
     path,
     contentType: "image/png",

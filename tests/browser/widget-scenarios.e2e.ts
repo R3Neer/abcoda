@@ -208,12 +208,15 @@ test("clicking an engraved note seeks and places the cursor immediately before i
   expect(Math.abs(cursorBox!.x + cursorBox!.width - noteBox!.x)).toBeLessThan(8);
 });
 
-test("a near-note click follows ABCJS selection instead of the previous timing span", async ({ page }) => {
+test("a click near the edge of an engraved note keeps selection and cursor aligned", async ({ page }) => {
   await page.goto("/?scenario=ready");
   const note = page.locator("#score .abcjs-note").nth(1);
   const noteBox = await note.boundingBox();
   expect(noteBox).not.toBeNull();
-  await page.mouse.click(noteBox!.x - 6, noteBox!.y + noteBox!.height / 2);
+  await page.mouse.click(
+    noteBox!.x + Math.min(2, noteBox!.width / 2),
+    noteBox!.y + noteBox!.height / 2,
+  );
   await expect(note).toHaveClass(/abcjs-note_selected/);
   const cursorBox = await page.locator(".score-cursor").boundingBox();
   expect(cursorBox).not.toBeNull();
@@ -411,15 +414,14 @@ test("commit entry can be cancelled without creating a version", async ({ page }
   await expect(page.locator("#version-history button")).toHaveCount(1);
 });
 
-test("transposition is reviewable before it creates a new score revision", async ({ page }) => {
+test("score transposition applies immediately and creates a new score revision", async ({ page }) => {
   await page.goto("/?scenario=ready");
   await page.locator("#editor > summary").click();
-  await page.locator("#transpose-up").click();
+  const transpose = page.getByRole("group", { name: "score" });
+  await expect(transpose.getByLabel("score step in semitones")).toHaveValue("1");
+  await transpose.getByRole("button", { name: "Transpose score up" }).click();
 
-  await expect(page.locator("#editor-state")).toHaveText("Saving soon…");
-  await expect(page.locator("#status")).toHaveText("Revision 1 ready");
   await expect(page.locator("#abc-draft")).toHaveValue(/K:(?:Db|C#)/);
-
   await expect(page.locator("#status")).toHaveText("Revision 2 ready");
   await expect(page.locator("#editor-state")).toHaveText("Revision 2 saved");
   await expect(page.locator("#score")).toContainText("First architecture v2 vertical");
@@ -432,7 +434,8 @@ test("mixed pitched and percussion voices keep compatible controls and transposi
   await expect(percussionInstrument).toHaveValue("standard_drum_kit");
 
   await page.locator("#editor > summary").click();
-  await page.locator("#transpose-up").click();
+  const transpose = page.getByRole("group", { name: "score" });
+  await transpose.getByRole("button", { name: "Transpose score up" }).click();
   const draft = page.locator("#abc-draft");
   await expect(draft).toHaveValue(/K:C#/);
   await expect(draft).toHaveValue(/\[V:D\]\[K:none clef=perc\] C D E F\|C D E F\|\]/);
@@ -461,9 +464,23 @@ test("primary controls follow a visible and operable keyboard path", async ({ pa
   await expect(muteRight).toHaveAttribute("aria-label", "Unmute RH");
 
   await page.keyboard.press("Tab");
+  await expect(page.getByRole("button", { name: "Transpose voice RH down" })).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(page.getByLabel("voice RH step in semitones")).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("button", { name: "Transpose voice RH up" })).toBeFocused();
+
+  await page.keyboard.press("Tab");
   await expect(page.getByLabel("Instrument for LH")).toBeFocused();
   await page.keyboard.press("Tab");
   await expect(page.locator('button.voice-mute[data-voice-id="LH"]')).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("button", { name: "Transpose voice LH down" })).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(page.getByLabel("voice LH step in semitones")).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("button", { name: "Transpose voice LH up" })).toBeFocused();
+
   await page.keyboard.press("Tab");
   const editorSummary = page.locator("#editor > summary");
   await expect(editorSummary).toBeFocused();
@@ -477,6 +494,14 @@ test("primary controls follow a visible and operable keyboard path", async ({ pa
   await expect(page.locator('#version-history button[data-version-id="original"]')).toBeFocused();
   await page.keyboard.press("Tab");
   await expect(page.locator("#abc-draft")).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(page.locator("#copy-draft")).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("button", { name: "Transpose score down" })).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(page.getByLabel("score step in semitones")).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("button", { name: "Transpose score up" })).toBeFocused();
 });
 
 test("reduced-motion preference suppresses nonessential transitions", async ({ page }) => {
@@ -502,7 +527,9 @@ test("responsive reflow retains the selected musical event", async ({ page }) =>
     if (!cursor || !reflowedNote) return Number.POSITIVE_INFINITY;
     return Math.abs(cursor.x + cursor.width - reflowedNote.x);
   }).toBeLessThan(8);
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await expect.poll(() => page.evaluate(
+    () => document.documentElement.scrollWidth <= innerWidth,
+  )).toBe(true);
 });
 
 test("browser zoom and forced colors keep controls and notation legible", async ({ page }) => {
