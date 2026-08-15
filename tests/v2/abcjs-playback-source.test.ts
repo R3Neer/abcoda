@@ -120,4 +120,56 @@ describe("abcjs playback source mapping", () => {
     expect(sourceNotes.map((event) => event.volume)).toEqual([80, 80, 80]);
     expect(sourceNotes.map((event) => event.instrument)).toEqual([0, 0, 0]);
   });
+
+  it("keeps playable contrabass notes audible when the same phrase also contains unplayable notes", () => {
+    const contrabassMix: VoiceMixSnapshot = {
+      revision: 5,
+      voices: [
+        { id: "CB", kind: "pitched", instrument: "contrabass", muted: false },
+      ],
+    };
+    const sourcePitches = [60, 62, 64, 65, 67, 69, 71, 72];
+    const audio = {
+      tracks: [[
+        { cmd: "program", instrument: 0 },
+        ...sourcePitches.map((pitch, index) => ({
+          cmd: "note" as const,
+          instrument: 0,
+          pitch,
+          volume: 80,
+          start: index * 0.125,
+          duration: 0.125,
+          gap: 0,
+          startChar: 20 + index * 2,
+          endChar: 21 + index * 2,
+        })),
+      ]],
+    } as ABCJS.AudioTracks;
+    const tune = {
+      setUpAudio: () => audio,
+    } as unknown as ABCJS.TuneObject;
+
+    const configured = tuneWithInstrumentPrograms(tune, contrabassMix).setUpAudio({});
+    const notes = configured.tracks[0]?.filter(
+      (event): event is ABCJS.AudioTrackNoteItem => event.cmd === "note",
+    ) ?? [];
+    const originalNotes = audio.tracks[0]?.filter(
+      (event): event is ABCJS.AudioTrackNoteItem => event.cmd === "note",
+    ) ?? [];
+
+    expect(notes).toHaveLength(8);
+    expect(notes.map((event) => event.volume)).toEqual([
+      80, 80, 80, 80, 80, 0, 0, 0,
+    ]);
+    expect(notes.map((event) => event.pitch)).toEqual([
+      60, 62, 64, 65, 67, 62, 62, 62,
+    ]);
+    expect(notes.map((event) => event.instrument)).toEqual([
+      43, 43, 43, 43, 43, 43, 43, 43,
+    ]);
+    expect(originalNotes.map((event) => event.pitch)).toEqual(sourcePitches);
+    expect(originalNotes.map((event) => event.volume)).toEqual([
+      80, 80, 80, 80, 80, 80, 80, 80,
+    ]);
+  });
 });

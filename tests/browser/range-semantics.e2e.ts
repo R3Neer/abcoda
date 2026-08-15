@@ -9,9 +9,12 @@ test("instrument range states drive controls and engraved note colors", async ({
   await settleWidget(page, "Revision 1 ready");
   const mixer = await openMixer(page);
 
-  const usual = mixer.locator(".voice-mix-row").filter({ hasText: "USUAL" });
-  const extended = mixer.locator(".voice-mix-row").filter({ hasText: "EXTENDED" });
-  const unplayable = mixer.locator(".voice-mix-row").filter({ hasText: "UNPLAYABLE" });
+  const rowFor = (voiceId: string) => mixer.locator(
+    `.voice-mix-row:has(.voice-instrument[data-voice-id="${voiceId}"])`,
+  );
+  const usual = rowFor("USUAL");
+  const extended = rowFor("EXTENDED");
+  const unplayable = rowFor("UNPLAYABLE");
 
   await expect(usual.locator(".voice-instrument")).toHaveAttribute(
     "data-range-status",
