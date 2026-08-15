@@ -12,8 +12,8 @@
 | CAP-03 | ABC suministrado directamente | characterized | `tests/mcp.test.ts`, corpus de caracterización | Contrato `EvaluateScore`. |
 | CAP-04 | Normalización y diagnósticos mecánicos | partial | Diagnósticos v2 tipados con rangos; codec extrae voces, percusión, metro, tonalidad y tempo básico | Eventos/compases, variantes ABC y comparador contra corpus. |
 | CAP-05 | Grabado multivoz | partial | abcjs en tests Node y widget construido | Prueba en navegador y screenshots. |
-| CAP-06 | Play, pause, rewind y loop | partial | `tests/transport.test.ts`, `tests/deferred-audio.test.ts` | Navegador con gesto humano y reloj falso. |
-| CAP-07 | Tempo en vivo | partial | tests de transport y continuidad | Carrera tempo/rebuild en navegador. |
+| CAP-06 | Play, pause, rewind y loop | partial | Máquina v2 discriminada detrás de `PlaybackEngine`, con continuidad, teardown y carreras probadas | Adaptador abcjs, controles y navegador con gesto humano. |
+| CAP-07 | Tempo en vivo | partial | Preferencia v2, ratio respecto al tempo base y carrera tempo/reconfiguración probada | Rebuild abcjs y continuidad en navegador. |
 | CAP-08 | Instrumento y mute por voz | partial | `tests/score.test.ts`, markup | Interacción completa en navegador. |
 | CAP-09 | Compatibilidad y rango instrumental | characterized | `tests/score.test.ts` | Política de dominio independiente de abcjs. |
 | CAP-10 | Transposición de ABC, tonalidad y acordes | characterized | `tests/abc-edit.test.ts` | Operación canónica e inversa. |
