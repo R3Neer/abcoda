@@ -59,6 +59,9 @@ export class AbcjsEngraver implements Engraver {
     const tunes = ABCJS.renderAbc(this.target, snapshot.document.source.text, {
       add_classes: true,
       expandToWidest: true,
+      format: {
+        stretchlast: 1,
+      },
       foregroundColor: "currentColor",
       paddingleft: 32,
       paddingright: 32,
