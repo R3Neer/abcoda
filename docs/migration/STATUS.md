@@ -1,61 +1,80 @@
 # Estado de la reconstrucción
 
-> Rama: `architecture-v2`
->
-> Baseline: `ae361541f05fd52abbd0fe1dc0f1240e3d627320`
->
-> Último corte confirmado: 2026-08-15, commit `1bdb00a`
->
-> Validación del corte: `npm run check` verde (207 unitarias/integración y 11 Worker); Playwright 62/64 más la regresión corregida 2/2. El rerun integral de los cambios posteriores está pendiente por el límite de ejecución del entorno.
+> Rama: `architecture-v2`  
+> Baseline legacy: `ae361541f05fd52abbd0fe1dc0f1240e3d627320`  
+> Último corte funcional auditado: `540890c718f7f20c320cb4f8566f214fbd75e9c8`  
+> CI asociado: run #42, completo y verde  
+> Arquitectura normativa: [`docs/architecture/ABCoda-arquitectura-objetivo.md`](../architecture/ABCoda-arquitectura-objetivo.md)  
+> Plan vigente: [`docs/architecture/ABCoda-plan-implementacion-y-migracion.md`](../architecture/ABCoda-plan-implementacion-y-migracion.md)
+
+## Resumen
+
+`architecture-v2` ya no es un experimento vacío. El núcleo, Worker, codec, widget, edición, reproducción, transposición y política instrumental existen y pasan CI. La auditoría de agosto de 2026 confirma que la dirección arquitectónica es buena, pero reabre algunas puertas que se habían marcado como completas con demasiado optimismo.
+
+La deuda actual no exige otra reescritura. Exige terminar de materializar las fronteras previstas.
 
 ## Fases
 
-| Fase | Estado | Evidencia |
+| Fase | Estado | Evidencia / deuda pendiente |
 |---|---|---|
-| 0. Congelar y caracterizar | complete | Baseline reproducido desde `ae36154`; contratos legacy, corpus ABC, defecto tunebook y capacidades/defectos quedaron registrados antes del primer corte. La suite browser posterior conserva los escenarios de UX que se decidió mantener o corregir. |
-| 1. Esqueleto y dependencias | complete | Workspaces, tsconfigs, apps Worker/widget, ESLint tipado, límites automáticos, detección de ciclos, CI Node 22 y builds legacy/v2 simultáneos pasan en `check:browser`. Versiones y URI v2 proceden de `packages/contracts`. |
-| 2. Contratos y modelo canónico | complete | Contratos externos v2 versionados y adaptador schema 1; aggregate rico con IDs nominales de melodía/voz/compás/evento/revisión; snapshot compacto; `PlaybackProfile`, `ScoreOperation`, diagnósticos con corrección y resultados discriminados. Worker, widget y aplicación compilan sin importarse entre sí. |
-| 3. Codec y diagnósticos | complete | `CanonicalAbcCodec` modela corpus, rangos y nodos opacos con round-trip lossless; validadores distinguen sintaxis de consistencia; normalización es idempotente; `ApplyScoreOperation` transpone tonalidad/notas/acordes, preserva percusión y aplica instrumento/mute/restauración sin revisiones parciales. `abcjs` ya no transforma borradores. |
-| 4. Casos de uso | in progress | `PrepareComposition`, `EvaluateScore`, `PresentScore`, `ApplyScoreOperation` y `ExportScore` ya están tras puertos y tienen pruebas sin MCP/Worker/DOM. Implementación, lint y tipos listos; falta ejecutar el gate nuevo para pasar a `complete`. |
-| 5. MCP y Worker seguro | in progress | Herramientas/recurso, límites HTTP, allowlist CORS y CSP MCP ya pasaban workerd; se añadieron request ID, headers defensivos, logs estructurados sin ABC/prompts y trazas automáticas. Falta rerun workerd y preview real. |
-| 6. Shell y bridge | complete | `HostBridge` aísla resultados, teardown, tema y safe areas; los controladores poseen estado y efectos por revisión; `DomWidgetView` posee el DOM. El laboratorio cubre carga, error, recuperación y carreras en móvil/escritorio. |
-| 7. Grabado | in progress | Adaptador abcjs, piano/multivoz, selección por nota y cursor ya pasaban Playwright; ahora hay reflow cancelable por `ResizeObserver` que conserva identidad de fuente y regresiones de zoom/contraste forzado. Falta ejecutar el gate browser nuevo. |
-| 8. Reproducción | in progress | Engine diferido, transporte, tempo vivo, loop, timeline y click-to-seek tienen pruebas de carrera; reflow conserva continuidad y teardown invalida cargas de muestras pendientes. Falta ejecutar esas regresiones y audición humana. |
-| 9. Instrumentos y edición | in progress | Mezcla race-safe, avisos de tesitura, editor revisionado, commits explícitos, historial y transposición revisable están implementados. Falta sustituir la transformación abcjs/textual por operaciones canónicas. |
-| 10. Paridad, UX y robustez | in progress | Propiedades del codec, teclado/foco/reduced-motion y presupuestos están cubiertos; se añadieron contraste forzado, zoom 200 %, reflow y telemetría sin contenido musical. Faltan gate integral, revisión humana/audio y clasificación final. |
-| 11. Candidato y sustitución | pending | No existe aún un preview integrado y aprobado ni procedimiento probado de rollback. |
+| 0. Congelar y caracterizar | **complete** | Baseline, CAP/FIX, corpus y compatibilidad legacy registrados. |
+| 1. Esqueleto y dependencias | **reopened** | Workspaces, ESLint, CI y builds existen; falta dejar de importar directamente `packages/*/src/**` entre workspaces y declarar dependencias workspace reales. |
+| 2. Contratos y modelo canónico | **implemented, debt** | Contratos v2, compatibilidad schema 1, IDs nominales y documento rico existen. `ScoreSnapshot` aún mezcla proyección interna y versión de protocolo. |
+| 3. Codec y diagnósticos | **complete for current corpus** | Parser source-preserving, opaque nodes, validación, normalización, round-trip y operaciones canónicas cubren el corpus actual. |
+| 4. Casos de uso | **complete for current scope** | `PrepareComposition`, `EvaluateScore`, `PresentScore`, operaciones y export ABC se prueban sin MCP/DOM. |
+| 5. MCP y Worker seguro | **implemented, preview pending** | Seguridad HTTP, MCP, health, artefacto, request ID y workerd pasan; falta preview público real y cierre operativo. |
+| 6. Shell y bridge | **reopened for cleanup** | HostBridge y controladores existen. Falta encapsular coordinación transversal hoy residente en `main.ts` y dividir `DomWidgetView`. |
+| 7. Grabado | **implemented** | Multivoz, reflow, cursor, selección y responsive pasan navegador; debe mantenerse estable durante M2/M3. |
+| 8. Reproducción | **implemented, hardening pending** | Transporte, tempo, loop, seek, pause/resume y carreras están cubiertos. Falta audición final y política técnica explícita de capacidad SoundFont separada de tesitura. |
+| 9. Instrumentos y edición | **implemented for current scope** | Editor revisionado, mix persistente, transposición global/por voz y tesituras `usual/extended/unplayable` están operativos. Presets ambiguos usan política `unbounded`. |
+| 10. Paridad, UX y robustez | **in progress** | Playwright, screenshots, forced colors y móvil existen. Faltan refactors arquitectónicos, preview, accesibilidad/audio humanos y clasificación final CAP/FIX. |
+| 11. Candidato y sustitución | **pending** | No existe aún un artefacto preview aprobado con rollback probado. |
 
-## Decisiones de cierre
+## Deuda arquitectónica prioritaria
 
-- Las fases solo pasan a `complete` cuando satisfacen su puerta de salida y la evidencia está en el repositorio o en el pipeline reproducible.
-- La Fase 6 usa controladores de sesión pequeños con propiedad explícita del estado en lugar de un reducer global; conserva el límite arquitectónico y evita un store central innecesario.
-- No se crearán paquetes vacíos solo para reproducir el árbol propuesto: se introducen cuando exista un caso de uso y una prueba que justifiquen el límite.
+1. **ARCH-01 / M1:** imports inter-workspace a APIs públicas y `workspace:*`.
+2. **ARCH-02 / M2:** `WidgetSessionCoordinator`; `main.ts` solo composition root.
+3. **ARCH-03 / M3:** dividir `DomWidgetView` por editor/mixer/transporte/shell.
+4. **ARCH-04 / M4:** separar snapshot interno y DTO versionado.
+5. **ARCH-05 / M5:** modularizar `packages/composition` cuando vuelva a crecer esa superficie.
+6. **M6:** caracterizar y proteger capacidad técnica del SoundFont independientemente de tesitura musical.
 
-## Primer corte vertical
+## Decisiones confirmadas
 
-La primera vertical implementa:
+- No se fuerza un reducer global: controladores especializados son una desviación deliberada y aceptada del diseño inicial.
+- No se crean paquetes vacíos para reproducir un diagrama.
+- El codec crece por corpus real y conserva sintaxis desconocida de forma opaca cuando es seguro.
+- `abcjs` queda en adaptadores de navegador.
+- El dominio musical decide compatibilidad y tesitura; el backend de audio decide capacidad técnica de síntesis.
+- `church_organ`, `string_ensemble_1`, `choir_aahs` y `recorder` genérico no reciben límites organológicos inventados.
+- CI verde es condición necesaria, no prueba suficiente de que una puerta arquitectónica esté cerrada.
+
+## Siguiente secuencia recomendada
 
 ```text
-ABC source
-  -> evaluateScoreRequestSchema
-  -> EvaluateScore
-  -> ScoreCodec port
-  -> CanonicalAbcCodec adapter
-  -> ScoreSnapshot v2 o diagnósticos tipados
-  -> recurso MCP Apps autocontenido
-  -> HostBridge MCP Apps o standalone
-  -> validación del snapshot en el widget
-  -> ScoreSessionController con revisión y cancelación
-  -> AbcjsEngraver adapter
-  -> partitura estática en el laboratorio v2
+M1 workspace boundaries
+  → M2 session coordinator
+  → M3 split DOM views
+
+M1
+  → M4 internal/external snapshot
+
+M2
+  → M6 synth capability hardening
+
+M3 + M4 + M6
+  → preview real
+  → UX/accessibility/audio review
+  → candidate + rollback
 ```
 
-Este corte demuestra inversión de dependencias y cierra el comportamiento v2 deseado para tunebooks múltiples sin introducir MCP, Cloudflare, DOM o abcjs en el dominio o en los casos de uso.
+## Criterio de actualización
 
-## Limitaciones conscientes actuales
+Este fichero debe cambiar cuando:
 
-- El codec canónico conserva construcciones desconocidas como nodos opacos seguros; ampliar el corpus seguirá siendo trabajo incremental, no un bloqueo de la migración.
-- `abcjs` queda deliberadamente limitado a grabado, timeline y síntesis del navegador; la edición/transposición ya usa operaciones canónicas propias.
-- El HTML v2 autocontenido mide 253,25 kB gzip y el Worker v2 245,26 kB gzip; ambos están dentro de los presupuestos automatizados.
-- Las 64 pruebas browser cubren interacciones y responsive, pero aún faltan referencias visuales focalizadas, lector de pantalla, contraste alto y audición real.
-- La rama local está diez commits por delante de `origin/architecture-v2` antes del siguiente push de migración.
+- se cierre o reabra una puerta de fase;
+- aparezca una deuda arquitectónica que limite crecimiento;
+- una CAP cambie de estado;
+- un preview/candidato quede identificado por SHA y artifact hash.
+
+No debe actualizarse para cada commit menor. La historia del repo ya cumple esa función sin necesidad de hacer cosplay de diario de a bordo.
