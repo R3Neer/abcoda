@@ -5,13 +5,13 @@ import {
   parseAbc,
   serializeAbc,
   transposeDocument,
-} from "../../packages/abc-codec/src/index";
-import { ApplyScoreOperation } from "../../packages/application/src/index";
+} from "@abcoda/abc-codec";
+import { ApplyScoreOperation } from "@abcoda/application";
 import {
   asVoiceId,
   type PlaybackProfile,
   type ScoreDocument,
-} from "../../packages/domain/src/index";
+} from "@abcoda/domain";
 
 const mixed = `X:1
 M:4/4
@@ -58,6 +58,32 @@ describe("canonical score operations", () => {
 
     const restored = transposeDocument(transposed, -2);
     expect(serializeAbc(restored)).toBe(serializeAbc(original));
+  });
+
+  it("transposes only parsed key fields while preserving formatting and key-like text", () => {
+    const source = [
+      "X:1",
+      "L:1/4",
+      "K:  C  ",
+      '"K:C"C D|',
+      "% K:C remains a comment",
+      "%%text K:C remains a directive",
+      "K:  G  ",
+      "[K:  D ] E F|]",
+      "",
+    ].join("\n");
+    const original = document(source);
+    const transposed = serializeAbc(transposeDocument(original, 2));
+
+    expect(transposed).toContain("K:  D  ");
+    expect(transposed).toContain("K:  A  ");
+    expect(transposed).toContain("[K:  E ]");
+    expect(transposed).toContain('"K:C"D E|');
+    expect(transposed).toContain("% K:C remains a comment");
+    expect(transposed).toContain("%%text K:C remains a directive");
+
+    const restored = serializeAbc(transposeDocument(document(transposed), -2));
+    expect(restored).toBe(source);
   });
 
   it("transposes one selected voice without changing global harmony or percussion", () => {
