@@ -88,15 +88,8 @@ export class ScoreCursorController {
     return eventProgress(event, this.timeline.totalDurationMs);
   }
 
-  finish(): void {
-    const last = this.timeline.events.at(-1);
-    if (!last) {
-      this.view.hide();
-      return;
-    }
-    this.selected = last;
-    const endX = last.endX ?? last.x + (last.width ?? 12);
-    this.view.show({ ...last, x: endX });
+  playbackFinished(looping: boolean): void {
+    if (!looping) this.rewind();
   }
 
   rewind(): void {

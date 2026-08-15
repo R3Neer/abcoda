@@ -141,6 +141,11 @@ body {
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 28%, transparent);
   pointer-events: none;
   transform: translateX(-3px);
+  transition: opacity 80ms ease-out;
+}
+
+.score-cursor.is-wrapping {
+  opacity: 0.12;
 }
 
 .score :where(.abcjs-note_selected, .abcjs-note_selected *) {
@@ -559,6 +564,13 @@ body {
   cursor: pointer;
 }
 
+.transport button[aria-pressed="true"] {
+  border-color: color-mix(in srgb, var(--accent) 68%, var(--control-border));
+  color: var(--accent-ink);
+  background: var(--accent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, white 14%, transparent);
+}
+
 .transport .icon-button {
   padding-inline: 0;
 }
@@ -635,5 +647,9 @@ body {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+
+  .score-cursor.is-wrapping {
+    opacity: 1;
   }
 }

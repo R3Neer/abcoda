@@ -44,8 +44,9 @@ const controller = new ScoreSessionController(
   new AbcjsEngraver(view.scoreTarget, view.audioTarget, {
     onPlaybackStarted: () => cursor.setPlaying(true),
     onPlaybackFinished: () => {
+      const looping = playback.snapshot().loop;
+      cursor.playbackFinished(looping);
       playback.playbackFinished();
-      cursor.finish();
     },
     onPlaybackEvent: (event) => cursor.onPlaybackEvent(event),
     onScoreSelection: (sourceOffsets) => {

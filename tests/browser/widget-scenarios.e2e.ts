@@ -52,7 +52,7 @@ test("standalone host theme is explicit and overridable", async ({ page }) => {
 });
 
 test("playback controls adopt score tempo and remain operable without starting audio", async ({ page }) => {
-  await page.goto("/?scenario=ready");
+  await page.goto("/?scenario=ready&theme=light");
   const play = page.locator("#playback");
   const loop = page.locator("#loop");
   const tempo = page.locator("#tempo");
@@ -65,6 +65,8 @@ test("playback controls adopt score tempo and remain operable without starting a
   await loop.click();
   await expect(loop).toHaveAttribute("aria-pressed", "true");
   await expect(loop).toHaveAttribute("aria-label", "Disable loop");
+  await expect(loop).toHaveCSS("background-color", "rgb(37, 99, 235)");
+  await expect(loop).toHaveCSS("color", "rgb(255, 255, 255)");
   await tempo.fill("110");
   await tempo.dispatchEvent("change");
   await expect(page.locator("#tempo-value")).toHaveText("110 BPM");
@@ -168,7 +170,7 @@ test("a near-note click follows ABCJS selection instead of the previous timing s
   expect(Math.abs(cursorBox!.x + cursorBox!.width - noteBox!.x)).toBeLessThan(8);
 });
 
-test("the cursor reaches the final bar when playback finishes", async ({ page }) => {
+test("the cursor returns to the first note when non-looping playback finishes", async ({ page }) => {
   await page.goto("/?scenario=ready");
   const lastNote = page.locator("#score .abcjs-note").last();
   const lastNoteBox = await lastNote.boundingBox();
@@ -180,10 +182,10 @@ test("the cursor reaches the final bar when playback finishes", async ({ page })
   await page.locator("#playback").click();
   await expect(page.locator("#playback")).toHaveAttribute("aria-label", "Play", { timeout: 15000 });
   const cursorBox = await page.locator(".score-cursor").boundingBox();
-  const finalBarBox = await page.locator("#score .abcjs-bar").last().boundingBox();
+  const firstNoteBox = await page.locator("#score .abcjs-note").first().boundingBox();
   expect(cursorBox).not.toBeNull();
-  expect(finalBarBox).not.toBeNull();
-  expect(Math.abs(cursorBox!.x - finalBarBox!.x)).toBeLessThan(12);
+  expect(firstNoteBox).not.toBeNull();
+  expect(Math.abs(cursorBox!.x + cursorBox!.width - firstNoteBox!.x)).toBeLessThan(8);
 });
 
 test("loop enabled while playback starts survives the first ending", async ({ page }) => {
@@ -201,6 +203,39 @@ test("loop enabled while playback starts survives the first ending", async ({ pa
   await expect(page.locator("#loop")).toHaveAttribute("aria-pressed", "true");
   await page.waitForTimeout(2500);
   await expect(page.locator("#playback")).toHaveAttribute("aria-label", "Pause");
+});
+
+test("the cursor fades through a wrapped system jump", async ({ page }) => {
+  await page.goto("/?scenario=ready");
+  await page.locator("#editor > summary").click();
+  await page.locator("#abc-draft").fill([
+    "X:1",
+    "T:Wrapped cursor",
+    "M:4/4",
+    "L:1/4",
+    "Q:1/4=300",
+    "K:C",
+    "C D E F|G A B c|",
+    "c B A G|F E D C|",
+    "C E G c|c G E C|",
+    "D F A d|d A F D|]",
+  ].join("\n"));
+  await expect(page.locator("#status")).toHaveText("Revision 2 ready");
+  await page.evaluate(() => {
+    Reflect.set(window, "__abcodaCursorWrapped", false);
+    const cursor = document.querySelector(".score-cursor");
+    if (!cursor) return;
+    new MutationObserver(() => {
+      if (cursor.classList.contains("is-wrapping")) {
+        Reflect.set(window, "__abcodaCursorWrapped", true);
+      }
+    }).observe(cursor, { attributeFilter: ["class"] });
+  });
+
+  await page.locator("#playback").click();
+  await expect.poll(() => page.evaluate(
+    () => Reflect.get(window, "__abcodaCursorWrapped") === true,
+  ), { timeout: 10000 }).toBe(true);
 });
 
 test("play starts at the first note and seeking while playing keeps playback alive", async ({ page }) => {

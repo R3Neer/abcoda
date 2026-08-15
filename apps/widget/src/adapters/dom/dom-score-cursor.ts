@@ -3,6 +3,8 @@ import type { CursorMotion, ScoreTimingEvent } from "../../application/score-tim
 
 export class DomScoreCursor implements CursorView {
   private readonly cursor: HTMLDivElement;
+  private wrapFadeTimer: ReturnType<typeof setTimeout> | undefined;
+  private motionGeneration = 0;
 
   constructor(private readonly scoreTarget: HTMLElement) {
     this.cursor = document.createElement("div");
@@ -13,11 +15,15 @@ export class DomScoreCursor implements CursorView {
   }
 
   show(event: ScoreTimingEvent, motion?: CursorMotion): void {
+    const generation = ++this.motionGeneration;
+    if (this.wrapFadeTimer) clearTimeout(this.wrapFadeTimer);
+    this.wrapFadeTimer = undefined;
     if (!this.cursor.isConnected) this.scoreTarget.appendChild(this.cursor);
     const position = this.toCssPosition(event.x, event.y, event.height);
     if (!position) return;
     this.cursor.hidden = false;
-    this.cursor.style.transition = "none";
+    this.cursor.style.transition = "opacity 80ms ease-out";
+    this.cursor.classList.remove("is-wrapping");
     this.cursor.style.left = `${position.x}px`;
     this.cursor.style.top = `${position.y}px`;
     this.cursor.style.height = `${position.height}px`;
@@ -25,14 +31,25 @@ export class DomScoreCursor implements CursorView {
     const target = this.toCssPosition(motion.x, event.y, event.height);
     if (!target) return;
     requestAnimationFrame(() => {
-      this.cursor.style.transition = `left ${motion.durationMs}ms linear`;
+      if (generation !== this.motionGeneration) return;
+      this.cursor.style.transition = `left ${motion.durationMs}ms linear, opacity 80ms ease-out`;
       this.cursor.style.left = `${target.x}px`;
+      if (motion.wrapsLine) {
+        this.wrapFadeTimer = setTimeout(() => {
+          this.cursor.classList.add("is-wrapping");
+          this.wrapFadeTimer = undefined;
+        }, motion.durationMs * 0.82);
+      }
     });
   }
 
   hide(): void {
+    this.motionGeneration += 1;
+    if (this.wrapFadeTimer) clearTimeout(this.wrapFadeTimer);
+    this.wrapFadeTimer = undefined;
     this.cursor.hidden = true;
-    this.cursor.style.transition = "none";
+    this.cursor.classList.remove("is-wrapping");
+    this.cursor.style.transition = "opacity 80ms ease-out";
   }
 
   private toCssPosition(x: number, y: number, height: number): { x: number; y: number; height: number } | undefined {
