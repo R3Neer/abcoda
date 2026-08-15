@@ -530,7 +530,13 @@ export function parseAbc(sourceInput: string): DecodeScoreResult {
   const key = firstKey?.value;
   const headerFields: ScoreField[] = headers
     .filter((header) => firstKey === undefined || header.line <= firstKey.line)
-    .map(({ line: _line, ...field }) => field);
+    .map((header) => ({
+      name: header.name,
+      value: header.value,
+      placement: header.placement,
+      source: header.source,
+      valueSource: header.valueSource,
+    }));
 
   const document: ScoreDocument = {
     tuneId: asTuneId(reference.value),
