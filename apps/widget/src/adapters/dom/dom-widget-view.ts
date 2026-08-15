@@ -113,6 +113,16 @@ export class DomWidgetView {
     state: VoiceMixSnapshot,
     assessments: readonly VoiceRangeAssessment[] = [],
   ): void {
+    const active = this.documentObject.activeElement;
+    const focusedVoice = active instanceof HTMLElement && this.voiceMix.contains(active)
+      ? active.dataset.voiceId
+      : undefined;
+    const focusedRole = active instanceof HTMLSelectElement
+      ? "instrument"
+      : active instanceof HTMLInputElement && active.type === "checkbox"
+        ? "mute"
+        : undefined;
+    let restoredFocus: HTMLSelectElement | HTMLInputElement | undefined;
     this.mixer.hidden = state.voices.length === 0;
     this.voiceMix.replaceChildren(...state.voices.map((voice) => {
       const row = this.documentObject.createElement("div");
@@ -127,6 +137,7 @@ export class DomWidgetView {
       select.className = "voice-instrument";
       select.dataset.voiceId = voice.id;
       select.setAttribute("aria-label", `Instrument for ${voice.id}`);
+      if (voice.id === focusedVoice && focusedRole === "instrument") restoredFocus = select;
       for (const instrument of instrumentsForVoice(voice.kind)) {
         const option = this.documentObject.createElement("option");
         option.value = instrument.id;
@@ -142,6 +153,7 @@ export class DomWidgetView {
       mute.dataset.voiceId = voice.id;
       mute.checked = voice.muted;
       mute.setAttribute("aria-label", `Mute ${voice.id}`);
+      if (voice.id === focusedVoice && focusedRole === "mute") restoredFocus = mute;
       muteLabel.appendChild(mute);
       muteLabel.appendChild(this.documentObject.createTextNode("Mute"));
       row.appendChild(name);
@@ -156,6 +168,7 @@ export class DomWidgetView {
       }
       return row;
     }));
+    restoredFocus?.focus();
   }
 
   showDraft(state: DraftSessionState): void {

@@ -17,6 +17,11 @@
   box-sizing: border-box;
 }
 
+:where(button, select, input, textarea, summary):focus-visible {
+  outline: 2px solid Highlight;
+  outline-offset: 2px;
+}
+
 body {
   margin: 0;
   min-width: 0;
@@ -359,5 +364,16 @@ body {
 
   .editor[open] ~ .transport {
     position: static;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }

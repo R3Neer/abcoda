@@ -210,3 +210,35 @@ test("mixed pitched and percussion voices keep compatible controls and transposi
   await expect(page.locator("#status")).toHaveText("Revision 2 ready");
   await expect(percussionInstrument).toHaveValue("standard_drum_kit");
 });
+
+test("primary controls follow a visible and operable keyboard path", async ({ page }) => {
+  await page.goto("/?scenario=ready");
+  await page.keyboard.press("Tab");
+  await expect(page.getByLabel("Instrument for RH")).toBeFocused();
+  await expect(page.getByLabel("Instrument for RH")).toHaveCSS("outline-style", "solid");
+
+  await page.keyboard.press("Tab");
+  const muteRight = page.getByLabel("Mute RH");
+  await expect(muteRight).toBeFocused();
+  await page.keyboard.press("Space");
+  await expect(muteRight).toBeChecked();
+
+  await page.keyboard.press("Tab");
+  await expect(page.getByLabel("Instrument for LH")).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(page.getByLabel("Mute LH")).toBeFocused();
+  await page.keyboard.press("Tab");
+  const editorSummary = page.locator("#editor summary");
+  await expect(editorSummary).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page.locator("#editor")).toHaveAttribute("open", "");
+  await page.keyboard.press("Tab");
+  await expect(page.locator("#abc-draft")).toBeFocused();
+});
+
+test("reduced-motion preference suppresses nonessential transitions", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/?scenario=ready");
+  await expect(page.locator("#playback")).toHaveCSS("transition-duration", "1e-05s");
+  await expect(page.locator("html")).toHaveCSS("scroll-behavior", "auto");
+});
