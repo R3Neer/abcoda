@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { CanonicalAbcCodec } from "../../packages/abc-codec/src/index";
+import { CanonicalAbcCodec } from "@abcoda/abc-codec";
 import {
   EvaluateScore,
   ExportScore,
   PrepareComposition,
   PresentScore,
   type CompositionKnowledge,
-} from "../../packages/application/src/index";
+} from "@abcoda/application";
 
 interface Brief {
   readonly seed: string;
@@ -34,10 +34,10 @@ describe("transport-independent application use cases", () => {
     expect(evaluated.status).toBe("success");
     if (evaluated.status !== "success") throw new Error("Expected evaluation success.");
 
-    const presented = new PresentScore(evaluate).execute({ snapshot: evaluated.snapshot });
+    const presented = new PresentScore(evaluate).execute({ score: evaluated.score });
     expect(presented).toEqual(evaluated);
 
-    const decoded = codec.decode(evaluated.snapshot.document.source.text);
+    const decoded = codec.decode(evaluated.score.document.source.text);
     if (!decoded.ok) throw new Error("Expected decode success.");
     expect(new ExportScore(codec).execute({ document: decoded.document })).toEqual({
       format: "abc",
