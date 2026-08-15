@@ -23,10 +23,12 @@ export interface McpRequestObservability {
   readonly now?: () => number;
 }
 
-export interface ObservedToolExecution<Result extends object> {
-  readonly result: Result;
-  readonly outcome: McpToolOutcome;
-  readonly failed?: boolean;
+export interface McpToolObservationScope {
+  complete<Result extends object>(
+    outcome: McpToolOutcome,
+    result: Result,
+    failed?: boolean,
+  ): Result & { readonly _meta?: Record<string, unknown> };
 }
 
 function resultMeta(result: object): Record<string, unknown> {
@@ -37,33 +39,37 @@ function resultMeta(result: object): Record<string, unknown> {
     : {};
 }
 
-export function observeMcpTool<Result extends object>(
+export function startMcpToolObservation(
   observability: McpRequestObservability | undefined,
   toolName: McpToolName,
-  execute: () => ObservedToolExecution<Result>,
-): Result & { readonly _meta?: Record<string, unknown> } {
+): McpToolObservationScope {
   const now = observability?.now ?? Date.now;
   const startedAt = now();
-  const execution = execute();
-  const durationMs = Math.max(0, now() - startedAt);
 
-  if (observability) {
-    observability.emit({
-      event: execution.failed ? "mcp.tool.failed" : "mcp.tool.completed",
-      requestId: observability.requestId,
-      toolName,
-      outcome: execution.outcome,
-      durationMs,
-    });
+  return {
+    complete<Result extends object>(
+      outcome: McpToolOutcome,
+      result: Result,
+      failed = false,
+    ): Result & { readonly _meta?: Record<string, unknown> } {
+      const durationMs = Math.max(0, now() - startedAt);
+      if (!observability) return result;
 
-    return {
-      ...execution.result,
-      _meta: {
-        ...resultMeta(execution.result),
-        "abcoda/requestId": observability.requestId,
-      },
-    };
-  }
+      observability.emit({
+        event: failed ? "mcp.tool.failed" : "mcp.tool.completed",
+        requestId: observability.requestId,
+        toolName,
+        outcome,
+        durationMs,
+      });
 
-  return execution.result;
+      return {
+        ...result,
+        _meta: {
+          ...resultMeta(result),
+          "abcoda/requestId": observability.requestId,
+        },
+      };
+    },
+  };
 }
