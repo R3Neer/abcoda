@@ -11,7 +11,7 @@ export function applyVoiceRangePresentation(
   documentObject
     .querySelectorAll<HTMLElement>(".voice-mix-row")
     .forEach((row, index) => {
-      const select = row.querySelector<HTMLSelectElement>(".voice-instrument");
+      const select = row.querySelector<HTMLElement>(".voice-instrument");
       if (!select) return;
 
       const voiceId = select.getAttribute("data-voice-id");
