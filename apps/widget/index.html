@@ -31,13 +31,6 @@
           <div class="editor-toolbar">
             <label for="abc-draft">ABC source</label>
             <div class="editor-tools">
-              <details id="version-picker" class="version-picker">
-                <summary aria-label="Version history" title="Version history">
-                  <svg class="control-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3a9 9 0 1 1-8.45 5.91l-1.97-.02L6 5.5 9.42 8.9l-2.53.01A7 7 0 1 0 13 5v3l-4-4 4-4v3zm-1 5h2v5.17l3.24 1.87-1 1.73L12 14.32V8z" /></svg>
-                  <span>Versions</span>
-                </summary>
-                <div id="version-history" class="version-history" role="listbox" aria-label="Draft versions"></div>
-              </details>
               <div class="commit-control">
                 <button id="begin-commit" class="commit-button" type="button" aria-label="Commit version" title="Commit version">
                   <svg class="control-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7.1 11a5 5 0 0 1 9.8 0H22v2h-5.1a5 5 0 0 1-9.8 0H2v-2h5.1zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z" /></svg>
@@ -49,8 +42,18 @@
                   <button id="submit-commit" class="icon-button" type="submit" aria-label="Save version" title="Save version" disabled>
                     <svg class="control-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 6.8 8.4 9.4 7 8l5-5 5 5-1.4 1.4L13 6.8V17h-2V6.8zM5 19h14v2H5v-2z" /></svg>
                   </button>
+                  <button id="cancel-commit" class="icon-button" type="button" aria-label="Cancel commit" title="Cancel commit">
+                    <svg class="control-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6.4 5 5.6 5.6L17.6 5 19 6.4 13.4 12l5.6 5.6-1.4 1.4-5.6-5.6L6.4 19 5 17.6l5.6-5.6L5 6.4 6.4 5z" /></svg>
+                  </button>
                 </form>
               </div>
+              <details id="version-picker" class="version-picker">
+                <summary aria-label="Version history" title="Version history">
+                  <svg class="control-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3a9 9 0 1 1-8.45 5.91l-1.97-.02L6 5.5 9.42 8.9l-2.53.01A7 7 0 1 0 13 5v3l-4-4 4-4v3zm-1 5h2v5.17l3.24 1.87-1 1.73L12 14.32V8z" /></svg>
+                  <span>Versions</span>
+                </summary>
+                <div id="version-history" class="version-history" role="listbox" aria-label="Draft versions"></div>
+              </details>
             </div>
           </div>
           <div class="textarea-shell">

@@ -121,7 +121,7 @@ export class PlaybackSessionController {
 
   setLoop(loop: boolean): void {
     this.state = { ...this.state, loop };
-    if (this.engine && this.state.status === "ready") this.engine.setLoop(loop);
+    if (this.engine) this.engine.setLoop(loop);
     this.emit();
   }
 

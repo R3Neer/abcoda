@@ -58,6 +58,7 @@ export class DomWidgetView {
   private readonly commitForm: HTMLFormElement;
   private readonly commitMessage: HTMLInputElement;
   private readonly submitCommitButton: HTMLButtonElement;
+  private readonly cancelCommitButton: HTMLButtonElement;
   private readonly copyDraftButton: HTMLButtonElement;
   private readonly copyIcon: SVGElement;
   private readonly copiedIcon: SVGElement;
@@ -91,6 +92,7 @@ export class DomWidgetView {
     this.commitForm = this.required("commit-form");
     this.commitMessage = this.required("commit-message");
     this.submitCommitButton = this.required("submit-commit");
+    this.cancelCommitButton = this.required("cancel-commit");
     this.copyDraftButton = this.required("copy-draft");
     this.copyIcon = this.requiredInside(this.copyDraftButton, ".copy-icon");
     this.copiedIcon = this.requiredInside(this.copyDraftButton, ".copied-icon");
@@ -345,12 +347,14 @@ export class DomWidgetView {
       this.commitForm.hidden = true;
       this.beginCommitButton.hidden = false;
     };
-    const cancelCommit = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
+    const closeCommit = () => {
       this.commitMessage.value = "";
       this.commitForm.hidden = true;
       this.beginCommitButton.hidden = false;
       this.beginCommitButton.focus();
+    };
+    const cancelCommitWithKeyboard = (event: KeyboardEvent) => {
+      if (event.key === "Escape") closeCommit();
     };
     const transposeListeners = this.transposeButtons.map((button) => {
       const transpose = () => actions.transpose(Number(button.dataset.semitones));
@@ -368,8 +372,9 @@ export class DomWidgetView {
     this.versionPicker.querySelector("summary")?.addEventListener("click", keepVersionsOpen);
     this.beginCommitButton.addEventListener("click", beginCommit);
     this.commitMessage.addEventListener("input", updateCommit);
-    this.commitMessage.addEventListener("keydown", cancelCommit);
+    this.commitMessage.addEventListener("keydown", cancelCommitWithKeyboard);
     this.commitForm.addEventListener("submit", submitCommit);
+    this.cancelCommitButton.addEventListener("click", closeCommit);
     return () => {
       this.draftInput.removeEventListener("input", edit);
       this.versionHistory.removeEventListener("click", restoreVersion);
@@ -382,8 +387,9 @@ export class DomWidgetView {
       this.versionPicker.querySelector("summary")?.removeEventListener("click", keepVersionsOpen);
       this.beginCommitButton.removeEventListener("click", beginCommit);
       this.commitMessage.removeEventListener("input", updateCommit);
-      this.commitMessage.removeEventListener("keydown", cancelCommit);
+      this.commitMessage.removeEventListener("keydown", cancelCommitWithKeyboard);
       this.commitForm.removeEventListener("submit", submitCommit);
+      this.cancelCommitButton.removeEventListener("click", closeCommit);
       if (versionCloseTimer) clearTimeout(versionCloseTimer);
       if (this.copyResetTimer) clearTimeout(this.copyResetTimer);
       for (const { button, transpose } of transposeListeners) {

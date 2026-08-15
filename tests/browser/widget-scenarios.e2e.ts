@@ -186,6 +186,23 @@ test("the cursor reaches the final bar when playback finishes", async ({ page })
   expect(Math.abs(cursorBox!.x - finalBarBox!.x)).toBeLessThan(12);
 });
 
+test("loop enabled while playback starts survives the first ending", async ({ page }) => {
+  await page.goto("/?scenario=ready");
+  const lastNote = page.locator("#score .abcjs-note").last();
+  const lastNoteBox = await lastNote.boundingBox();
+  expect(lastNoteBox).not.toBeNull();
+  await page.mouse.click(
+    lastNoteBox!.x + lastNoteBox!.width / 2,
+    lastNoteBox!.y + lastNoteBox!.height / 2,
+  );
+
+  await page.locator("#playback").click();
+  await page.locator("#loop").click();
+  await expect(page.locator("#loop")).toHaveAttribute("aria-pressed", "true");
+  await page.waitForTimeout(2500);
+  await expect(page.locator("#playback")).toHaveAttribute("aria-label", "Pause");
+});
+
 test("play starts at the first note and seeking while playing keeps playback alive", async ({ page }) => {
   await page.goto("/?scenario=ready");
   const cursor = page.locator(".score-cursor");
@@ -291,6 +308,24 @@ test("version history opens and closes with hover", async ({ page }) => {
   await expect(page.locator("#version-picker")).not.toHaveAttribute("open", "");
 });
 
+test("commit entry can be cancelled without creating a version", async ({ page }) => {
+  await page.goto("/?scenario=ready");
+  await page.locator("#editor > summary").click();
+  expect(await page.evaluate(() => {
+    const commit = document.querySelector(".commit-control");
+    const versions = document.querySelector("#version-picker");
+    return Boolean(commit && versions && (commit.compareDocumentPosition(versions) & Node.DOCUMENT_POSITION_FOLLOWING));
+  })).toBe(true);
+  await page.locator("#begin-commit").click();
+  await page.locator("#commit-message").fill("Do not save");
+  await page.locator("#cancel-commit").click();
+
+  await expect(page.locator("#commit-form")).toBeHidden();
+  await expect(page.locator("#begin-commit")).toBeVisible();
+  await expect(page.locator("#begin-commit")).toBeFocused();
+  await expect(page.locator("#version-history button")).toHaveCount(1);
+});
+
 test("transposition is reviewable before it creates a new score revision", async ({ page }) => {
   await page.goto("/?scenario=ready");
   await page.locator("#editor > summary").click();
@@ -350,11 +385,11 @@ test("primary controls follow a visible and operable keyboard path", async ({ pa
   await page.keyboard.press("Enter");
   await expect(page.locator("#editor")).toHaveAttribute("open", "");
   await page.keyboard.press("Tab");
+  await expect(page.locator("#begin-commit")).toBeFocused();
+  await page.keyboard.press("Tab");
   await expect(page.locator("#version-picker > summary")).toBeFocused();
   await page.keyboard.press("Tab");
   await expect(page.locator('#version-history button[data-version-id="original"]')).toBeFocused();
-  await page.keyboard.press("Tab");
-  await expect(page.locator("#begin-commit")).toBeFocused();
   await page.keyboard.press("Tab");
   await expect(page.locator("#abc-draft")).toBeFocused();
 });

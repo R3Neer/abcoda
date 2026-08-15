@@ -78,6 +78,22 @@ describe("PlaybackSessionController", () => {
     expect(controller.snapshot()).toMatchObject({ status: "ready", mode: "playing" });
   });
 
+  it("applies loop changes while playback is still starting", async () => {
+    const { controller, engine, spies } = setup();
+    await controller.configure(engine, 100);
+    let release!: () => void;
+    spies.play.mockReturnValue(new Promise((resolve) => { release = resolve; }));
+
+    const starting = controller.togglePlayback();
+    controller.setLoop(true);
+
+    expect(controller.snapshot()).toMatchObject({ status: "transitioning", loop: true });
+    expect(spies.setLoop).toHaveBeenLastCalledWith(true);
+    release();
+    await starting;
+    expect(controller.snapshot()).toMatchObject({ status: "ready", mode: "playing", loop: true });
+  });
+
   it("does not let an obsolete transition overwrite a replacement engine", async () => {
     const { controller, engine: first, spies } = setup();
     await controller.configure(first, 100);
