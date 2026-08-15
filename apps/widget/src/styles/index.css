@@ -59,9 +59,21 @@ body {
 }
 
 .score {
+  position: relative;
   min-height: 12rem;
   overflow-x: auto;
   padding-block: 1rem;
+}
+
+.score-cursor {
+  position: absolute;
+  z-index: 2;
+  width: 2px;
+  min-height: 1rem;
+  border-radius: 999px;
+  background: Highlight;
+  box-shadow: 0 0 0 1px color-mix(in srgb, Highlight 28%, transparent);
+  pointer-events: none;
 }
 
 .score svg {

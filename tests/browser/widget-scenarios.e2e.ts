@@ -88,3 +88,11 @@ test("host safe-area insets are applied without horizontal overflow", async ({ p
   await expect(root).toHaveCSS("--host-safe-left", "5px");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
+
+test("clicking an engraved measure seeks and places the visual cursor", async ({ page }) => {
+  await page.goto("/?scenario=ready");
+  await page.locator("#score .abcjs-mm1").first().dispatchEvent("click");
+  const cursor = page.locator(".score-cursor");
+  await expect(cursor).toBeVisible();
+  await expect(cursor).not.toHaveCSS("height", "0px");
+});

@@ -19,7 +19,7 @@
 | CAP-10 | Transposición de ABC, tonalidad y acordes | characterized | `tests/abc-edit.test.ts` | Operación canónica e inversa. |
 | CAP-11 | Percusión inmune a transposición tonal | characterized | lint, edit y score tests | Invariante de dominio v2. |
 | CAP-12 | Editar, copiar, aplicar y restaurar | partial | tests de markup y funciones | E2E de revisiones y diagnóstico. |
-| CAP-13 | Cursor y seek por compás | partial | `tests/cursor.test.ts` y transport | Reloj, reflow y click/touch en navegador. |
+| CAP-13 | Cursor y seek por compás | partial | Timeline neutral, matching por fuente/tiempo, cursor DOM y click-to-seek E2E móvil/escritorio | Movimiento durante audio real, reflow y touch explícito. |
 | CAP-14 | Tema del host y layout móvil | partial | Contexto neutral, temas/safe areas explícitos, sin mínimo rígido y E2E móvil/escritorio | Dimensiones declaradas del contenedor y matriz de hosts reales. |
 | CAP-15 | Transporte siempre accesible | partial | markup y CSS | Screenshots y teclado en viewports límite. |
 | CAP-16 | Demo independiente | implemented | Host simulado v2 y ocho recorridos Playwright móvil/escritorio | Paridad funcional al completar controles interactivos. |

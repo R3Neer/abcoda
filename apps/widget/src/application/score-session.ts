@@ -3,13 +3,15 @@ import {
   type ScoreSnapshotDto,
 } from "../../../../packages/contracts/src/index";
 import type { PlaybackEngine } from "./playback-session";
+import type { ScoreTimeline } from "./score-timeline";
 
 export interface EngravingResult {
   readonly playback?: PlaybackEngine;
+  readonly timeline?: ScoreTimeline;
 }
 
 export interface Engraver {
-  render(abc: string, signal: AbortSignal): Promise<EngravingResult>;
+  render(snapshot: ScoreSnapshotDto, signal: AbortSignal): Promise<EngravingResult>;
   clear(): void;
 }
 
@@ -75,7 +77,7 @@ export class ScoreSessionController {
     this.onState({ status: "loading", revision: snapshot.revision });
 
     try {
-      const result = await this.engraver.render(snapshot.document.source.text, effect.signal);
+      const result = await this.engraver.render(snapshot, effect.signal);
       if (effect.signal.aborted || snapshot.revision !== this.activeRevision) return;
       this.onEngraved(snapshot, result);
       this.onState({ status: "ready", snapshot });
