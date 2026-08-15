@@ -25,6 +25,31 @@ const generatedComposition = {
 } as const;
 
 describe("ABC mechanical normalization", () => {
+  it("repairs missing multivoice grouping so engraving and audio begin together", () => {
+    const input = score(
+      "X:1\nT:Band\nM:4/4\nL:1/4\nQ:1/4=120\nV:LEAD clef=treble\nV:SYNTH clef=treble\nK:C\n[V:LEAD] CDEF|GABc|]\n[V:SYNTH] [CEG]4|[FAC]4|]",
+      { playback: { tempo: 120, instruments: { LEAD: "acoustic_guitar_nylon", SYNTH: "string_ensemble_1" } } },
+    );
+    const result = normalizeAndLintScore(input);
+    expect(result.score.abc).toContain("%%score { LEAD SYNTH }");
+    expect(result.warnings.join(" ")).not.toContain("without a %%score grouping");
+
+    const tune = ABCJS.parseOnly(result.score.abc)[0]!;
+    expect(tune.lines.some((line) => line.staff?.length === 2)).toBe(true);
+    const tracks = ABCJS.synth.sequence(tune, {});
+    expect(tracks).toHaveLength(2);
+    const firstTimings = tracks.map((track) => track.find((event) => event.el_type === "note")?.timing);
+    expect(firstTimings).toEqual([0, 0]);
+  });
+
+  it("repairs an incomplete grouping rather than dropping or delaying a voice", () => {
+    const result = normalizeAndLintScore(score(
+      "X:1\nT:Trio\nM:4/4\nL:1/4\nQ:1/4=96\n%%score { A B }\nV:A\nV:B\nV:C\nK:C\n[V:A] C4|]\n[V:B] E4|]\n[V:C] G4|]",
+    ));
+    expect(result.score.abc).toContain("%%score { A B C }");
+    expect(ABCJS.synth.sequence(ABCJS.parseOnly(result.score.abc)[0]!, {})).toHaveLength(3);
+  });
+
   it("aligns the printed quarter-note tempo with playback", () => {
     const input = score("X:1\nT:Tempo\nM:4/4\nL:1/8\nQ:\"Andante\" 1/8=144\nK:C\nC8|]", {
       playback: { tempo: 72 },
@@ -115,14 +140,16 @@ describe("ABC contract lint", () => {
     expect(result.warnings).toContain("ABC header L: is missing.");
   });
 
-  it("warns about unknown configuration and %%score voice IDs", () => {
+  it("warns about unknown configuration and repairs unknown %%score voice IDs", () => {
     const input = score(
       "X:1\nT:Voices\nM:4/4\nL:1/4\nQ:1/4=96\nV:ONE clef=treble\nK:C\n%%score { ONE TWO }\n[V:ONE] CDEF|]",
       { playback: { instruments: { GHOST: "cello" } } },
     );
-    const warnings = normalizeAndLintScore(input).warnings;
+    const result = normalizeAndLintScore(input);
+    const warnings = result.warnings;
     expect(warnings).toContain("Configuration references unknown voice GHOST.");
-    expect(warnings).toContain("%%score references undeclared voice TWO.");
+    expect(warnings.join(" ")).not.toContain("%%score references undeclared voice TWO.");
+    expect(result.score.abc).toContain("%%score { ONE }");
   });
 
   it("warns when the rendered score contradicts its composition brief", () => {

@@ -1,7 +1,7 @@
 import ABCJS from "abcjs";
 import { describe, expect, it } from "vitest";
 import { instrumentNames, renderScoreInputSchema } from "../shared/score";
-import { abcTitle, extractVoiceIds } from "../shared/voices";
+import { abcTitle, extractVoiceIds, scoreVoiceOrder } from "../shared/voices";
 import {
   applyInstrumentPrograms,
   applyInstruments,
@@ -63,6 +63,10 @@ describe("ABC metadata", () => {
 
   it("uses a stable default voice", () => {
     expect(extractVoiceIds("X:1\nK:C\nC4|")).toEqual(["default"]);
+  });
+
+  it("uses %%score order for playback track mapping", () => {
+    expect(scoreVoiceOrder("X:1\n%%score { B A }\nV:A\nV:B\nK:C\n[V:A] C4|]\n[V:B] E4|]")).toEqual(["B", "A"]);
   });
 });
 

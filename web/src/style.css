@@ -20,8 +20,14 @@
 
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
-html, body { margin: 0; min-width: 0; background: transparent; }
-body { overflow-x: hidden; }
+html, body {
+  height: var(--abcoda-inline-height, 720px);
+  max-height: var(--abcoda-inline-height, 720px);
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  background: transparent;
+}
 button, input, select { font: inherit; }
 
 button, select {
@@ -53,14 +59,26 @@ button.primary:hover:not(:disabled) { background: color-mix(in srgb, var(--color
 button.primary[aria-pressed="true"] { color: var(--abcoda-accent); background: color-mix(in srgb, var(--abcoda-accent) 14%, transparent); }
 
 .app-shell {
+  height: 100%;
   width: 100%;
   min-width: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding:
     max(10px, env(safe-area-inset-top))
     max(4px, env(safe-area-inset-right))
     max(116px, calc(env(safe-area-inset-bottom) + 108px))
     max(4px, env(safe-area-inset-left));
 }
+
+html[data-display-mode="standalone"],
+html[data-display-mode="standalone"] body {
+  height: auto;
+  max-height: none;
+  overflow: auto;
+}
+html[data-display-mode="standalone"] .app-shell { height: auto; overflow: visible; }
 
 html[data-display-mode="fullscreen"] {
   height: var(--abcoda-host-height, 100dvh);

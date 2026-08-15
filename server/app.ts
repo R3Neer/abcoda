@@ -13,9 +13,9 @@ import {
   compositionBriefSchema,
   compositionPlanOutputSchema,
 } from "../shared/composition-plan.js";
-import { extractVoiceIds } from "../shared/voices.js";
+import { scoreVoiceOrder } from "../shared/voices.js";
 
-export const widgetUri = "ui://abcoda/score-v16.html";
+export const widgetUri = "ui://abcoda/score-v17.html";
 const widgetDomain = "https://abcoda.mud-repo-patcher-mcp-probe.workers.dev";
 
 const widgetCsp = {
@@ -37,7 +37,7 @@ export function validateAbc(abc: string): string[] {
 
 export function createAbcodaServer(loadWidget: WidgetLoader): McpServer {
   const server = new McpServer(
-    { name: "ABCoda", version: "0.10.0" },
+    { name: "ABCoda", version: "0.11.0" },
     { instructions: abcodaComposerInstructions },
   );
 
@@ -110,7 +110,7 @@ export function createAbcodaServer(loadWidget: WidgetLoader): McpServer {
         const result = {
           schemaVersion: 1 as const,
           score,
-          voiceIds: extractVoiceIds(score.abc),
+          voiceIds: scoreVoiceOrder(score.abc),
           warnings,
         };
         return {

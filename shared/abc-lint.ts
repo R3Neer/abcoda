@@ -1,6 +1,6 @@
 import ABCJS from "abcjs";
 import type { RenderScoreInput } from "./score.js";
-import { extractVoiceIds } from "./voices.js";
+import { extractVoiceIds, scoreDirectiveVoiceIds } from "./voices.js";
 
 export interface NormalizedScore {
   score: RenderScoreInput;
@@ -82,10 +82,27 @@ function declaredVoiceOccurrences(abc: string): string[] {
   return [...header.matchAll(/^\s*V:\s*([^\s%]+)/gm)].map((match) => match[1]).filter(Boolean) as string[];
 }
 
-function scoreDirectiveVoiceIds(abc: string): string[] {
-  const directive = abc.match(/^\s*%%score\s+(.+)$/m)?.[1];
-  if (!directive) return [];
-  return [...directive.matchAll(/[A-Za-z0-9_.-]+/g)].map((match) => match[0]);
+function normalizeScoreGrouping(abc: string): string {
+  const voiceIds = extractVoiceIds(abc);
+  const groupedIds = scoreDirectiveVoiceIds(abc);
+  if (voiceIds[0] === "default" || (voiceIds.length === 1 && groupedIds.length === 0)) return abc;
+  const voiceSet = new Set(voiceIds);
+  const groupingIsComplete = groupedIds.length > 0
+    && groupedIds.every((voiceId) => voiceSet.has(voiceId))
+    && voiceIds.every((voiceId) => groupedIds.includes(voiceId));
+  if (groupingIsComplete) return abc;
+
+  const canonical = `%%score { ${voiceIds.join(" ")} }`;
+  if (/^\s*%%score\b.*$/m.test(abc)) {
+    return abc.replace(/^\s*%%score\b.*$/m, canonical);
+  }
+
+  const lines = abc.split("\n");
+  const firstVoice = lines.findIndex((line) => /^\s*V:/.test(line));
+  const firstKey = lines.findIndex((line) => /^\s*K:/.test(line));
+  const insertion = firstVoice >= 0 ? firstVoice : firstKey >= 0 ? firstKey : lines.length;
+  lines.splice(insertion, 0, canonical);
+  return lines.join("\n");
 }
 
 type ParsedBeamNote = ABCJS.VoiceItemNote & { startBeam?: true; endBeam?: true };
@@ -214,6 +231,7 @@ export function normalizeAndLintScore(input: RenderScoreInput): NormalizedScore 
   ) as Record<string, "pitched" | "unpitched_percussion">;
   const notation = { voiceKinds: { ...originalKinds, ...inferredKinds } };
   let abc = normalizeTempo(input.abc, input.playback.tempo);
+  abc = normalizeScoreGrouping(abc);
   for (const voice of input.composition?.ensemble ?? []) {
     abc = normalizeVoiceTranspose(abc, voice.voiceId, voice.transpositionSemitones);
   }

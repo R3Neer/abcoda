@@ -14,8 +14,9 @@ import {
   type InstrumentName,
   type RenderScoreOutput,
 } from "../../shared/score";
-import { abcTitle, extractVoiceIds } from "../../shared/voices";
+import { abcTitle, extractVoiceIds, scoreVoiceOrder } from "../../shared/voices";
 import { abcGlobalKey, inferVoiceKind, setVoiceKind, transposeAbc, type VoiceKind } from "../../shared/abc-edit";
+import { normalizeAndLintScore } from "../../shared/abc-lint";
 import {
   eventProgress,
   expandedScoreBounds,
@@ -64,7 +65,7 @@ const sample: RenderScoreOutput = {
   },
 };
 
-const app = new App({ name: "ABCoda score", version: "0.7.0" });
+const app = new App({ name: "ABCoda score", version: "0.8.0" });
 const byId = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const scoreElement = byId<HTMLElement>("score");
 const notice = byId<HTMLElement>("notice");
@@ -241,6 +242,12 @@ type ChatGptBridge = {
 };
 
 const getChatGpt = () => (window as Window & { openai?: ChatGptBridge }).openai;
+let hostViewportHeight = 720;
+
+function inlineViewportHeight(): number {
+  const ceiling = window.matchMedia("(max-width: 640px)").matches ? 560 : 720;
+  return Math.max(360, Math.min(hostViewportHeight, ceiling));
+}
 
 function showNotice(message: string, error = false): void {
   noticeMessage.textContent = message;
@@ -268,7 +275,11 @@ function applyHostContext(context: HostVisualContext): void {
   const height = dimensions && "height" in dimensions
     ? dimensions.height
     : dimensions?.maxHeight ?? context.maxHeight;
-  if (height) document.documentElement.style.setProperty("--abcoda-host-height", `${height}px`);
+  if (typeof height === "number" && height > 0) {
+    hostViewportHeight = height;
+    document.documentElement.style.setProperty("--abcoda-host-height", `${height}px`);
+  }
+  document.documentElement.style.setProperty("--abcoda-inline-height", `${inlineViewportHeight()}px`);
 
   const safeArea = context.safeAreaInsets ?? context.safeArea;
   if (safeArea) {
@@ -410,20 +421,21 @@ async function runConfigurationQueue(): Promise<void> {
 
 function outputWithAbc(abc: string, warnings: string[] = []): RenderScoreOutput | undefined {
   if (!payload) return undefined;
+  const normalized = normalizeAndLintScore({
+    ...payload.score,
+    abc,
+    notation: { voiceKinds: { ...payload.score.notation.voiceKinds } },
+    playback: {
+      ...payload.score.playback,
+      instruments: { ...instruments },
+      mutedVoices: [...mutedVoices],
+    },
+  });
   return {
     ...payload,
-    voiceIds: extractVoiceIds(abc),
-    warnings,
-    score: {
-      ...payload.score,
-      abc,
-      notation: { voiceKinds: { ...payload.score.notation.voiceKinds } },
-      playback: {
-        ...payload.score.playback,
-        instruments: { ...instruments },
-        mutedVoices: [...mutedVoices],
-      },
-    },
+    voiceIds: scoreVoiceOrder(normalized.score.abc),
+    warnings: [...warnings, ...normalized.warnings],
+    score: normalized.score,
   };
 }
 
@@ -873,11 +885,12 @@ function renderFromChatGptGlobals(globals: ChatGptBridge): void {
 
   const input = renderScoreInputSchema.safeParse(globals.toolInput);
   if (input.success) {
+    const normalized = normalizeAndLintScore(input.data);
     void render({
       schemaVersion: 1,
-      score: input.data,
-      voiceIds: extractVoiceIds(input.data.abc),
-      warnings: [],
+      score: normalized.score,
+      voiceIds: scoreVoiceOrder(normalized.score.abc),
+      warnings: normalized.warnings,
     });
   }
 }
@@ -901,7 +914,9 @@ function setupChatGptHeightNotifications(): void {
     scheduled = true;
     requestAnimationFrame(() => {
       scheduled = false;
-      getChatGpt()?.notifyIntrinsicHeight?.(Math.ceil(document.documentElement.scrollHeight));
+      if (document.documentElement.dataset.displayMode !== "fullscreen") {
+        getChatGpt()?.notifyIntrinsicHeight?.(inlineViewportHeight());
+      }
     });
   };
   chatGptHeightObserver = new ResizeObserver(notifyHeight);
@@ -914,6 +929,8 @@ if (window.parent === window || new URLSearchParams(location.search).has("demo")
   document.documentElement.dataset.displayMode = "standalone";
   void render(decodeStandaloneScore(location.hash) ?? sample);
 } else {
+  document.documentElement.dataset.displayMode ||= "inline";
+  document.documentElement.style.setProperty("--abcoda-inline-height", `${inlineViewportHeight()}px`);
   app.connect().then(() => {
     const context = app.getHostContext();
     if (context) applyHostContext(context);

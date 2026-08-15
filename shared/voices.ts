@@ -17,6 +17,19 @@ export function extractVoiceIds(abc: string): string[] {
   return ids.length > 0 ? ids : ["default"];
 }
 
+export function scoreDirectiveVoiceIds(abc: string): string[] {
+  const directive = abc.match(/^\s*%%score\s+(.+)$/m)?.[1];
+  if (!directive) return [];
+  return [...directive.matchAll(/[A-Za-z0-9_.-]+/g)].map((match) => match[0]);
+}
+
+export function scoreVoiceOrder(abc: string): string[] {
+  const declared = extractVoiceIds(abc);
+  const declaredSet = new Set(declared);
+  const grouped = scoreDirectiveVoiceIds(abc).filter((voiceId) => declaredSet.has(voiceId));
+  return grouped.length > 0 ? [...new Set(grouped)] : declared;
+}
+
 export function abcTitle(abc: string): string | undefined {
   return abc.match(/(?:^|\n)\s*T:\s*(.+)/)?.[1]?.trim();
 }

@@ -33,6 +33,9 @@ describe("widget editing controls", () => {
     expect(html.indexOf('class="mixer"')).toBeGreaterThan(html.indexOf('class="transport"'));
     expect(css).toContain(".mixer[open]");
     expect(css).toContain("--abcoda-chat-clearance: 112px");
+    expect(css).toContain("height: var(--abcoda-inline-height, 720px)");
+    expect(main).toContain("notifyIntrinsicHeight?.(inlineViewportHeight())");
+    expect(main).not.toContain("notifyIntrinsicHeight?.(Math.ceil(document.documentElement.scrollHeight))");
     expect(css).toMatch(/html\[data-display-mode="fullscreen"\] \.control-dock\s*\{/);
     expect(css).toContain('html[data-display-mode="fullscreen"] #fullscreen { display: none; }');
   });
