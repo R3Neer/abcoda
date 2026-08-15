@@ -1,0 +1,40 @@
+name: ARCH-01 workspace codemod
+
+on:
+  push:
+    branches: [architecture-v2]
+    paths:
+      - scripts/arch-01-workspace-codemod.mjs
+
+permissions:
+  contents: write
+
+jobs:
+  refactor:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Apply deterministic workspace refactor
+        run: node scripts/arch-01-workspace-codemod.mjs
+      - name: Refresh lockfile
+        run: npm install --package-lock-only --ignore-scripts
+      - name: Verify architectural gate
+        run: npx vitest run tests/v2/architecture-boundaries.test.ts
+      - name: Check patch whitespace
+        run: git diff --check
+      - name: Commit refactor
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add packages apps package-lock.json
+          git diff --cached --quiet && exit 0
+          git commit -m "refactor(workspaces): consume public package exports"
+          git push origin HEAD:architecture-v2
