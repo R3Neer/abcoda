@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import { gzipSync } from "node:zlib";
 
 const MIB = 1024 * 1024;
@@ -28,9 +28,23 @@ for (const [name, size] of Object.entries(metrics)) {
   if (size > budget) throw new Error(`${name} is ${size} bytes; budget is ${budget} bytes.`);
 }
 
-for (const forbidden of ["SynthController", "renderAbc", "abcjs"]) {
+for (const forbidden of ["SynthController", "renderAbc"]) {
   if (workerText.includes(forbidden)) {
     throw new Error(`Worker bundle contains forbidden browser dependency marker ${forbidden}.`);
+  }
+}
+
+const serverSourceRoots = [
+  new URL("../apps/worker/src/", import.meta.url),
+  new URL("../packages/", import.meta.url),
+];
+const abcjsImport = /(?:\bfrom\s*|\bimport\s*\(|\brequire\s*\()\s*["']abcjs(?:\/[^"']*)?["']/;
+for (const root of serverSourceRoots) {
+  for (const file of await sourceFiles(root)) {
+    const source = await readFile(file, "utf8");
+    if (abcjsImport.test(source)) {
+      throw new Error(`Server source graph imports forbidden browser dependency abcjs in ${file.pathname}.`);
+    }
   }
 }
 
@@ -49,3 +63,13 @@ const report = {
   widgetPackaging: "single-html",
 };
 process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
+
+async function sourceFiles(directory) {
+  const entries = await readdir(directory, { withFileTypes: true });
+  const nested = await Promise.all(entries.map((entry) => {
+    const url = new URL(entry.name + (entry.isDirectory() ? "/" : ""), directory);
+    if (entry.isDirectory()) return sourceFiles(url);
+    return entry.isFile() && /\.(?:ts|tsx|js|mjs)$/.test(entry.name) ? [url] : [];
+  }));
+  return nested.flat();
+}
