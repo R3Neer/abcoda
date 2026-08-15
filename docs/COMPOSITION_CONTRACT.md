@@ -67,6 +67,23 @@ ABC uses whitespace as notation, not merely source formatting: adjacent eighth-o
 
 This is not a universal “beam everything” rule. Rests, barlines, metric and phrase boundaries, syllabic vocal notation, historical practice, and deliberate syncopation can require separation or exceptional grouping. The linter consequently does not rewrite whitespace. For generated music carrying a composition brief, it only warns when it finds a run of at least four consecutive eighth-or-shorter pitched events with no beam at all; supplied ABC without a brief is left aesthetically unjudged.
 
+### Expressive and performance notation
+
+Expressive detail is routed from the higher of performer `difficulty` and compositional `effort`. This preserves their independence: an exhaustive beginner piece may be easy to play but fully edited, while a quick virtuosic part still needs enough information to be executable. The thresholds concern function rather than symbol count:
+
+| Detail threshold | Minimum recommendation |
+| --- | --- |
+| `quick` + `beginner` | Necessary ties and slurs; basic staccato, tenuto, or accents wherever attack/duration changes. No routine ornamental clutter. |
+| `standard` or `intermediate` | A purposeful dynamic baseline/trajectory, hairpins with destinations, phrase/breath and fermata decisions, plus idiomatic instrument signs. Suitable piano styles may receive a sparse, clear pedal plan. |
+| `careful` or `advanced` | Detailed dynamic hierarchy and selectively idiomatic ornaments, arpeggios, glissandi, bowings, open/harmonic signs, fingerings, rolls, or technique text. |
+| `exhaustive` or `virtuosic` | A complete audit for contradictory, redundant, uncancelled, unplayable, unsupported, or visually excessive performance marks. |
+
+The modules remain instrument-aware. Winds, brass, and voice receive breathing/attack checks; bowed strings receive bow-group and technique checks; fretted/plucked instruments receive string/fret-oriented signs; percussion hairpins require a roll or sustaining sound; electronic production instructions remain text when General MIDI cannot express them. Difficulty still limits physical demands—more editorial effort does not make a beginner part harder.
+
+Piano pedal is conditional, not automatic. Romantic, impressionist/coloristic, and resonant minimalist/cinematic piano writing normally merits consideration from the standard/intermediate threshold; classical, jazz, pop, and hybrid writing requires contextual evidence such as cantabile, ballad, or resonant texture. Baroque, dry, detached, organ, and harpsichord-like writing remains unpedalled unless explicitly overridden. Because ABC 2.1 and abcjs do not expose a native piano-pedal decoration, ABCoda asks for below-staff `"_Ped."` and `"_*"` annotations at depression/release or retake points. These are honest visual instructions: the current synth does not realise sustain or half-pedal playback.
+
+ABC/abcjs-supported vocabulary used by the router includes immediate dynamics and `sfz`, crescendo/diminuendo spans, staccato/tenuto/accent/marcato, slurs and ties, fermata and breath, trill/turn/mordent and tradition-specific rolls, arpeggio and glissando spans, fingerings 0–5, up/down bows, open/harmonic, snap and thumb signs, phrase marks, coda/segno, and D.C./D.S./Fine. Some of these engrave without a corresponding General MIDI performance effect; the prompt must not claim otherwise.
+
 ## Verification policy
 
 The suite includes representative “golden” profiles and a pairwise coverage matrix. It validates every option individually and all style×form, style×pitch, style×rhythm, and style×texture pairs (576 combinations). Pairwise coverage proves that every selectable combination assembles a typed, bounded, complete prompt without missing modules; it does not prove the aesthetic success of every possible piece. Tool discovery is separately tested with direct, indirect, and negative examples documented in `GOLDEN_PROMPTS.md`.
@@ -76,8 +93,10 @@ The suite includes representative “golden” profiles and a pairwise coverage 
 - OpenAI, [Build an MCP server](https://developers.openai.com/apps-sdk/build/mcp-server): MCP server instructions, tool metadata, resources, CSP, and versioned widget URIs.
 - OpenAI, [Optimize Metadata](https://developers.openai.com/apps-sdk/guides/optimize-metadata): focused “use this when” descriptions, parameter documentation, and direct/indirect/negative golden-prompt evaluation.
 - ABC notation, [ABC 2.1 standard](https://abcnotation.com/wiki/abc%3Astandard%3Av2.1): information fields, tempo, voices, clefs, `K:none`, rhythm, ties, tuplets, repeats, and playback conventions.
+- ABC notation, [ABC 2.1 decorations](https://abcnotation.com/wiki/abc%3Astandard%3Av2.1#decorations): standard articulations, dynamics, hairpins, ornaments, bowing, fingering, navigation marks, and limited playback expectations for decorations.
 - ABC notation, [ABC 2.1 beams](https://abcnotation.com/wiki/abc%3Astandard%3Av2.1#beams): whitespace splits beam groups, while backticks can improve source readability without breaking a beam.
 - abcjs, [ABC notation support](https://docs.abcjs.net/overview/abc-notation) and [synthesized sound](https://docs.abcjs.net/audio/synthesized-sound): supported notation and client-side playback behaviour.
+- Steinberg Dorico, [Articulations](https://www.steinberg.help/r/dorico-pro/6.1/en/dorico/topics/notation_reference/notation_reference_articulations/notation_reference_articulations_c.html), [Playing techniques](https://www.steinberg.help/r/dorico-pro/6.1/en/dorico/topics/notation_reference/notation_reference_playing_techniques/notation_reference_playing_techniques_c.html), and [sustain-pedal retakes/levels](https://www.steinberg.help/r/dorico-pro/6.1/en/dorico/topics/notation_reference/notation_reference_pedal_lines/notation_reference_pedal_lines_piano_retakes_changes_c.html): distinction among attack/duration articulations, continuing instrument techniques, and timed pedal release/retake information.
 - MuseScore Studio Handbook, [Beams](https://handbook.musescore.org/notation/rhythm-meter-and-measures/beams), and Dorico, [Beam grouping according to meters](https://www.steinberg.help/r/dorico-se/6.1/en/dorico/topics/notation_reference/notation_reference_beaming/notation_reference_beaming_according_to_meter_c.html): beams communicate rhythmic grouping and vary with simple, compound, and irregular metres.
 - LilyPond, [Beams](https://lilypond.org/doc/v2.25/Documentation/notation/beams): meter-dependent defaults, historical alternatives in triple metre, exceptional beaming over rests, and vocal practice.
 - Open Music Theory, [table of contents](https://openmusictheory.github.io/contents.html): fundamentals, model composition, harmony, form, pop/rock, and post-tonal theory.

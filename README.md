@@ -7,6 +7,7 @@ Interactive ABC music notation inside AI conversations. ABCoda is a small TypeSc
 - responsive multi-voice notation from ABC;
 - combined play/pause, return-to-beginning, loop, and live tempo control;
 - General MIDI instrument selection and mute per ABC voice;
+- one host-theme foreground color for every instrument and voice;
 - semitone transposition of the actual ABC, including key signatures and chord symbols, while percussion voices remain fixed;
 - safe coupling between pitched instruments and pitched notation, and between the standard drum kit and `clef=perc`/`K:none`;
 - a score/ABC toggle with editable source, copy, apply, and restore controls;
@@ -48,13 +49,14 @@ render_score({
   },
   display: {
     title: "Short duet",
-    coloredVoices: true,
+    coloredVoices: false,
     preferredMeasuresPerLine: 4
   }
 })
 ```
 
 Voice keys must match ABC `V:` identifiers. The authoritative schemas and instrument allowlist live in [`shared/score.ts`](shared/score.ts).
+`display.coloredVoices` remains parseable for old callers but is deprecated and ignored: all notation now follows the same ChatGPT-theme foreground color.
 ABCoda's bootstrap contract lives in [`shared/composer-instructions.ts`](shared/composer-instructions.ts), while the typed brief and modular assembler live in [`shared/composition-plan.ts`](shared/composition-plan.ts). Common-practice counterpoint is not silently imposed on jazz, pop, impressionist, post-tonal, or experimental writing. The mechanical normalizer in [`shared/abc-lint.ts`](shared/abc-lint.ts) aligns `Q:` with playback tempo, derives typed percussion/transposition metadata from the shared brief, couples unpitched notation to the General MIDI percussion samples, and reports inconsistent headers, tempo, meter, voice references, voice kinds, and suspiciously absent beam grouping in generated scores. It never rewrites beams automatically because ABC whitespace may encode a deliberate metric, vocal, or historical choice. Client edits remain local to the widget instance and do not insert arbitrary text into model context. The prompt coverage and developer-mode golden cases are documented in [`docs/GOLDEN_PROMPTS.md`](docs/GOLDEN_PROMPTS.md).
 
 ## Local development

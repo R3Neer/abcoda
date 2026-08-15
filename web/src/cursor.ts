@@ -31,6 +31,44 @@ export function visibleTimingEvents(events: ABCJS.NoteTimingEvent[]): VisibleTim
   );
 }
 
+function sourcePositions(event: ABCJS.NoteTimingEvent): number[] {
+  return [event.startChar, ...(event.startCharArray ?? [])]
+    .filter((position): position is number => typeof position === "number");
+}
+
+export function matchingCursorEvent(
+  events: VisibleTimingEvent[],
+  callbackEvent: ABCJS.NoteTimingEvent,
+): VisibleTimingEvent | undefined {
+  const callbackPositions = new Set(sourcePositions(callbackEvent));
+  if (callbackPositions.size > 0) {
+    const sourceMatches = events.filter((candidate) =>
+      sourcePositions(candidate).some((position) => callbackPositions.has(position)),
+    );
+    if (sourceMatches.length > 0) return [...sourceMatches].sort(
+      (a, b) => Math.abs(a.milliseconds - callbackEvent.milliseconds)
+        - Math.abs(b.milliseconds - callbackEvent.milliseconds),
+    )[0];
+  }
+
+  const timingMatches = events.filter(
+    (candidate) => Math.abs(candidate.milliseconds - callbackEvent.milliseconds) <= 2,
+  );
+  if (timingMatches.length === 0) return undefined;
+  const sameLine = typeof callbackEvent.line === "number"
+    ? timingMatches.filter((candidate) => candidate.line === callbackEvent.line)
+    : timingMatches;
+  const candidates = sameLine.length > 0 ? sameLine : timingMatches;
+  if (typeof callbackEvent.left !== "number") return candidates[0];
+  return [...candidates].sort(
+    (a, b) => Math.abs(a.left - callbackEvent.left!) - Math.abs(b.left - callbackEvent.left!),
+  )[0];
+}
+
+export function cursorPlaybackActive(state: { playing: boolean; busy: boolean }): boolean {
+  return state.playing && !state.busy;
+}
+
 export function totalMeasureFromClasses(classes: string, fallback: number): number {
   const total = classes.match(/(?:^|\s)abcjs-mm(\d+)(?:\s|$)/);
   if (total) return Number(total[1]);

@@ -9,7 +9,13 @@ describe("score contract", () => {
     expect(parsed.playback.tempo).toBe(96);
     expect(parsed.playback.instruments).toEqual({});
     expect(parsed.notation.voiceKinds).toEqual({});
+    expect(parsed.display.coloredVoices).toBe(false);
     expect(parsed.schemaVersion).toBe(1);
+  });
+
+  it("keeps the legacy voice-color field parseable but defaults to one host-theme color", () => {
+    expect(renderScoreInputSchema.parse({ abc: "X:1\nK:C\nCDEF|", display: { coloredVoices: true } }).display.coloredVoices).toBe(true);
+    expect(renderScoreInputSchema.parse({ abc: "X:1\nK:C\nCDEF|" }).display.coloredVoices).toBe(false);
   });
 
   it("rejects unsafe score sizes and impossible tempi", () => {

@@ -59,10 +59,11 @@ export const renderScoreInputSchema = z.object({
   display: z
     .object({
       title: z.string().max(120).optional(),
-      coloredVoices: z.boolean().default(true),
+      coloredVoices: z.boolean().default(false)
+        .describe("Deprecated compatibility field. ABCoda renders every voice in the same host-theme foreground color."),
       preferredMeasuresPerLine: z.number().int().min(1).max(8).optional(),
     })
-    .default({ coloredVoices: true }),
+    .default({ coloredVoices: false }),
 });
 
 export type RenderScoreInput = z.infer<typeof renderScoreInputSchema>;

@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   cursorMotionFrom,
+  cursorPlaybackActive,
   eventProgress,
   firstEventInMeasure,
+  matchingCursorEvent,
   measureAtPoint,
   nextCursorEvent,
   timingEventsForTune,
@@ -56,5 +58,36 @@ describe("score seeking helpers", () => {
   it("sweeps to the end and fades before wrapping to the next system", () => {
     expect(cursorMotionFrom(events, events[1]!)).toEqual({ x: 120, duration: 1500, wrapsLine: false });
     expect(cursorMotionFrom(events, events[2]!)).toEqual({ x: 180, duration: 2000, wrapsLine: true });
+  });
+
+  it("matches abcjs playback callbacks by source position despite geometry or timing drift", () => {
+    const positioned = visibleTimingEvents([
+      { type: "event", milliseconds: 0, millisecondsPerMeasure: 2000, left: 20, top: 10, height: 50, line: 0, measureNumber: 0, startCharArray: [12, 24] },
+      { type: "event", milliseconds: 500, millisecondsPerMeasure: 2000, left: 60, top: 10, height: 50, line: 0, measureNumber: 0, startChar: 30 },
+    ]);
+    expect(matchingCursorEvent(positioned, {
+      type: "event", milliseconds: 17, millisecondsPerMeasure: 2000, startChar: 24,
+    })).toBe(positioned[0]);
+  });
+
+  it("uses playback time to disambiguate a source position repeated by repeat signs", () => {
+    const repeated = visibleTimingEvents([
+      { type: "event", milliseconds: 0, millisecondsPerMeasure: 2000, left: 20, top: 10, height: 50, line: 0, measureNumber: 0, startChar: 12 },
+      { type: "event", milliseconds: 8000, millisecondsPerMeasure: 2000, left: 20, top: 10, height: 50, line: 0, measureNumber: 0, startChar: 12 },
+    ]);
+    expect(matchingCursorEvent(repeated, {
+      type: "event", milliseconds: 8000.5, millisecondsPerMeasure: 2000, startChar: 12,
+    })).toBe(repeated[1]);
+  });
+
+  it("falls back to tolerant timing and does not advance during audio preparation", () => {
+    expect(matchingCursorEvent(events, {
+      type: "event", milliseconds: 501.5, millisecondsPerMeasure: 2000, line: 0, left: 58,
+    })).toBe(events[1]);
+    expect(matchingCursorEvent(events, {
+      type: "event", milliseconds: 510, millisecondsPerMeasure: 2000,
+    })).toBeUndefined();
+    expect(cursorPlaybackActive({ playing: true, busy: true })).toBe(false);
+    expect(cursorPlaybackActive({ playing: true, busy: false })).toBe(true);
   });
 });

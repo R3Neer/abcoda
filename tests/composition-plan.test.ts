@@ -322,6 +322,49 @@ describe("effort-aware musical review", () => {
     expect(result.guidance.preflight.join(" ")).toContain("beam grouping is encoded through deliberate ABC whitespace");
   });
 
+  it("keeps basic articulation available in a quick beginner sketch without over-notating it", () => {
+    const notation = plan({ difficulty: "beginner", effort: "quick", intent: "sketch" }).guidance.notation.join(" ");
+    expect(notation).toContain("!staccato!");
+    expect(notation).toContain("Do not mark every note by habit");
+    expect(notation).not.toContain("!crescendo(!");
+    expect(notation).not.toContain('"_Ped."');
+  });
+
+  it("adds dynamics and idiomatic visible pedal from standard/intermediate Romantic piano onward", () => {
+    const result = plan({ styleFamily: "romantic", styleDetail: "lyrical nocturne", difficulty: "intermediate", effort: "standard" });
+    const notation = result.guidance.notation.join(" ");
+    expect(notation).toContain("!crescendo(!");
+    expect(notation).toContain('"_Ped."');
+    expect(notation).toContain("does not yet reproduce these pedal changes in audio");
+    expect(result.review.instruments.join(" ")).toContain("Rehearse the piano pedal plan");
+  });
+
+  it("lets exhaustive effort fully notate an easy piano piece without raising performer difficulty", () => {
+    const notation = plan({ styleFamily: "impressionist_coloristic", difficulty: "beginner", effort: "exhaustive" }).guidance.notation.join(" ");
+    expect(notation).toContain("Keep beginner pedalling sparse");
+    expect(notation).toContain("complete performance-mark audit");
+    expect(notation).toContain("!glissando(!");
+  });
+
+  it("does not prescribe sustain pedal for dry historical keyboard writing or non-piano keyboards", () => {
+    const baroquePiano = plan({ styleFamily: "baroque", styleDetail: "two-part invention" }).guidance.notation.join(" ");
+    expect(baroquePiano).toContain("Do not add sustain pedal merely because the instrument is piano");
+    expect(baroquePiano).not.toContain('"_Ped."');
+    const organ = plan({ ensemble: [{ ...base.ensemble[0]!, instrument: "church organ" }] }).guidance.notation.join(" ");
+    expect(organ).not.toMatch(/Ped\.|sustain pedal/);
+  });
+
+  it("routes expressive notation by instrument family", () => {
+    const guitar = plan({ ensemble: [{ ...base.ensemble[0]!, instrument: "guitar", family: "guitar" }] }).guidance.notation.join(" ");
+    expect(guitar).toContain("fretted/plucked parts");
+    expect(guitar).toContain("!arpeggio!");
+    const flute = plan({ ensemble: [{ ...base.ensemble[0]!, instrument: "flute", family: "woodwind" }] }).guidance.notation.join(" ");
+    expect(flute).toContain("!breath!");
+    const drums = plan({ ensemble: [{ ...base.ensemble[0]!, instrument: "drum kit", family: "drum_kit", kind: "unpitched_percussion" }] }).guidance.notation.join(" ");
+    expect(drums).toContain("sustained hairpin needs an actual roll");
+    expect(drums).not.toContain('"_Ped."');
+  });
+
   it("keeps compatibility notes and emits schema v3", () => {
     const result = plan({
       styleFamily: "atonal_post_tonal",

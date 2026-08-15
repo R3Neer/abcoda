@@ -19,7 +19,9 @@ import { abcGlobalKey, inferVoiceKind, setVoiceKind, transposeAbc, type VoiceKin
 import {
   eventProgress,
   cursorMotionFrom,
+  cursorPlaybackActive,
   firstEventInMeasure,
+  matchingCursorEvent,
   measureAtPoint,
   timingEventsForTune,
   totalMeasureFromClasses,
@@ -47,11 +49,11 @@ const sample: RenderScoreOutput = {
       loop: false,
     },
     notation: { voiceKinds: {} },
-    display: { title: "ABCoda demo", coloredVoices: true },
+    display: { title: "ABCoda demo", coloredVoices: false },
   },
 };
 
-const app = new App({ name: "ABCoda score", version: "0.3.0" });
+const app = new App({ name: "ABCoda score", version: "0.4.0" });
 const byId = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const scoreElement = byId<HTMLElement>("score");
 const notice = byId<HTMLElement>("notice");
@@ -112,11 +114,7 @@ class ScoreCursor {
   }
 
   onEvent(event: ABCJS.NoteTimingEvent): void {
-    const current = this.events.find((candidate) =>
-      candidate.milliseconds === event.milliseconds &&
-      candidate.line === event.line &&
-      candidate.left === event.left,
-    );
+    const current = matchingCursorEvent(this.events, event);
     if (!current) return;
     this.line?.classList.remove("is-wrapping");
     this.current = current;
@@ -256,7 +254,10 @@ function updateTransport(state: TransportState): void {
   tempoOutput.value = `${state.tempo} BPM`;
   byId<HTMLElement>("app").classList.toggle("is-configuring", state.busy);
   scoreElement.classList.toggle("is-seekable", state.ready && !state.busy);
-  scoreCursor.setPlaying(state.playing);
+  // The transport marks an awaited first play as optimistic `playing` while
+  // abcjs is still constructing/resuming audio. Start visual time only after
+  // that work has completed so the cursor cannot run ahead of the sound.
+  scoreCursor.setPlaying(cursorPlaybackActive(state));
 }
 
 const transport = new TransportController(96, 96, false, updateTransport);
@@ -479,10 +480,6 @@ async function render(
   mutedVoices = new Set(output.score.playback.mutedVoices);
   transport.reset(output.score.playback.tempo, output.score.playback.tempo, output.score.playback.loop);
   byId<HTMLElement>("score-title").textContent = output.score.display.title ?? abcTitle(output.score.abc) ?? "Interactive score";
-  scoreElement.classList.toggle(
-    "colored-voices",
-    output.score.display.coloredVoices && output.voiceIds.length > 1,
-  );
   showNotice(output.warnings.join(" "));
 
   const measuresPerLine = output.score.display.preferredMeasuresPerLine ?? (window.innerWidth < 620 ? 2 : 4);
