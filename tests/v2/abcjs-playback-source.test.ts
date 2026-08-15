@@ -49,7 +49,7 @@ describe("abcjs playback source mapping", () => {
     expect(sequence[1]?.[0]).toMatchObject({ instrument: "percussion", volume: 0 });
   });
 
-  it("keeps unplayable events in the timeline while preventing impossible sample requests", () => {
+  it("keeps musically unplayable events in the timeline while using a backend-safe hidden sample", () => {
     const trumpetMix: VoiceMixSnapshot = {
       revision: 4,
       voices: [
@@ -107,7 +107,7 @@ describe("abcjs playback source mapping", () => {
     ) ?? [];
 
     expect(notes).toHaveLength(3);
-    expect(notes.map((event) => event.pitch)).toEqual([84, 89, 84]);
+    expect(notes.map((event) => event.pitch)).toEqual([84, 89, 60]);
     expect(notes.map((event) => event.volume)).toEqual([80, 80, 0]);
     expect(notes.map((event) => event.instrument)).toEqual([56, 56, 56]);
     expect(notes[2]).toMatchObject({
@@ -162,7 +162,7 @@ describe("abcjs playback source mapping", () => {
       80, 80, 80, 80, 80, 0, 0, 0,
     ]);
     expect(notes.map((event) => event.pitch)).toEqual([
-      60, 62, 64, 65, 67, 62, 62, 62,
+      60, 62, 64, 65, 67, 60, 60, 60,
     ]);
     expect(notes.map((event) => event.instrument)).toEqual([
       43, 43, 43, 43, 43, 43, 43, 43,
@@ -173,7 +173,7 @@ describe("abcjs playback source mapping", () => {
     ]);
   });
 
-  it("does not invent musical muting for unbounded presets", () => {
+  it("keeps supported unbounded pitches musical while neutralizing samples beyond the backend", () => {
     const choirMix: VoiceMixSnapshot = {
       revision: 6,
       voices: [
@@ -183,7 +183,22 @@ describe("abcjs playback source mapping", () => {
     const audio = {
       tracks: [[
         { cmd: "program", instrument: 0 },
-        { cmd: "note", instrument: 0, pitch: 96, volume: 80 },
+        {
+          cmd: "note",
+          instrument: 0,
+          pitch: 108,
+          volume: 80,
+          start: 0,
+          duration: 0.5,
+        },
+        {
+          cmd: "note",
+          instrument: 0,
+          pitch: 109,
+          volume: 80,
+          start: 0.5,
+          duration: 0.5,
+        },
       ]],
     } as ABCJS.AudioTracks;
     const tune = {
@@ -191,14 +206,54 @@ describe("abcjs playback source mapping", () => {
     } as unknown as ABCJS.TuneObject;
 
     const configured = tuneWithInstrumentPrograms(tune, choirMix).setUpAudio({});
-    const note = configured.tracks[0]?.find(
+    const notes = configured.tracks[0]?.filter(
       (event): event is ABCJS.AudioTrackNoteItem => event.cmd === "note",
-    );
+    ) ?? [];
+    const sourceNotes = audio.tracks[0]?.filter(
+      (event): event is ABCJS.AudioTrackNoteItem => event.cmd === "note",
+    ) ?? [];
 
-    expect(note).toMatchObject({
-      pitch: 96,
-      volume: 80,
-      instrument: 52,
-    });
+    expect(notes).toHaveLength(2);
+    expect(notes.map((event) => event.pitch)).toEqual([108, 60]);
+    expect(notes.map((event) => event.volume)).toEqual([80, 0]);
+    expect(notes.map((event) => event.instrument)).toEqual([52, 52]);
+    expect(notes[1]).toMatchObject({ start: 0.5, duration: 0.5 });
+    expect(sourceNotes.map((event) => event.pitch)).toEqual([108, 109]);
+    expect(sourceNotes.map((event) => event.volume)).toEqual([80, 80]);
+  });
+
+  it("neutralizes percussion pitches beyond the characterized sample folder without deleting events", () => {
+    const percussionMix: VoiceMixSnapshot = {
+      revision: 7,
+      voices: [
+        { id: "DR", kind: "unpitched_percussion", instrument: "standard_drum_kit", muted: false },
+      ],
+    };
+    const audio = {
+      tracks: [[
+        { cmd: "program", instrument: 0 },
+        { cmd: "note", instrument: 0, pitch: 87, volume: 80, start: 0, duration: 0.25 },
+        { cmd: "note", instrument: 0, pitch: 88, volume: 80, start: 0.25, duration: 0.25 },
+      ]],
+    } as ABCJS.AudioTracks;
+    const tune = {
+      setUpAudio: () => audio,
+    } as unknown as ABCJS.TuneObject;
+
+    const configured = tuneWithInstrumentPrograms(tune, percussionMix).setUpAudio({});
+    const notes = configured.tracks[0]?.filter(
+      (event): event is ABCJS.AudioTrackNoteItem => event.cmd === "note",
+    ) ?? [];
+    const sourceNotes = audio.tracks[0]?.filter(
+      (event): event is ABCJS.AudioTrackNoteItem => event.cmd === "note",
+    ) ?? [];
+
+    expect(notes).toHaveLength(2);
+    expect(notes.map((event) => event.pitch)).toEqual([87, 36]);
+    expect(notes.map((event) => event.volume)).toEqual([80, 0]);
+    expect(notes.map((event) => event.instrument)).toEqual([128, 128]);
+    expect(notes[1]).toMatchObject({ start: 0.25, duration: 0.25 });
+    expect(sourceNotes.map((event) => event.pitch)).toEqual([87, 88]);
+    expect(sourceNotes.map((event) => event.volume)).toEqual([80, 80]);
   });
 });
