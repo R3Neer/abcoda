@@ -3,9 +3,9 @@ import type {
   DecodeScoreResult,
   Diagnostic,
   PlaybackProfile,
+  RevisionedScore,
   ScoreDocument,
   ScoreOperation,
-  ScoreSnapshot,
 } from "@abcoda/domain";
 import { asRevisionId } from "@abcoda/domain";
 
@@ -73,7 +73,7 @@ export interface EvaluateScoreCommand {
 export type EvaluateScoreResult =
   | {
       readonly status: "success";
-      readonly snapshot: ScoreSnapshot;
+      readonly score: RevisionedScore;
     }
   | {
       readonly status: "invalid";
@@ -94,8 +94,7 @@ export class EvaluateScore {
 
     return {
       status: "success",
-      snapshot: {
-        schemaVersion: 2,
+      score: {
         revision: asRevisionId(command.revision),
         document: {
           tuneId: decoded.document.tuneId,
@@ -124,7 +123,7 @@ export class EvaluateScore {
 }
 
 export interface PresentScoreCommand {
-  readonly snapshot: ScoreSnapshot;
+  readonly score: RevisionedScore;
 }
 
 export class PresentScore {
@@ -132,8 +131,8 @@ export class PresentScore {
 
   execute(command: PresentScoreCommand): EvaluateScoreResult {
     return this.evaluateScore.execute({
-      abc: command.snapshot.document.source.text,
-      revision: command.snapshot.revision,
+      abc: command.score.document.source.text,
+      revision: command.score.revision,
     });
   }
 }
