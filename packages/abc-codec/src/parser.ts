@@ -11,6 +11,8 @@ import {
   type RationalDuration,
   type ScoreDirective,
   type ScoreDocument,
+  type ScoreField,
+  type ScoreFieldPlacement,
   type ScoreVoiceDocument,
   type SourcePosition,
   type SourceRange,
@@ -25,10 +27,7 @@ interface SourceLine {
   readonly offset: number;
 }
 
-interface HeaderMatch {
-  readonly name: string;
-  readonly value: string;
-  readonly range: SourceRange;
+interface HeaderMatch extends ScoreField {
   readonly line: number;
 }
 
@@ -55,6 +54,11 @@ interface VoiceBuilder {
   current: MutableMeasure;
   eventNumber: number;
   tuplet: TupletState | undefined;
+}
+
+interface BodyParseResult {
+  readonly voices: ScoreVoiceDocument[];
+  readonly fields: ScoreField[];
 }
 
 function sourceLines(source: string): SourceLine[] {
@@ -86,17 +90,41 @@ function sourceRange(lines: readonly SourceLine[], startOffset: number, endOffse
   return { start: positionAt(lines, startOffset), end: positionAt(lines, endOffset) };
 }
 
+function fieldFromToken(
+  lines: readonly SourceLine[],
+  token: string,
+  startOffset: number,
+  placement: ScoreFieldPlacement,
+): ScoreField | undefined {
+  const inline = placement === "inline";
+  const match = inline
+    ? /^\[([A-Za-z]):(.*)\]$/.exec(token)
+    : /^([A-Za-z]):(.*)$/.exec(token);
+  if (!match) return undefined;
+
+  const rawValue = match[2] ?? "";
+  const leading = /^\s*/.exec(rawValue)?.[0].length ?? 0;
+  const trailing = /\s*$/.exec(rawValue)?.[0].length ?? 0;
+  const valueEndIndex = Math.max(leading, rawValue.length - trailing);
+  const valueBase = startOffset + (inline ? 3 : 2);
+
+  return {
+    name: match[1]!.toUpperCase(),
+    value: rawValue.slice(leading, valueEndIndex),
+    placement,
+    source: sourceRange(lines, startOffset, startOffset + token.length),
+    valueSource: sourceRange(
+      lines,
+      valueBase + leading,
+      valueBase + valueEndIndex,
+    ),
+  };
+}
+
 function headerMatches(lines: readonly SourceLine[]): HeaderMatch[] {
   return lines.flatMap((line) => {
-    const match = /^([A-Za-z]):\s*(.*?)\s*$/.exec(line.text);
-    return match
-      ? [{
-          name: match[1]!.toUpperCase(),
-          value: match[2] ?? "",
-          range: sourceRange(lines, line.offset, line.offset + line.text.length),
-          line: line.line,
-        }]
-      : [];
+    const field = fieldFromToken(lines, line.text, line.offset, "header");
+    return field ? [{ ...field, line: line.line }] : [];
   });
 }
 
@@ -265,8 +293,9 @@ function bodyVoices(
   descriptors: ReturnType<typeof voiceDescriptors>,
   defaultLength: RationalDuration,
   expected: RationalDuration | undefined,
-): ScoreVoiceDocument[] {
+): BodyParseResult {
   const builders = new Map<string, VoiceBuilder>();
+  const fields: ScoreField[] = [];
   for (const voice of descriptors) {
     builders.set(voice.id, {
       id: asVoiceId(voice.id),
@@ -289,9 +318,17 @@ function bodyVoices(
 
   for (const line of lines.slice(firstKey.line)) {
     let cursor = 0;
+    const standaloneField = fieldFromToken(lines, line.text, line.offset, "body");
+    if (standaloneField && standaloneField.name !== "V") {
+      fields.push(standaloneField);
+      continue;
+    }
+
     const bodyVoice = /^V:\s*([^\s%]+)\s*/.exec(line.text);
     if (bodyVoice) {
       current = builders.get(bodyVoice[1] ?? "") ?? current;
+      const voiceField = fieldFromToken(lines, bodyVoice[0], line.offset, "body");
+      if (voiceField) fields.push(voiceField);
       cursor = bodyVoice[0].length;
     }
 
@@ -307,6 +344,8 @@ function bodyVoices(
       const inlineVoice = /^\[V:\s*([^\]\s]+)[^\]]*\]/.exec(tail);
       if (inlineVoice) {
         current = builders.get(inlineVoice[1] ?? "") ?? current;
+        const voiceField = fieldFromToken(lines, inlineVoice[0], absolute, "inline");
+        if (voiceField) fields.push(voiceField);
         cursor += inlineVoice[0].length;
         continue;
       }
@@ -319,6 +358,8 @@ function bodyVoices(
       const inlineField = /^\[[A-Za-z]:[^\]]*\]/.exec(tail);
       if (inlineField) {
         appendEvent(current, lines, "inline_field", inlineField[0], absolute);
+        const field = fieldFromToken(lines, inlineField[0], absolute, "inline");
+        if (field) fields.push(field);
         cursor += inlineField[0].length;
         continue;
       }
@@ -392,18 +433,21 @@ function bodyVoices(
   }
 
   for (const builder of builders.values()) finishMeasure(builder, lines, expected);
-  return descriptors.map((descriptor) => {
-    const builder = builders.get(descriptor.id)!;
-    return {
-      id: builder.id,
-      kind: builder.kind,
-      ...(builder.clef ? { clef: builder.clef } : {}),
-      ...(builder.transpositionSemitones === undefined
-        ? {}
-        : { transpositionSemitones: builder.transpositionSemitones }),
-      measures: builder.measures,
-    };
-  });
+  return {
+    voices: descriptors.map((descriptor) => {
+      const builder = builders.get(descriptor.id)!;
+      return {
+        id: builder.id,
+        kind: builder.kind,
+        ...(builder.clef ? { clef: builder.clef } : {}),
+        ...(builder.transpositionSemitones === undefined
+          ? {}
+          : { transpositionSemitones: builder.transpositionSemitones }),
+        measures: builder.measures,
+      };
+    }),
+    fields,
+  };
 }
 
 export function parseAbc(sourceInput: string): DecodeScoreResult {
@@ -434,7 +478,7 @@ export function parseAbc(sourceInput: string): DecodeScoreResult {
         code: "ABC_MULTIPLE_TUNES_UNSUPPORTED",
         severity: "error",
         message: `ABCoda accepts one tune per score snapshot; received ${references.length}.`,
-        range: references[1]!.range,
+        range: references[1]!.source,
       }],
     };
   }
@@ -446,13 +490,13 @@ export function parseAbc(sourceInput: string): DecodeScoreResult {
         code: "ABC_TUNE_REFERENCE_INVALID",
         severity: "error",
         message: "The X: tune reference cannot be empty.",
-        range: reference.range,
+        range: reference.source,
       }],
     };
   }
 
   const firstKey = headers.find((header) => header.name === "K");
-  const headerEndOffset = firstKey?.range.end.offset ?? source.length;
+  const headerEndOffset = firstKey?.source.end.offset ?? source.length;
   const directives: ScoreDirective[] = lines.flatMap((line) => {
     const directive = /^%%([^\s]+)\s*(.*)$/.exec(line.text);
     return directive
@@ -468,19 +512,25 @@ export function parseAbc(sourceInput: string): DecodeScoreResult {
   const explicitLength = parseRatio(headers.find((header) => header.name === "L")?.value);
   const defaultLength = explicitLength ?? rational(1, 8);
   const tempoValue = quarterNoteTempo(headers.find((header) => header.name === "Q")?.value);
-  const voices = firstKey
+  const body = firstKey
     ? bodyVoices(lines, firstKey, descriptors, defaultLength, expectedDuration(meter))
-    : descriptors.map((voice) => ({
-        id: asVoiceId(voice.id),
-        kind: voice.kind,
-        ...(voice.clef ? { clef: voice.clef } : {}),
-        ...(voice.transpositionSemitones === undefined
-          ? {}
-          : { transpositionSemitones: voice.transpositionSemitones }),
-        measures: [],
-      }));
+    : {
+        voices: descriptors.map((voice) => ({
+          id: asVoiceId(voice.id),
+          kind: voice.kind,
+          ...(voice.clef ? { clef: voice.clef } : {}),
+          ...(voice.transpositionSemitones === undefined
+            ? {}
+            : { transpositionSemitones: voice.transpositionSemitones }),
+          measures: [],
+        })),
+        fields: [] as ScoreField[],
+      };
   const title = headers.find((header) => header.name === "T")?.value;
   const key = firstKey?.value;
+  const headerFields: ScoreField[] = headers
+    .filter((header) => firstKey === undefined || header.line <= firstKey.line)
+    .map(({ line: _line, ...field }) => field);
 
   const document: ScoreDocument = {
     tuneId: asTuneId(reference.value),
@@ -493,8 +543,9 @@ export function parseAbc(sourceInput: string): DecodeScoreResult {
         ? {}
         : { tempo: { beatUnit: "quarter", bpm: asQuarterNoteBpm(tempoValue) } }),
     },
-    voices,
+    voices: body.voices,
     directives,
+    fields: [...headerFields, ...body.fields],
     source: { format: "abc", text: source },
   };
   return { ok: true, diagnostics: validateScore(document), document };
