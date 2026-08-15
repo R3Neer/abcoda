@@ -12,8 +12,8 @@
 | 2. Contratos y modelo canónico | in progress | Primer `ScoreDocument`, snapshot y schemas v2 de request/widget. |
 | 3. Codec y diagnósticos | in progress | Scanner de cabeceras conservador para la primera vertical; no es todavía el codec ABC completo. |
 | 4. Casos de uso | in progress | `EvaluateScore` implementado detrás de `ScoreCodec`. |
-| 5. MCP y Worker seguro | in progress | `validate_score`, health, límites HTTP, CORS por allowlist y tests workerd iniciales. |
-| 6. Shell y bridge | in progress | Sesión revisionada y laboratorio standalone; falta bridge MCP Apps. |
+| 5. MCP y Worker seguro | in progress | Herramientas separadas `validate_score`/`render_score`, recurso UI, health, límites HTTP, CORS por allowlist y tests workerd. Falta compatibilidad schema 1. |
+| 6. Shell y bridge | in progress | Sesión revisionada y laboratorio standalone consumen el mismo envelope que MCP; falta bridge MCP Apps del host. |
 | 7. Grabado | in progress | Adaptador abcjs estático comprobado en escritorio y 390 px. |
 | 8–11 | pending | No iniciadas. |
 

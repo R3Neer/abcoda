@@ -6,6 +6,8 @@ export const versions = {
   rulesVersion: 4,
 } as const;
 
+export const widgetResourceUri = `ui://abcoda/score-schema-${versions.schemaVersion}.html`;
+
 export interface BuildManifest {
   readonly appVersion: typeof versions.appVersion;
   readonly schemaVersion: typeof versions.schemaVersion;
@@ -91,3 +93,10 @@ export const evaluateScoreResultSchema = z.object({
 });
 
 export type EvaluateScoreResultDto = z.infer<typeof evaluateScoreResultSchema>;
+
+export const presentScoreRequestSchema = z.object({
+  schemaVersion: z.literal(2).default(2),
+  snapshot: scoreSnapshotSchema,
+});
+
+export type PresentScoreRequest = z.infer<typeof presentScoreRequestSchema>;

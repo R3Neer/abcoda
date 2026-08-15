@@ -34,15 +34,17 @@ function showState(state: ScoreSessionState): void {
 const controller = new ScoreSessionController(new AbcjsEngraver(score), showState);
 
 void controller.receive({
-  schemaVersion: 2,
-  revision: 1,
-  document: {
-    tuneId: "laboratory-1",
-    title: "First architecture v2 vertical",
-    voiceIds: ["RH", "LH"],
-    source: {
-      format: "abc",
-      text: `X:1
+  status: "success",
+  snapshot: {
+    schemaVersion: 2,
+    revision: 1,
+    document: {
+      tuneId: "laboratory-1",
+      title: "First architecture v2 vertical",
+      voiceIds: ["RH", "LH"],
+      source: {
+        format: "abc",
+        text: `X:1
 T:First architecture v2 vertical
 M:4/4
 L:1/4
@@ -53,9 +55,10 @@ V:LH clef=bass
 K:C
 [V:RH] C D E F|G A B c|]
 [V:LH] C, D, E, F,|G, A, B, C|]`,
+      },
     },
+    diagnostics: [],
   },
-  diagnostics: [],
 });
 
 window.addEventListener("pagehide", () => controller.dispose(), { once: true });

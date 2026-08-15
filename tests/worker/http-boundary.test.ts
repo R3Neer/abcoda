@@ -163,6 +163,13 @@ describe("ABCoda v2 Worker HTTP boundary", () => {
               type: "object",
             },
           },
+          {
+            name: "render_score",
+            annotations: { readOnlyHint: true, destructiveHint: false },
+            _meta: {
+              ui: { resourceUri: "ui://abcoda/score-schema-2.html" },
+            },
+          },
         ],
       },
     });
@@ -195,5 +202,60 @@ describe("ABCoda v2 Worker HTTP boundary", () => {
         },
       },
     });
+
+    const presentation = await rpcRequest({
+      jsonrpc: "2.0",
+      id: 4,
+      method: "tools/call",
+      params: {
+        name: "render_score",
+        arguments: {
+          schemaVersion: 2,
+          snapshot: {
+            schemaVersion: 2,
+            revision: 13,
+            document: {
+              tuneId: "forged-tune-id",
+              title: "Forged title",
+              voiceIds: ["forged-voice-id"],
+              source: {
+                format: "abc",
+                text: "X:7\nT:Canonical source\nM:4/4\nL:1/4\nK:C\nG A B c|]",
+              },
+            },
+            diagnostics: [],
+          },
+        },
+      },
+    });
+    expect(presentation.status).toBe(200);
+    await expect(presentation.json()).resolves.toMatchObject({
+      jsonrpc: "2.0",
+      id: 4,
+      result: {
+        structuredContent: {
+          status: "success",
+          snapshot: {
+            revision: 13,
+            document: {
+              tuneId: "7",
+              title: "Canonical source",
+              voiceIds: ["default"],
+            },
+          },
+        },
+      },
+    });
+
+    const resource = await rpcRequest({
+      jsonrpc: "2.0",
+      id: 5,
+      method: "resources/read",
+      params: { uri: "ui://abcoda/score-schema-2.html" },
+    });
+    expect(resource.status).toBe(200);
+    const resourceBody = await resource.text();
+    expect(resourceBody).toContain("ui://abcoda/score-schema-2.html");
+    expect(resourceBody).toContain("ABCoda v2 widget laboratory");
   });
 });

@@ -43,3 +43,18 @@ export class EvaluateScore {
     };
   }
 }
+
+export interface PresentScoreCommand {
+  readonly snapshot: ScoreSnapshot;
+}
+
+export class PresentScore {
+  constructor(private readonly evaluateScore: EvaluateScore) {}
+
+  execute(command: PresentScoreCommand): EvaluateScoreResult {
+    return this.evaluateScore.execute({
+      abc: command.snapshot.document.source.text,
+      revision: command.snapshot.revision,
+    });
+  }
+}

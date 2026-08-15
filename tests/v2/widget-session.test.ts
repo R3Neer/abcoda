@@ -21,15 +21,18 @@ function deferred(): {
 
 function snapshot(revision: number, title = `Revision ${revision}`): unknown {
   return {
-    schemaVersion: 2,
-    revision,
-    document: {
-      tuneId: String(revision),
-      title,
-      voiceIds: ["default"],
-      source: { format: "abc", text: `X:${revision}\nT:${title}\nK:C\nC4|]` },
+    status: "success",
+    snapshot: {
+      schemaVersion: 2,
+      revision,
+      document: {
+        tuneId: String(revision),
+        title,
+        voiceIds: ["default"],
+        source: { format: "abc", text: `X:${revision}\nT:${title}\nK:C\nC4|]` },
+      },
+      diagnostics: [],
     },
-    diagnostics: [],
   };
 }
 
@@ -72,6 +75,30 @@ describe("v2 widget score session", () => {
 
     expect(render).not.toHaveBeenCalled();
     expect(states.at(-1)).toMatchObject({ status: "invalid" });
+  });
+
+  it("shows domain diagnostics without invoking the engraver", async () => {
+    const render = vi.fn<Engraver["render"]>(() => Promise.resolve());
+    const engraver: Engraver = { render, clear: vi.fn() };
+    const states: ScoreSessionState[] = [];
+    const controller = new ScoreSessionController(engraver, (state) => states.push(state));
+
+    await controller.receive({
+      status: "invalid",
+      diagnostics: [
+        {
+          code: "ABC_MULTIPLE_TUNES_UNSUPPORTED",
+          severity: "error",
+          message: "ABCoda accepts one tune per score snapshot.",
+        },
+      ],
+    });
+
+    expect(render).not.toHaveBeenCalled();
+    expect(states.at(-1)).toEqual({
+      status: "invalid",
+      message: "ABCoda accepts one tune per score snapshot.",
+    });
   });
 
   it("ignores snapshots older than the active revision", async () => {

@@ -1,5 +1,5 @@
 import {
-  scoreSnapshotSchema,
+  evaluateScoreResultSchema,
   type ScoreSnapshotDto,
 } from "../../../../packages/contracts/src/index";
 
@@ -29,7 +29,7 @@ export class ScoreSessionController {
   }
 
   async receive(input: unknown): Promise<void> {
-    const parsed = scoreSnapshotSchema.safeParse(input);
+    const parsed = evaluateScoreResultSchema.safeParse(input);
     if (!parsed.success) {
       this.activeEffect?.abort();
       this.engraver.clear();
@@ -40,7 +40,23 @@ export class ScoreSessionController {
       return;
     }
 
-    const snapshot = parsed.data;
+    if (parsed.data.status === "invalid") {
+      this.activeEffect?.abort();
+      this.engraver.clear();
+      this.onState({
+        status: "invalid",
+        message: parsed.data.diagnostics?.map((diagnostic) => diagnostic.message).join(" ")
+          ?? "The score is invalid.",
+      });
+      return;
+    }
+
+    const snapshot = parsed.data.snapshot;
+    if (!snapshot) {
+      this.engraver.clear();
+      this.onState({ status: "invalid", message: "The score result has no snapshot." });
+      return;
+    }
     if (snapshot.revision < this.activeRevision) return;
 
     this.activeEffect?.abort();

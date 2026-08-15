@@ -59,7 +59,12 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
   const bounded = await boundRequestBody(request);
   if (bounded instanceof Response) return withCors(bounded, boundary.origin);
 
-  const server = createV2McpServer();
+  const server = createV2McpServer(async () => {
+    const assetUrl = new URL("/index.html", request.url);
+    const response = await env.ASSETS.fetch(new Request(assetUrl));
+    if (!response.ok) throw new Error(`Widget asset returned ${response.status}.`);
+    return response.text();
+  });
   const transport = new WebStandardStreamableHTTPServerTransport({
     enableJsonResponse: true,
   });
