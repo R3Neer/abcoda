@@ -3,6 +3,8 @@ import type {
   HostBridgeHandlers,
 } from "../../application/host-bridge";
 
+export type LaboratoryScenario = "ready" | "invalid" | "malformed" | "race";
+
 const laboratoryResult = {
   status: "success",
   snapshot: {
@@ -32,12 +34,48 @@ K:C
 } as const;
 
 export class StandaloneHostBridge implements HostBridge {
+  private readonly timers = new Set<number>();
+
+  constructor(private readonly scenario: LaboratoryScenario = "ready") {}
+
   connect(handlers: HostBridgeHandlers): Promise<void> {
-    handlers.onResult(laboratoryResult);
+    if (this.scenario === "invalid") {
+      handlers.onResult({
+        status: "invalid",
+        diagnostics: [{
+          code: "ABC_MULTIPLE_TUNES_UNSUPPORTED",
+          severity: "error",
+          message: "ABCoda v2 accepts exactly one complete tune per request.",
+        }],
+      });
+    } else if (this.scenario === "malformed") {
+      handlers.onResult({ status: "success", snapshot: null });
+    } else if (this.scenario === "race") {
+      this.schedule(() => handlers.onResult({
+        ...laboratoryResult,
+        snapshot: { ...laboratoryResult.snapshot, revision: 3 },
+      }), 10);
+      this.schedule(() => handlers.onResult({
+        ...laboratoryResult,
+        snapshot: { ...laboratoryResult.snapshot, revision: 2 },
+      }), 40);
+    } else {
+      handlers.onResult(laboratoryResult);
+    }
     return Promise.resolve();
   }
 
   disconnect(): Promise<void> {
+    for (const timer of this.timers) window.clearTimeout(timer);
+    this.timers.clear();
     return Promise.resolve();
+  }
+
+  private schedule(action: () => void, delay: number): void {
+    const timer = window.setTimeout(() => {
+      this.timers.delete(timer);
+      action();
+    }, delay);
+    this.timers.add(timer);
   }
 }

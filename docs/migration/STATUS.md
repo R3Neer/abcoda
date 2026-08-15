@@ -13,7 +13,7 @@
 | 3. Codec y diagnósticos | in progress | Scanner de cabeceras conservador para la primera vertical; no es todavía el codec ABC completo. |
 | 4. Casos de uso | in progress | `EvaluateScore` implementado detrás de `ScoreCodec`. |
 | 5. MCP y Worker seguro | in progress | Herramientas separadas `validate_score`/`render_score`, recurso UI, health, límites HTTP, CORS por allowlist y tests workerd. Falta compatibilidad schema 1. |
-| 6. Shell y bridge | in progress | `HostBridge` aísla el shell; adaptadores MCP Apps y standalone comparten sesión revisionada y teardown idempotente. Falta el host simulado por escenarios. |
+| 6. Shell y bridge | in progress | `HostBridge` aísla el shell; adaptadores MCP Apps y standalone comparten sesión revisionada y teardown idempotente. El host simulado cubre `ready`, `invalid`, `malformed` y `race`. |
 | 7. Grabado | in progress | Adaptador abcjs estático comprobado en escritorio y 390 px. |
 | 8–11 | pending | No iniciadas. |
 
@@ -43,4 +43,4 @@ Este corte demuestra inversión de dependencias y cierra el comportamiento v2 de
 - `BaselineAbcCodec` solo extrae la envolvente necesaria para la primera vertical; aún no representa eventos y compases.
 - Los límites de capas y ciclos se validan automáticamente, pero las reglas tendrán que crecer con cada paquete nuevo.
 - El HTML autocontenido mide 237,2 kB gzip tras incorporar el SDK MCP Apps; este es el presupuesto de partida del shell con bridge y grabador.
-- El laboratorio browser ya existe, pero todavía carece de host simulado seleccionable, escenarios y pruebas Playwright.
+- Los escenarios del laboratorio se seleccionan con `?scenario=ready|invalid|malformed|race`; falta automatizarlos con pruebas Playwright.
