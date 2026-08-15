@@ -9,6 +9,10 @@ import type {
 } from "../../application/voice-mix";
 import type { PlaybackTimingCallback } from "../../application/score-cursor";
 import { AbcjsPlaybackEngine, type AbcjsSynthController } from "./abcjs-playback-engine";
+import {
+  safeSynthPitch,
+  synthSupportsPitch,
+} from "./abcjs-synth-capability";
 import { callbackTiming } from "./abcjs-timeline";
 
 const hiddenSynthOptions: ABCJS.SynthVisualOptions = {
@@ -117,20 +121,23 @@ export function tuneWithInstrumentPrograms(
         : definition.midiProgram;
 
       track.forEach((event) => {
-        if (
-          event.cmd === "note"
-          && definition.voiceKind === "pitched"
-          && definition.rangePolicy.kind === "bounded"
-          && classifyInstrumentPitch(event.pitch, assignment.instrument) === "unplayable"
-        ) {
-          const policy = definition.rangePolicy;
-          // CreateSynth gathers samples from event.pitch before sequenceCallback.
-          // Keep this event in place for timing/cursor callbacks, but make it
-          // silent and point its hidden sample request at a normal-range pitch.
-          event.pitch = event.pitch < policy.playableRange.min
-            ? policy.usualRange.min
-            : policy.usualRange.max;
-          event.volume = 0;
+        if (event.cmd === "note") {
+          const musicallyUnplayable =
+            definition.voiceKind === "pitched"
+            && definition.rangePolicy.kind === "bounded"
+            && classifyInstrumentPitch(event.pitch, assignment.instrument) === "unplayable";
+          const technicallyUnsupported = !synthSupportsPitch(
+            definition.voiceKind,
+            event.pitch,
+          );
+
+          if (musicallyUnplayable || technicallyUnsupported) {
+            // CreateSynth gathers samples from event.pitch before sequenceCallback.
+            // Keep the event for timing/cursor behavior, but silence it and make
+            // the hidden sample lookup use a pitch guaranteed by this backend.
+            event.pitch = safeSynthPitch(definition.voiceKind);
+            event.volume = 0;
+          }
         }
 
         if (
