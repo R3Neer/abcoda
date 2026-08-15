@@ -12,6 +12,7 @@ function setup() {
     play: vi.fn(async () => { calls.push("play"); }),
     pause: vi.fn(),
     restart: vi.fn(() => { calls.push("restart"); }),
+    seek: vi.fn((progress) => { calls.push(`seek:${progress}`); }),
     setProgress: vi.fn((progress) => { calls.push(`progress:${progress}`); }),
     toggleLoop: vi.fn(() => { calls.push("loop"); }),
     setWarp: vi.fn(async (warp) => { calls.push(`warp:${warp}`); }),
@@ -51,6 +52,7 @@ describe("deferred abcjs audio", () => {
       "loop",
       "warp:125",
       "progress:0.4",
+      "seek:0.4",
       "play",
       "audio:running",
     ]);
@@ -74,6 +76,29 @@ describe("deferred abcjs audio", () => {
     expect(backend.getProgress()).toBe(.625);
     synth.percent = 2;
     expect(backend.getProgress()).toBe(1);
+  });
+
+  it("seeks the audio buffer as well as the cursor after rebuilding the tune", async () => {
+    let displayedProgress = 0;
+    let audioProgress = 0;
+    const { backend, synth, tune, options } = setup();
+    vi.mocked(synth.setProgress).mockImplementation((progress) => {
+      displayedProgress = progress;
+    });
+    vi.mocked(synth.seek).mockImplementation((progress) => {
+      audioProgress = progress;
+    });
+
+    await backend.configure(tune, options);
+    await backend.play();
+    synth.percent = .625;
+    await backend.configure(tune, { ...options, program: 40 });
+    backend.setProgress(.625);
+    await backend.play();
+
+    expect(displayedProgress).toBe(.625);
+    expect(audioProgress).toBe(.625);
+    expect(synth.seek).toHaveBeenLastCalledWith(.625, "percent");
   });
 
   it("does not start abcjs when the host keeps Web Audio blocked", async () => {

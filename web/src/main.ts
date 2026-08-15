@@ -65,7 +65,7 @@ const sample: RenderScoreOutput = {
   },
 };
 
-const app = new App({ name: "ABCoda score", version: "0.8.0" });
+const app = new App({ name: "ABCoda score", version: "0.9.0" });
 const byId = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const scoreElement = byId<HTMLElement>("score");
 const notice = byId<HTMLElement>("notice");

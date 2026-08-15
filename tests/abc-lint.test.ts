@@ -109,6 +109,22 @@ describe("ABC mechanical normalization", () => {
     expect(result.score.abc).toContain("[V:DR][K:none clef=perc]");
     expect(result.score.notation.voiceKinds).toEqual({ CL: "pitched", DR: "unpitched_percussion" });
   });
+
+  it("does not double an octave transposition already realized by the clef", () => {
+    const input = score(
+      'X:1\nT:Guitar\nM:4/4\nL:1/4\nV:G clef=treble-8 name="Guitar" transpose=-12\nK:C\n[V:G] CDEF|]',
+      {
+        composition: {
+          ...generatedComposition,
+          ensemble: [{ voiceId: "G", instrument: "classical guitar", family: "guitar", role: "melody", kind: "pitched", transpositionSemitones: -12 }],
+        },
+      },
+    );
+    const result = normalizeAndLintScore(input);
+    expect(result.score.abc).toContain('V:G clef=treble-8 name="Guitar"');
+    expect(result.score.abc).not.toContain("transpose=");
+    expect(ABCJS.parseOnly(result.score.abc)[0]?.lines[0]?.staff?.[0]?.clef?.type).toBe("treble-8");
+  });
 });
 
 describe("ABC contract lint", () => {

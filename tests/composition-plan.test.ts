@@ -394,6 +394,19 @@ describe("effort-aware musical review", () => {
     expect(drums).not.toContain('"_Ped."');
   });
 
+  it("routes idiomatic octave clefs and safe section clef changes", () => {
+    const result = plan({
+      ensemble: [{ ...base.ensemble[0]!, voiceId: "GTR", instrument: "classical guitar", family: "guitar", transpositionSemitones: -12 }],
+    });
+    const instruments = result.guidance.instruments.join(" ");
+    const notation = result.guidance.notation.join(" ");
+    expect(instruments).toContain("clef=treble-8");
+    expect(notation).toContain("[K:<current-key> clef=<new-clef>]");
+    expect(notation).toContain("abcjs applies the octave to audio too");
+    expect(notation).toContain("prevent a double shift");
+    expect(result.guidance.preflight.join(" ")).toContain("octave-clef versus transpose accounting");
+  });
+
   it("keeps compatibility notes and emits schema v4", () => {
     const result = plan({
       styleFamily: "atonal_post_tonal",

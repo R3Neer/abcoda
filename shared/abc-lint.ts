@@ -69,9 +69,18 @@ function normalizeVoiceTranspose(abc: string, voiceId: string, semitones: number
   const voiceLine = new RegExp(`^(\\s*V:\\s*${escapedId})(?=\\s|$)(.*)$`, "gm");
   return abc.replace(voiceLine, (_whole, prefix: string, suffix: string) => {
     const transpose = /\b(?:transpose|t)\s*=\s*-?\d+\b/i;
-    const next = transpose.test(suffix)
-      ? suffix.replace(transpose, `transpose=${semitones}`)
-      : `${suffix} transpose=${semitones}`;
+    const octaveClef = suffix.match(/\bclef\s*=\s*(?:treble|alto|tenor|bass)(?:[1-5])?([+-])8\b/i);
+    const clefSemitones = octaveClef?.[1] === "+" ? 12 : octaveClef?.[1] === "-" ? -12 : 0;
+    // abcjs realizes an octave-clef's sounding displacement itself. Treat the
+    // brief value as the total written-to-sounding interval and only encode
+    // the residual in transpose=, otherwise treble-8 + transpose=-12 would
+    // make a guitar sound two octaves too low.
+    const residual = semitones - clefSemitones;
+    const next = residual === 0
+      ? suffix.replace(transpose, "").replace(/\s{2,}/g, " ").trimEnd()
+      : transpose.test(suffix)
+        ? suffix.replace(transpose, `transpose=${residual}`)
+        : `${suffix} transpose=${residual}`;
     return `${prefix}${next}`.trimEnd();
   });
 }

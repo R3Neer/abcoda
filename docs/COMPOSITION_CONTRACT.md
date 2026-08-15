@@ -57,7 +57,10 @@ Safe automatic changes currently include:
 - inserting or aligning `Q:1/4=<tempo>` with the tool's quarter-note playback tempo;
 - applying `clef=perc` and voice-local `K:none` only to voices explicitly marked `unpitched_percussion`;
 - deriving voice kind and non-zero ABC `transpose=` metadata from the shared composition brief;
+- accounting for the sounding octave already contributed by a header `clef=...-8` or `clef=...+8` before deriving `transpose=`, so octave-transposing parts are not shifted twice;
 - retaining the original score otherwise.
+
+Clef choice remains musical rather than an unsafe automatic rewrite. The routed prompt asks for an idiomatic treble, bass, alto, or tenor clef and permits an inline `[K:<current-key> clef=<new-clef>]` before the first note of a sustained register change. Octave clefs (`treble-8`, `treble+8`, `bass-8`, and equivalents) are reserved for genuine octave-transposing notation such as standard guitar or tenor voice: they add the visible octave sign and abcjs also applies that octave to playback. They do not by themselves reduce ledger lines. `octave=` is treated as a pitch-input shorthand without the octave-clef glyph, not as an engraving synonym. Mid-score clef changes must remain attached to a following note and their pitch spelling must preserve the intended sounding register.
 
 Warnings cover missing core score headers, duplicate header voice declarations, unknown voice IDs in tool configuration, missing/unknown `%%score` voices, differences between brief and rendered tempo/meter/voices/kinds, and abcjs parser warnings. Musical taste is never emitted as a parser error.
 

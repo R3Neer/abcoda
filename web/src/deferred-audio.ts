@@ -10,6 +10,7 @@ export interface SynthControllerLike {
   play(): Promise<unknown> | void;
   pause(): void;
   restart(): void;
+  seek(percent: number, units?: "percent" | "seconds"): void;
   setProgress(percent: number): void;
   toggleLoop(): void;
   setWarp(percent: number): Promise<void> | void;
@@ -53,7 +54,7 @@ export class DeferredAudioBackend implements PlaybackBackend {
       this.prepared = true;
       if (this.loop) this.synth.toggleLoop();
       if (this.warp !== 100) await this.synth.setWarp(this.warp);
-      if (this.progress > 0) this.synth.setProgress(this.progress);
+      if (this.progress > 0) this.applyProgress();
     }
     await this.synth.play();
     await this.ensureAudioContext();
@@ -76,8 +77,17 @@ export class DeferredAudioBackend implements PlaybackBackend {
   }
 
   setProgress(percent: number): void {
-    this.progress = percent;
-    if (this.prepared) this.synth.setProgress(percent);
+    this.progress = Math.max(0, Math.min(1, percent));
+    if (this.prepared) this.applyProgress();
+  }
+
+  private applyProgress(): void {
+    // abcjs's setProgress only changes the controller/timer percentage shown
+    // by the UI. seek is the operation that moves both the timer and the
+    // AudioBuffer source. Both calls are required so the next play begins at
+    // the same point as the cursor after a synth rebuild.
+    this.synth.setProgress(this.progress);
+    this.synth.seek(this.progress, "percent");
   }
 
   toggleLoop(): void {
