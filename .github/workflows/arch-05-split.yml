@@ -1,5 +1,6 @@
 name: ARCH-05 composition split
 
+# Temporary runner retained until the full post-refactor audit is green.
 on:
   push:
     branches: [architecture-v2]
