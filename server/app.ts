@@ -15,7 +15,7 @@ import {
 } from "../shared/composition-plan.js";
 import { extractVoiceIds } from "../shared/voices.js";
 
-export const widgetUri = "ui://abcoda/score-v11.html";
+export const widgetUri = "ui://abcoda/score-v12.html";
 const widgetDomain = "https://abcoda.mud-repo-patcher-mcp-probe.workers.dev";
 
 const widgetCsp = {
@@ -37,7 +37,7 @@ export function validateAbc(abc: string): string[] {
 
 export function createAbcodaServer(loadWidget: WidgetLoader): McpServer {
   const server = new McpServer(
-    { name: "ABCoda", version: "0.3.0" },
+    { name: "ABCoda", version: "0.4.0" },
     { instructions: abcodaComposerInstructions },
   );
 
@@ -85,7 +85,7 @@ export function createAbcodaServer(loadWidget: WidgetLoader): McpServer {
     {
       title: "Render interactive music score",
       description:
-        "Use this to render complete abcjs-compatible ABC with interactive playback. For newly composed or arranged music, call prepare_composition first and pass its same brief as composition. For user-supplied ABC, composition may be omitted. Validate bar durations, ranges, clefs, transposition, voice IDs, and tempo; mark unpitched voices in notation.voiceKinds.",
+        "Use this to render complete abcjs-compatible ABC with interactive playback, score transposition, an editable ABC source view, and safe pitched/percussion voice switching. For newly composed or arranged music, call prepare_composition first and pass its same brief as composition. For user-supplied ABC, composition may be omitted. Validate bar durations, ranges, clefs, transposition, voice IDs, and tempo; mark unpitched voices in notation.voiceKinds and use the percussion playback instrument.",
       inputSchema: renderScoreInputSchema,
       outputSchema: renderScoreOutputSchema,
       annotations: {
@@ -137,7 +137,7 @@ export function createAbcodaServer(loadWidget: WidgetLoader): McpServer {
     "ABCoda score player",
     widgetUri,
     {
-      description: "Interactive ABC notation renderer and player.",
+      description: "Interactive ABC notation renderer, editor, transposer, and player.",
       mimeType: RESOURCE_MIME_TYPE,
       _meta: {
         ui: {
@@ -145,7 +145,7 @@ export function createAbcodaServer(loadWidget: WidgetLoader): McpServer {
           domain: widgetDomain,
           prefersBorder: false,
         },
-        "openai/widgetDescription": "Interactive ABC music score with playback controls.",
+        "openai/widgetDescription": "Interactive ABC music score with playback, transposition, instrument, and source-code controls.",
         "openai/widgetPrefersBorder": false,
         "openai/widgetCSP": legacyWidgetCsp,
         "openai/widgetDomain": widgetDomain,
@@ -163,7 +163,7 @@ export function createAbcodaServer(loadWidget: WidgetLoader): McpServer {
               domain: widgetDomain,
               prefersBorder: false,
             },
-            "openai/widgetDescription": "Interactive ABC music score with playback controls.",
+            "openai/widgetDescription": "Interactive ABC music score with playback, transposition, instrument, and source-code controls.",
             "openai/widgetPrefersBorder": false,
             "openai/widgetCSP": legacyWidgetCsp,
             "openai/widgetDomain": widgetDomain,

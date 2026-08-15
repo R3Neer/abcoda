@@ -26,6 +26,7 @@ export const instrumentProgram = {
   piccolo: 72,
   flute: 73,
   recorder: 74,
+  percussion: 128,
 } as const;
 
 export type InstrumentName = keyof typeof instrumentProgram;

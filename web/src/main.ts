@@ -15,6 +15,7 @@ import {
   type RenderScoreOutput,
 } from "../../shared/score";
 import { abcTitle, extractVoiceIds } from "../../shared/voices";
+import { abcGlobalKey, inferVoiceKind, setVoiceKind, transposeAbc, type VoiceKind } from "../../shared/abc-edit";
 import {
   eventProgress,
   cursorMotionFrom,
@@ -26,7 +27,7 @@ import {
   type VisibleTimingEvent,
 } from "./cursor";
 import { DeferredAudioBackend, type SynthControllerLike } from "./deferred-audio";
-import { applyInstruments } from "./music";
+import { applyInstruments, instrumentForVoiceKind, voiceKindForInstrument } from "./music";
 import { decodeStandaloneScore, encodeStandaloneScore } from "./standalone";
 import { hiddenSynthVisualOptions } from "./synth-options";
 import { TransportController, type TransportState } from "./transport";
@@ -50,7 +51,7 @@ const sample: RenderScoreOutput = {
   },
 };
 
-const app = new App({ name: "ABCoda score", version: "0.2.1" });
+const app = new App({ name: "ABCoda score", version: "0.3.0" });
 const byId = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const scoreElement = byId<HTMLElement>("score");
 const notice = byId<HTMLElement>("notice");
@@ -62,6 +63,13 @@ const playbackLabel = byId<HTMLElement>("playback-label");
 const rewindButton = byId<HTMLButtonElement>("rewind");
 const loopButton = byId<HTMLButtonElement>("loop");
 const mixer = byId<HTMLDetailsElement>("mixer");
+const codeToggle = byId<HTMLButtonElement>("code-toggle");
+const abcPanel = byId<HTMLElement>("abc-panel");
+const abcSource = byId<HTMLTextAreaElement>("abc-source");
+const transposeDown = byId<HTMLButtonElement>("transpose-down");
+const transposeUp = byId<HTMLButtonElement>("transpose-up");
+const transposeReset = byId<HTMLButtonElement>("transpose-reset");
+const transposeOutput = byId<HTMLOutputElement>("transpose-output");
 
 let payload: RenderScoreOutput | undefined;
 let visualTune: ABCJS.TuneObject | undefined;
@@ -72,6 +80,11 @@ let mutedVoices = new Set<string>();
 let requestedConfiguration = 0;
 let appliedConfiguration = 0;
 let configurationRunning = false;
+let sourceAbc = "";
+let initialAbc = "";
+let transposeOffset = 0;
+let codeView = false;
+let pitchedKeys: Record<string, string> = {};
 
 class ScoreCursor {
   private line: SVGLineElement | undefined;
@@ -229,6 +242,9 @@ function updateTransport(state: TransportState): void {
   playbackButton.disabled = !state.ready || state.busy;
   rewindButton.disabled = !state.ready || state.busy;
   loopButton.disabled = state.busy;
+  transposeDown.disabled = state.busy || transposeOffset <= -12;
+  transposeUp.disabled = state.busy || transposeOffset >= 12;
+  transposeReset.disabled = state.busy || transposeOffset === 0;
   playbackButton.setAttribute("aria-pressed", String(state.playing));
   playbackButton.setAttribute("aria-label", starting ? "Preparing audio" : state.playing ? "Pause" : "Play");
   playbackButton.setAttribute("aria-busy", String(starting));
@@ -308,13 +324,16 @@ async function runConfigurationQueue(): Promise<void> {
 
       await playbackBackend.configure(tune, {
         qpm: score.score.playback.tempo,
+        midiTranspose: 0,
         soundFontVolumeMultiplier: 3,
         chordsOff: true,
         sequenceCallback: (sequence) =>
           applyInstruments(sequence, voiceIds, selectedInstruments, selectedMutes),
       });
       appliedConfiguration = revision;
-      showNotice("Tap Play to enable audio.");
+      if (notice.hidden || notice.textContent === "Tap Play to enable audio.") {
+        showNotice("Tap Play to enable audio.");
+      }
     }
 
     await transport.completeConfiguration(playbackBackend);
@@ -329,6 +348,53 @@ async function runConfigurationQueue(): Promise<void> {
   }
 }
 
+function outputWithAbc(abc: string, warnings: string[] = []): RenderScoreOutput | undefined {
+  if (!payload) return undefined;
+  return {
+    ...payload,
+    voiceIds: extractVoiceIds(abc),
+    warnings,
+    score: {
+      ...payload.score,
+      abc,
+      notation: { voiceKinds: { ...payload.score.notation.voiceKinds } },
+      playback: {
+        ...payload.score.playback,
+        instruments: { ...instruments },
+        mutedVoices: [...mutedVoices],
+      },
+    },
+  };
+}
+
+function commitAbcEdit(abc: string, message: string): void {
+  sourceAbc = abc;
+  transposeOffset = 0;
+  updateTransposeOutput();
+  const next = outputWithAbc(abc, [message]);
+  if (next) void render(next, { preserveEditState: true });
+}
+
+function voiceKindFor(voiceId: string): VoiceKind {
+  return payload?.score.notation.voiceKinds[voiceId]
+    ?? inferVoiceKind(payload?.score.abc ?? "", voiceId);
+}
+
+function changeVoiceKind(voiceId: string, kind: VoiceKind): void {
+  if (!payload) return;
+  if (voiceKindFor(voiceId) === "pitched") pitchedKeys[voiceId] = abcGlobalKey(payload.score.abc);
+  payload.score.notation.voiceKinds[voiceId] = kind;
+  instruments[voiceId] = instrumentForVoiceKind(
+    kind,
+    instruments[voiceId] ?? "acoustic_grand_piano",
+  );
+  const abc = setVoiceKind(payload.score.abc, voiceId, kind, pitchedKeys[voiceId]);
+  const explanation = kind === "unpitched_percussion"
+    ? `${voiceId} now uses percussion clef, K:none, and the percussion sample map; existing note positions were preserved.`
+    : `${voiceId} now uses pitched treble notation in the score key; existing note letters were preserved and should be reviewed.`;
+  commitAbcEdit(abc, explanation);
+}
+
 function renderMixer(): void {
   if (!payload) return;
   const container = byId<HTMLElement>("voice-controls");
@@ -341,17 +407,36 @@ function renderMixer(): void {
     name.className = "voice-name";
     name.textContent = voiceId;
 
-    const select = document.createElement("select");
-    select.setAttribute("aria-label", `Instrument for ${voiceId}`);
+    const kindSelect = document.createElement("select");
+    kindSelect.setAttribute("aria-label", `Notation type for ${voiceId}`);
+    const currentKind = voiceKindFor(voiceId);
+    (["pitched", "unpitched_percussion"] as const).forEach((kind) => {
+      const option = document.createElement("option");
+      option.value = kind;
+      option.textContent = kind === "pitched" ? "Pitched notation" : "Percussion notation";
+      option.selected = currentKind === kind;
+      kindSelect.append(option);
+    });
+    kindSelect.addEventListener("change", () => changeVoiceKind(voiceId, kindSelect.value as VoiceKind));
+
+    const instrumentSelect = document.createElement("select");
+    instrumentSelect.setAttribute("aria-label", `Instrument for ${voiceId}`);
     instrumentNames.forEach((instrument) => {
       const option = document.createElement("option");
       option.value = instrument;
-      option.textContent = instrument.replaceAll("_", " ");
+      option.textContent = instrument === "percussion" ? "standard drum kit" : instrument.replaceAll("_", " ");
       option.selected = (instruments[voiceId] ?? "acoustic_grand_piano") === instrument;
-      select.append(option);
+      instrumentSelect.append(option);
     });
-    select.addEventListener("change", () => {
-      instruments[voiceId] = select.value as InstrumentName;
+    instrumentSelect.addEventListener("change", () => {
+      const selected = instrumentSelect.value as InstrumentName;
+      instruments[voiceId] = selected;
+      const requiredKind = voiceKindForInstrument(selected);
+      if (voiceKindFor(voiceId) !== requiredKind) {
+        changeVoiceKind(voiceId, requiredKind);
+        return;
+      }
+      if (payload) payload.score.playback.instruments = { ...instruments };
       requestAudioConfiguration();
     });
 
@@ -362,16 +447,32 @@ function renderMixer(): void {
     checkbox.checked = mutedVoices.has(voiceId);
     checkbox.addEventListener("change", () => {
       checkbox.checked ? mutedVoices.add(voiceId) : mutedVoices.delete(voiceId);
+      if (payload) payload.score.playback.mutedVoices = [...mutedVoices];
       requestAudioConfiguration();
     });
     muteLabel.append(checkbox, "Mute");
-    row.append(name, select, muteLabel);
+    row.append(name, kindSelect, instrumentSelect, muteLabel);
     container.append(row);
   });
 }
 
-async function render(output: RenderScoreOutput): Promise<void> {
+async function render(
+  output: RenderScoreOutput,
+  options: { preserveEditState?: boolean } = {},
+): Promise<void> {
   payload = output;
+  if (!options.preserveEditState) {
+    sourceAbc = output.score.abc;
+    initialAbc = output.score.abc;
+    transposeOffset = 0;
+    pitchedKeys = Object.fromEntries(
+      output.voiceIds
+        .filter((voiceId) => (output.score.notation.voiceKinds[voiceId] ?? inferVoiceKind(output.score.abc, voiceId)) === "pitched")
+        .map((voiceId) => [voiceId, abcGlobalKey(output.score.abc)]),
+    );
+    updateTransposeOutput();
+  }
+  abcSource.value = output.score.abc;
   playbackBackend = undefined;
   updateOpenInAppUrl(output);
   instruments = { ...output.score.playback.instruments };
@@ -424,6 +525,91 @@ tempo.addEventListener("change", () => {
       error instanceof Error ? error.message : "Tempo could not be changed.",
       true,
     ));
+});
+
+function updateTransposeOutput(): void {
+  transposeOutput.value = transposeOffset === 0
+    ? "Original"
+    : `${transposeOffset > 0 ? "+" : ""}${transposeOffset} st`;
+  const busy = transport.snapshot().busy;
+  transposeDown.disabled = busy || transposeOffset <= -12;
+  transposeUp.disabled = busy || transposeOffset >= 12;
+  transposeReset.disabled = busy || transposeOffset === 0;
+}
+
+function setTransposition(nextOffset: number): void {
+  if (!payload || transport.snapshot().busy) return;
+  try {
+    const bounded = Math.max(-12, Math.min(12, nextOffset));
+    const abc = transposeAbc(sourceAbc, bounded);
+    transposeOffset = bounded;
+    updateTransposeOutput();
+    const next = outputWithAbc(abc);
+    if (next) void render(next, { preserveEditState: true });
+  } catch (error) {
+    showNotice(error instanceof Error ? error.message : "The score could not be transposed.", true);
+  }
+}
+
+transposeDown.addEventListener("click", () => setTransposition(transposeOffset - 1));
+transposeUp.addEventListener("click", () => setTransposition(transposeOffset + 1));
+transposeReset.addEventListener("click", () => setTransposition(0));
+
+function setCodeView(enabled: boolean): void {
+  codeView = enabled;
+  byId<HTMLElement>("app").classList.toggle("is-code-view", enabled);
+  abcPanel.hidden = !enabled;
+  codeToggle.setAttribute("aria-pressed", String(enabled));
+  codeToggle.setAttribute("aria-label", enabled ? "View score" : "View ABC code");
+  codeToggle.title = enabled ? "View score" : "View ABC code";
+  if (enabled) {
+    abcSource.value = payload?.score.abc ?? sourceAbc;
+    requestAnimationFrame(() => abcSource.focus());
+  } else if (payload) {
+    void render(payload, { preserveEditState: true });
+  }
+}
+
+codeToggle.addEventListener("click", () => setCodeView(!codeView));
+
+byId<HTMLButtonElement>("abc-apply").addEventListener("click", () => {
+  const abc = abcSource.value.trim();
+  try {
+    const tunes = ABCJS.parseOnly(abc);
+    if (!(tunes[0] as ABCJS.TuneObject | undefined)) throw new Error("No ABC tune was found.");
+    const warnings = tunes.flatMap((tune) => tune.warnings ?? []).map(String);
+    sourceAbc = abc;
+    transposeOffset = 0;
+    for (const voiceId of extractVoiceIds(abc)) {
+      if (inferVoiceKind(abc, voiceId) === "pitched") pitchedKeys[voiceId] = abcGlobalKey(abc);
+    }
+    updateTransposeOutput();
+    const next = outputWithAbc(abc, warnings.length ? warnings : ["ABC changes applied."]);
+    if (next) void render(next, { preserveEditState: true });
+  } catch (error) {
+    showNotice(error instanceof Error ? error.message : "The edited ABC could not be parsed.", true);
+  }
+});
+
+byId<HTMLButtonElement>("abc-reset").addEventListener("click", () => {
+  if (!initialAbc) return;
+  sourceAbc = initialAbc;
+  transposeOffset = 0;
+  updateTransposeOutput();
+  const next = outputWithAbc(initialAbc, ["The original ABC was restored."]);
+  if (next) void render(next, { preserveEditState: true });
+});
+
+byId<HTMLButtonElement>("abc-copy").addEventListener("click", async () => {
+  try {
+    await navigator.clipboard.writeText(abcSource.value);
+    showNotice("ABC copied.");
+  } catch {
+    abcSource.focus();
+    abcSource.select();
+    const copied = document.execCommand("copy");
+    showNotice(copied ? "ABC copied." : "Select the ABC and copy it manually.", !copied);
+  }
 });
 
 function seekToMeasure(measureNumber: number): void {

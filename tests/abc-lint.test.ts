@@ -29,6 +29,7 @@ describe("ABC mechanical normalization", () => {
     const result = normalizeAndLintScore(input);
     expect(result.score.abc).toContain('V:DR clef=perc name="Drums"');
     expect(result.score.abc).toContain("[V:DR][K:none clef=perc]");
+    expect(result.score.playback.instruments.DR).toBe("percussion");
 
     const tune = ABCJS.parseOnly(result.score.abc)[0];
     const staves = tune?.lines.flatMap((line) => line.staff ?? []) ?? [];

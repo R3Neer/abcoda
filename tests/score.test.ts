@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { renderScoreInputSchema } from "../shared/score";
+import { instrumentNames, renderScoreInputSchema } from "../shared/score";
 import { abcTitle, extractVoiceIds } from "../shared/voices";
-import { applyInstruments } from "../web/src/music";
+import { applyInstruments, instrumentForVoiceKind, voiceKindForInstrument } from "../web/src/music";
 
 describe("score contract", () => {
   it("fills lightweight playback defaults", () => {
@@ -15,6 +15,14 @@ describe("score contract", () => {
   it("rejects unsafe score sizes and impossible tempi", () => {
     expect(() => renderScoreInputSchema.parse({ abc: "X:1\nK:C\nC|", playback: { tempo: 500 } })).toThrow();
     expect(() => renderScoreInputSchema.parse({ abc: "" })).toThrow();
+  });
+
+  it("accepts the abcjs percussion soundfont as an explicit instrument", () => {
+    const parsed = renderScoreInputSchema.parse({
+      abc: "X:1\nK:none\nCDEF|",
+      playback: { instruments: { DR: "percussion" } },
+    });
+    expect(parsed.playback.instruments.DR).toBe("percussion");
   });
 });
 
@@ -31,6 +39,18 @@ describe("ABC metadata", () => {
 });
 
 describe("client music helpers", () => {
+  it("couples every playback instrument to a safe notation kind", () => {
+    expect(instrumentNames.map(voiceKindForInstrument)).toEqual([
+      ...Array(instrumentNames.length - 1).fill("pitched"),
+      "unpitched_percussion",
+    ]);
+    expect(voiceKindForInstrument("percussion")).toBe("unpitched_percussion");
+    expect(voiceKindForInstrument("cello")).toBe("pitched");
+    expect(instrumentForVoiceKind("unpitched_percussion", "violin")).toBe("percussion");
+    expect(instrumentForVoiceKind("pitched", "percussion")).toBe("acoustic_grand_piano");
+    expect(instrumentForVoiceKind("pitched", "flute")).toBe("flute");
+  });
+
   it("mutates abcjs note maps with per-voice instruments and mute state", () => {
     const tracks = [
       [{ pitch: 60, instrument: "acoustic_grand_piano", start: 0, end: 1, startChar: 0, endChar: 1, volume: 100 }],

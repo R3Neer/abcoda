@@ -1,5 +1,15 @@
 import ABCJS from "abcjs";
 import type { InstrumentName } from "../../shared/score";
+import type { VoiceKind } from "../../shared/abc-edit";
+
+export function voiceKindForInstrument(instrument: InstrumentName): VoiceKind {
+  return instrument === "percussion" ? "unpitched_percussion" : "pitched";
+}
+
+export function instrumentForVoiceKind(kind: VoiceKind, current: InstrumentName): InstrumentName {
+  if (kind === "unpitched_percussion") return "percussion";
+  return current === "percussion" ? "acoustic_grand_piano" : current;
+}
 
 export function applyInstruments(
   sequence: ABCJS.NoteMapTrack[],

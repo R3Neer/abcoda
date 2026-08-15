@@ -178,6 +178,17 @@ export function normalizeAndLintScore(input: RenderScoreInput): NormalizedScore 
     if (kind === "unpitched_percussion") abc = normalizePercussionVoice(abc, voiceId);
   }
 
-  const score: RenderScoreInput = { ...input, abc, notation };
+  const instruments = { ...input.playback.instruments };
+  for (const [voiceId, kind] of Object.entries(notation.voiceKinds)) {
+    if (kind === "unpitched_percussion") instruments[voiceId] = "percussion";
+    else if (instruments[voiceId] === "percussion") instruments[voiceId] = "acoustic_grand_piano";
+  }
+
+  const score: RenderScoreInput = {
+    ...input,
+    abc,
+    notation,
+    playback: { ...input.playback, instruments },
+  };
   return { score, warnings: [...lintMetadata(score), ...lintComposition(score, originalKinds)] };
 }

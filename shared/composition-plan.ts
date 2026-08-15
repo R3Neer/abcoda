@@ -406,7 +406,7 @@ function notationSection(brief: CompositionBrief): string[] {
   return [
     `Encode M:${brief.meter}, Q:1/4=${brief.tempo}, and “${brief.pitchLanguage}” with an appropriate K: field; use K:none with explicit accidentals when a conventional key signature would misrepresent the pitch framework.`,
     "Begin X:1, T:, M:, L:, Q:, then V: declarations and finish the header with the first K:. For multiple voices add %%score, complete simultaneous bars, and end voices together with |].",
-    percussion.length > 0 ? `Set notation.voiceKinds for ${percussion.join(", ")} to unpitched_percussion; ABCoda will enforce percussion clef and voice-local K:none.` : "Use notation.voiceKinds={} unless an explicitly unpitched percussion voice is added.",
+    percussion.length > 0 ? `Set notation.voiceKinds for ${percussion.join(", ")} to unpitched_percussion and select playback instrument percussion; ABCoda will enforce percussion clef, voice-local K:none, and the General MIDI percussion sample map. Choose staff pitches as deliberate GM percussion mappings rather than arbitrary melody notes.` : "Use notation.voiceKinds={} unless an explicitly unpitched percussion voice is added.",
     transposing.length > 0 ? `Apply explicit ABC transpose= values for ${transposing.map((voice) => `${voice.voiceId}=${voice.transpositionSemitones}`).join(", ")}; verify written and sounding ranges separately.` : "Keep notation at concert pitch unless exact instrument convention requires a written transposing part.",
     "Use valid abcjs-compatible durations, rests, chords, tuplets, ties, slurs, repeats, endings, fields, clefs, decorations, and bar lines. Do not invent directives or promise unavailable playback nuance.",
   ];
@@ -467,4 +467,3 @@ export function buildCompositionPlan(brief: CompositionBrief): CompositionPlanOu
   result.prompt = renderPrompt(brief, guidance, notes);
   return result;
 }
-
