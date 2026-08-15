@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ABCoda v2 widget laboratory</title>
+  </head>
+  <body>
+    <main class="shell" aria-label="ABCoda score widget">
+      <header class="header">
+        <p class="eyebrow">ABCoda v2 laboratory</p>
+        <output id="status" class="status" aria-live="polite">Booting</output>
+      </header>
+      <section id="error" class="error" role="alert" hidden></section>
+      <section id="score" class="score" aria-label="Music score"></section>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
