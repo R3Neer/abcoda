@@ -39,40 +39,55 @@ describe("ABCoda MCP surface", () => {
     });
   });
 
-  it("returns a style-specific typed composition plan", async () => {
+  it("returns a fully typed, style-specific composition plan", async () => {
     const brief = {
       styleFamily: "baroque",
       styleDetail: "two-part invention",
+      formFamily: "fugue_invention",
       form: "invention exposition, episode, return",
+      sectionPlan: [],
       measures: 16,
       meter: "4/4",
       tempo: 84,
+      rhythmicFeel: "motoric_ostinato",
+      pitchFramework: "tonal_functional",
       pitchLanguage: "D minor, functional tonal",
+      texture: "contrapuntal",
       difficulty: "intermediate",
       intent: "performance",
       ensemble: [
-        { voiceId: "RH", instrument: "piano right hand", role: "melody", kind: "pitched" },
-        { voiceId: "LH", instrument: "piano left hand", role: "countermelody", kind: "pitched" },
+        { voiceId: "RH", instrument: "piano right hand", family: "keyboard", role: "melody", kind: "pitched", transpositionSemitones: 0 },
+        { voiceId: "LH", instrument: "piano left hand", family: "keyboard", role: "countermelody", kind: "pitched", transpositionSemitones: 0 },
       ],
       constraints: ["original subject"],
+      departures: [],
     };
     const result = await client.callTool({ name: "prepare_composition", arguments: brief });
     expect(result.isError).not.toBe(true);
     expect(result.structuredContent).toMatchObject({
+      schemaVersion: 2,
       brief,
-      guidance: { style: expect.arrayContaining([expect.stringContaining("imitation")]) },
+      guidance: {
+        style: expect.arrayContaining([expect.stringContaining("imitation")]),
+        form: expect.arrayContaining([expect.stringContaining("subject length/profile")]),
+        texture: expect.arrayContaining([expect.stringContaining("independent contour and rhythm")]),
+      },
+      renderHints: { tempo: 84, meter: "4/4", voiceKinds: { RH: "pitched", LH: "pitched" } },
     });
     expect(result.content).toEqual(expect.arrayContaining([
       expect.objectContaining({ type: "text", text: expect.stringContaining("COMPOSITION PROFILE: baroque") }),
     ]));
   });
 
-  it("publishes style-aware composition instructions during MCP initialization", () => {
-    const instructions = client.getInstructions();
-    expect(instructions).toContain("Apply theory by requested style");
-    expect(instructions).toContain("Baroque or Bach-informed");
-    expect(instructions).toContain("Pop/rock/funk/R&B");
-    expect(instructions?.slice(0, 512)).toContain("prepare_composition");
+  it("publishes concise cross-tool instructions instead of duplicating the theory library", () => {
+    const instructions = client.getInstructions() ?? "";
+    expect(instructions).toContain("prepare_composition");
+    expect(instructions).toContain("formFamily");
+    expect(instructions).toContain("pitchFramework");
+    expect(instructions.slice(0, 512)).toContain("render_score");
+    expect(instructions).not.toContain("Baroque or Bach-informed");
+    expect(instructions).not.toContain("Pop/rock/funk/R&B");
+    expect(instructions.length).toBeLessThan(2_500);
   });
 
   it("normalizes a score call into structured content", async () => {

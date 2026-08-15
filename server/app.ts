@@ -15,7 +15,7 @@ import {
 } from "../shared/composition-plan.js";
 import { extractVoiceIds } from "../shared/voices.js";
 
-export const widgetUri = "ui://abcoda/score-v10.html";
+export const widgetUri = "ui://abcoda/score-v11.html";
 const widgetDomain = "https://abcoda.mud-repo-patcher-mcp-probe.workers.dev";
 
 const widgetCsp = {
@@ -37,7 +37,7 @@ export function validateAbc(abc: string): string[] {
 
 export function createAbcodaServer(loadWidget: WidgetLoader): McpServer {
   const server = new McpServer(
-    { name: "ABCoda", version: "0.2.0" },
+    { name: "ABCoda", version: "0.3.0" },
     { instructions: abcodaComposerInstructions },
   );
 
@@ -47,7 +47,7 @@ export function createAbcodaServer(loadWidget: WidgetLoader): McpServer {
     {
       title: "Prepare a composition brief",
       description:
-        "Call before composing or arranging. Infer a compact typed musical brief from the user's request; ABCoda returns style-specific theory, form, instrumentation, notation, and preflight guidance. Skip only when rendering ABC already supplied by the user.",
+        "Use this when the user asks to compose or arrange new music. Infer the complete typed brief from stated constraints and responsible defaults. ABCoda combines independent modules for style, form, pitch framework, rhythm, texture, instruments, difficulty, intent, notation, and conflict resolution. Do not use when merely rendering ABC already supplied by the user.",
       inputSchema: compositionBriefSchema,
       outputSchema: compositionPlanOutputSchema,
       annotations: {
@@ -85,7 +85,7 @@ export function createAbcodaServer(loadWidget: WidgetLoader): McpServer {
     {
       title: "Render interactive music score",
       description:
-        "Render a complete, original, abcjs-compatible ABC score with interactive playback. Compose coherently for the requested style before encoding; validate bar durations, ranges, clefs, voices, and Q: tempo. Voice IDs in playback and notation must match V: fields. Mark unpitched drum voices in notation.voiceKinds.",
+        "Use this to render complete abcjs-compatible ABC with interactive playback. For newly composed or arranged music, call prepare_composition first and pass its same brief as composition. For user-supplied ABC, composition may be omitted. Validate bar durations, ranges, clefs, transposition, voice IDs, and tempo; mark unpitched voices in notation.voiceKinds.",
       inputSchema: renderScoreInputSchema,
       outputSchema: renderScoreOutputSchema,
       annotations: {

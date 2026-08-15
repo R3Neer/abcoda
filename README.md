@@ -27,7 +27,7 @@ The built widget is a self-contained HTML file. The only runtime network depende
 
 ## Tool contract
 
-For a composition or arrangement, `prepare_composition` first receives a compact typed brief (style family/detail, form, measure count, meter, tempo, pitch language, difficulty, intent, ensemble roles, and constraints). It returns only the relevant style/form/instrument/notation guidance. This is a stateless planning pass: no plan is stored server-side, and the same brief is included in the subsequent render call.
+For a composition or arrangement, `prepare_composition` first receives a compact typed brief. Version 2 separates style, form archetype/section plan, pitch framework, meter/rhythmic feel, texture, difficulty, intent, instrument family/role/kind/transposition, constraints, and deliberate departures. It assembles only the relevant modules and returns typed render hints. This is a stateless planning pass: no plan is stored server-side, and the same brief is included in the subsequent render call.
 
 ```ts
 render_score({
@@ -52,7 +52,7 @@ render_score({
 ```
 
 Voice keys must match ABC `V:` identifiers. The authoritative schemas and instrument allowlist live in [`shared/score.ts`](shared/score.ts).
-ABCoda's bootstrap contract lives in [`shared/composer-instructions.ts`](shared/composer-instructions.ts), while the typed brief and style router live in [`shared/composition-plan.ts`](shared/composition-plan.ts). Common-practice counterpoint is not silently imposed on jazz, pop, impressionist, post-tonal, or experimental writing. The mechanical normalizer in [`shared/abc-lint.ts`](shared/abc-lint.ts) aligns `Q:` with playback tempo, enforces percussion clef/key metadata only when the caller explicitly types a voice as unpitched percussion, and reports inconsistent headers/voice references.
+ABCoda's bootstrap contract lives in [`shared/composer-instructions.ts`](shared/composer-instructions.ts), while the typed brief and modular assembler live in [`shared/composition-plan.ts`](shared/composition-plan.ts). Common-practice counterpoint is not silently imposed on jazz, pop, impressionist, post-tonal, or experimental writing. The mechanical normalizer in [`shared/abc-lint.ts`](shared/abc-lint.ts) aligns `Q:` with playback tempo, derives typed percussion/transposition metadata from the shared brief, and reports inconsistent headers, tempo, meter, voice references, and voice kinds. The prompt coverage and developer-mode golden cases are documented in [`docs/GOLDEN_PROMPTS.md`](docs/GOLDEN_PROMPTS.md).
 
 ## Local development
 

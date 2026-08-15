@@ -34,6 +34,38 @@ describe("ABC mechanical normalization", () => {
     const staves = tune?.lines.flatMap((line) => line.staff ?? []) ?? [];
     expect(staves.some((staff) => staff.clef?.type === "perc")).toBe(true);
   });
+
+  it("infers percussion metadata and transposition from the composition brief", () => {
+    const input = score(
+      "X:1\nT:Band\nM:4/4\nL:1/4\nV:CL clef=treble name=\"Clarinet\"\nV:DR clef=bass name=\"Drums\"\nK:D\n%%score { CL DR }\n[V:CL] D E F G|]\n[V:DR] C C C C|]",
+      {
+        playback: { tempo: 100 },
+        composition: {
+          styleFamily: "jazz_blues",
+          formFamily: "twelve_bar_blues",
+          form: "one chorus",
+          measures: 12,
+          meter: "4/4",
+          tempo: 100,
+          rhythmicFeel: "swing",
+          pitchFramework: "blues",
+          pitchLanguage: "concert C blues",
+          texture: "layered_groove",
+          difficulty: "intermediate",
+          intent: "performance",
+          ensemble: [
+            { voiceId: "CL", instrument: "B-flat clarinet", family: "woodwind", role: "melody", kind: "pitched", transpositionSemitones: -2 },
+            { voiceId: "DR", instrument: "drum kit", family: "drum_kit", role: "beat", kind: "unpitched_percussion", transpositionSemitones: 0 },
+          ],
+        },
+      },
+    );
+    const result = normalizeAndLintScore(input);
+    expect(result.score.abc).toContain('V:CL clef=treble name="Clarinet" transpose=-2');
+    expect(result.score.abc).toContain('V:DR clef=perc name="Drums"');
+    expect(result.score.abc).toContain("[V:DR][K:none clef=perc]");
+    expect(result.score.notation.voiceKinds).toEqual({ CL: "pitched", DR: "unpitched_percussion" });
+  });
 });
 
 describe("ABC contract lint", () => {
@@ -53,5 +85,34 @@ describe("ABC contract lint", () => {
     expect(warnings).toContain("Configuration references unknown voice GHOST.");
     expect(warnings).toContain("%%score references undeclared voice TWO.");
   });
-});
 
+  it("warns when the rendered score contradicts its composition brief", () => {
+    const input = score(
+      "X:1\nT:Mismatch\nM:3/4\nL:1/4\nV:ONE clef=treble\nV:EXTRA clef=bass\nK:C\n%%score { ONE EXTRA }\n[V:ONE] CDE|]\n[V:EXTRA] C,DE|]",
+      {
+        playback: { tempo: 120 },
+        notation: { voiceKinds: { ONE: "unpitched_percussion" } },
+        composition: {
+          styleFamily: "classical",
+          formFamily: "period",
+          form: "parallel period",
+          measures: 8,
+          meter: "4/4",
+          tempo: 96,
+          rhythmicFeel: "straight",
+          pitchFramework: "tonal_functional",
+          pitchLanguage: "C major",
+          texture: "melody_accompaniment",
+          difficulty: "beginner",
+          intent: "study",
+          ensemble: [{ voiceId: "ONE", instrument: "piano", family: "keyboard", role: "melody", kind: "pitched" }],
+        },
+      },
+    );
+    const warnings = normalizeAndLintScore(input).warnings;
+    expect(warnings).toContain("Composition tempo 96 differs from playback tempo 120; playback tempo currently wins.");
+    expect(warnings).toContain("Composition meter 4/4 differs from ABC M:3/4.");
+    expect(warnings).toContain("ABC voice EXTRA is not described by the composition brief.");
+    expect(warnings).toContain("Voice ONE has conflicting kinds: composition=pitched, notation=unpitched_percussion; composition kind wins.");
+  });
+});

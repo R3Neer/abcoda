@@ -62,6 +62,19 @@ function normalizePercussionVoice(abc: string, voiceId: string): string {
   return lines.join("\n");
 }
 
+function normalizeVoiceTranspose(abc: string, voiceId: string, semitones: number): string {
+  if (semitones === 0) return abc;
+  const escapedId = escapeRegExp(voiceId);
+  const voiceLine = new RegExp(`^(\\s*V:\\s*${escapedId})(?=\\s|$)(.*)$`, "gm");
+  return abc.replace(voiceLine, (_whole, prefix: string, suffix: string) => {
+    const transpose = /\b(?:transpose|t)\s*=\s*-?\d+\b/i;
+    const next = transpose.test(suffix)
+      ? suffix.replace(transpose, `transpose=${semitones}`)
+      : `${suffix} transpose=${semitones}`;
+    return `${prefix}${next}`.trimEnd();
+  });
+}
+
 function declaredVoiceOccurrences(abc: string): string[] {
   const firstKey = abc.search(/^\s*K:/m);
   const header = firstKey >= 0 ? abc.slice(0, firstKey) : abc;
@@ -115,12 +128,56 @@ function lintMetadata(score: RenderScoreInput): string[] {
   return warnings;
 }
 
+function normalizedField(value: string): string {
+  return value.replace(/^\s*[A-Za-z]:\s*/, "").replace(/\s+/g, "").toLowerCase();
+}
+
+function lintComposition(score: RenderScoreInput, originalKinds: Record<string, "pitched" | "unpitched_percussion">): string[] {
+  const brief = score.composition;
+  if (!brief) return [];
+  const warnings: string[] = [];
+  const voiceIds = new Set(extractVoiceIds(score.abc));
+  const briefIds = new Set(brief.ensemble.map((voice) => voice.voiceId));
+
+  if (brief.tempo !== score.playback.tempo) {
+    warnings.push(`Composition tempo ${brief.tempo} differs from playback tempo ${score.playback.tempo}; playback tempo currently wins.`);
+  }
+
+  const abcMeter = score.abc.match(/^\s*M:\s*(.+)$/m)?.[1];
+  if (abcMeter && normalizedField(abcMeter) !== normalizedField(brief.meter)) {
+    warnings.push(`Composition meter ${brief.meter} differs from ABC M:${abcMeter.trim()}.`);
+  }
+
+  for (const id of briefIds) {
+    if (!voiceIds.has(id)) warnings.push(`Composition brief voice ${id} is missing from the ABC.`);
+  }
+  for (const id of voiceIds) {
+    if (!briefIds.has(id)) warnings.push(`ABC voice ${id} is not described by the composition brief.`);
+  }
+
+  for (const voice of brief.ensemble) {
+    const explicit = originalKinds[voice.voiceId];
+    if (explicit && explicit !== voice.kind) {
+      warnings.push(`Voice ${voice.voiceId} has conflicting kinds: composition=${voice.kind}, notation=${explicit}; composition kind wins.`);
+    }
+  }
+  return warnings;
+}
+
 export function normalizeAndLintScore(input: RenderScoreInput): NormalizedScore {
+  const originalKinds = { ...input.notation.voiceKinds };
+  const inferredKinds = Object.fromEntries(
+    (input.composition?.ensemble ?? []).map((voice) => [voice.voiceId, voice.kind]),
+  ) as Record<string, "pitched" | "unpitched_percussion">;
+  const notation = { voiceKinds: { ...originalKinds, ...inferredKinds } };
   let abc = normalizeTempo(input.abc, input.playback.tempo);
-  for (const [voiceId, kind] of Object.entries(input.notation.voiceKinds)) {
+  for (const voice of input.composition?.ensemble ?? []) {
+    abc = normalizeVoiceTranspose(abc, voice.voiceId, voice.transpositionSemitones);
+  }
+  for (const [voiceId, kind] of Object.entries(notation.voiceKinds)) {
     if (kind === "unpitched_percussion") abc = normalizePercussionVoice(abc, voiceId);
   }
 
-  const score: RenderScoreInput = { ...input, abc };
-  return { score, warnings: lintMetadata(score) };
+  const score: RenderScoreInput = { ...input, abc, notation };
+  return { score, warnings: [...lintMetadata(score), ...lintComposition(score, originalKinds)] };
 }
