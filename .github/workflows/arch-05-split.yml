@@ -1,0 +1,40 @@
+name: ARCH-05 composition split
+
+on:
+  push:
+    branches: [architecture-v2]
+    paths:
+      - scripts/arch-05-split-composition.mjs
+
+permissions:
+  contents: write
+
+jobs:
+  refactor:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Split composition package
+        run: node scripts/arch-05-split-composition.mjs
+      - name: Verify focused architecture and composition behavior
+        run: |
+          npm run typecheck:v2
+          npx vitest run tests/v2/composition-architecture.test.ts tests/v2/composition-plan.test.ts tests/v2/composition-contract.test.ts tests/v2/composition-effort.test.ts
+      - name: Check patch whitespace
+        run: git diff --check
+      - name: Commit refactor
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add packages/composition/src
+          git diff --cached --quiet && exit 0
+          git commit -m "refactor(composition): split knowledge modules"
+          git push origin HEAD:architecture-v2
