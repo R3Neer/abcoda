@@ -5,7 +5,7 @@ import {
   CanonicalAbcCodec,
   parseAbc,
   serializeAbc,
-} from "../../packages/abc-codec/src/index";
+} from "@abcoda/abc-codec";
 
 const fixtureNames = [
   "inline-clef",
@@ -86,6 +86,56 @@ describe("canonical ABC codec", () => {
       numerator: 1,
       denominator: 1,
     });
+  });
+
+  it("indexes header, body and inline ABC fields with exact value source ranges", () => {
+    const source = [
+      "X:1",
+      "T:Fields",
+      "L:1/4",
+      "K:  C  ",
+      "C D|",
+      "K:  G  ",
+      "[K:  D ] E F|]",
+      "",
+    ].join("\n");
+    const document = decodedDocument(source);
+    const keys = document.fields.filter((field) => field.name === "K");
+
+    expect(keys.map((field) => ({
+      placement: field.placement,
+      value: field.value,
+      source: source.slice(field.source.start.offset, field.source.end.offset),
+      valueSource: source.slice(
+        field.valueSource.start.offset,
+        field.valueSource.end.offset,
+      ),
+    }))).toEqual([
+      {
+        placement: "header",
+        value: "C",
+        source: "K:  C  ",
+        valueSource: "C",
+      },
+      {
+        placement: "body",
+        value: "G",
+        source: "K:  G  ",
+        valueSource: "G",
+      },
+      {
+        placement: "inline",
+        value: "D",
+        source: "[K:  D ]",
+        valueSource: "D",
+      },
+    ]);
+
+    expect(document.voices[0]?.measures.flatMap((measure) => measure.events)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ kind: "inline_field", lexeme: "[K:  D ]" }),
+      ]),
+    );
   });
 
   it("normalizes only newlines and offers an encode/decode port", () => {
