@@ -156,40 +156,65 @@ test("clicking an engraved note seeks and places the cursor immediately before i
   expect(Math.abs(cursorBox!.x + cursorBox!.width - noteBox!.x)).toBeLessThan(8);
 });
 
-test("invalid local edits keep the last rendered score and can be discarded", async ({ page }) => {
+test("play starts at the first note and seeking while playing keeps playback alive", async ({ page }) => {
   await page.goto("/?scenario=ready");
-  await page.locator("#editor summary").click();
+  const cursor = page.locator(".score-cursor");
+  const firstNote = page.locator("#score .abcjs-note").first();
+  const initialCursor = await cursor.boundingBox();
+  const firstNoteBox = await firstNote.boundingBox();
+  expect(initialCursor).not.toBeNull();
+  expect(firstNoteBox).not.toBeNull();
+  expect(Math.abs(initialCursor!.x + initialCursor!.width - firstNoteBox!.x)).toBeLessThan(8);
+
+  await page.locator("#playback").click();
+  await expect(page.locator("#playback")).toHaveAttribute("aria-label", "Pause");
+  const laterNote = page.locator("#score .abcjs-note").nth(6);
+  const laterNoteBox = await laterNote.boundingBox();
+  expect(laterNoteBox).not.toBeNull();
+  await page.mouse.click(
+    laterNoteBox!.x + laterNoteBox!.width / 2,
+    laterNoteBox!.y + laterNoteBox!.height / 2,
+  );
+  await expect(page.locator("#playback")).toHaveAttribute("aria-label", "Pause");
+  await expect(laterNote).toHaveClass(/abcjs-note_selected/);
+});
+
+test("invalid local edits keep the last rendered score and remain in version history", async ({ page }) => {
+  await page.goto("/?scenario=ready");
+  await page.locator("#editor > summary").click();
   const source = page.locator("#abc-draft");
   const original = await source.inputValue();
   await source.fill(original.replace(/^X:1\n/, ""));
-  await page.locator("#apply-draft").click();
 
-  await expect(page.locator("#editor-state")).toHaveText("Needs attention");
+  await expect(page.locator("#editor-state")).toHaveText("Not applied");
   await expect(page.locator("#draft-diagnostics")).toContainText("must declare exactly one X:");
   await expect(page.locator("#status")).toHaveText("Revision 1 ready");
   await expect(page.locator("body")).toHaveAttribute("data-state", "ready");
+  const invalidVersion = page.locator('#version-history button[data-version-status="invalid"]');
+  await expect(invalidVersion).toHaveCount(1);
 
-  await page.locator("#discard-draft").click();
+  await page.locator("#version-picker > summary").click();
+  await page.locator('#version-history button[data-version-id="original"]').click();
   await expect(source).toHaveValue(original);
-  await expect(page.locator("#editor-state")).toHaveText("Revision 1 saved");
+  await expect(page.locator("#editor-state")).toHaveText("Revision 3 saved");
   await expect(page.locator("#draft-diagnostics")).toBeEmpty();
 });
 
 test("valid local edits create revisions and original restore stays monotonic", async ({ page }) => {
   await page.goto("/?scenario=ready");
-  await page.locator("#editor summary").click();
+  await page.locator("#editor > summary").click();
   const source = page.locator("#abc-draft");
   await source.fill((await source.inputValue()).replace(
     "T:First architecture v2 vertical",
     "T:Locally edited title",
   ));
-  await page.locator("#apply-draft").click();
 
   await expect(page.locator("#status")).toHaveText("Revision 2 ready");
   await expect(page.locator("#editor-state")).toHaveText("Revision 2 saved");
   await expect(page.locator("#score")).toContainText("Locally edited title");
 
-  await page.locator("#restore-original").click();
+  await page.locator("#version-picker > summary").click();
+  await page.locator('#version-history button[data-version-id="original"]').click();
   await expect(page.locator("#status")).toHaveText("Revision 3 ready");
   await expect(page.locator("#editor-state")).toHaveText("Revision 3 saved");
   await expect(page.locator("#score")).toContainText("First architecture v2 vertical");
@@ -200,7 +225,7 @@ test("copy ABC is an explicit user action with visible feedback", async ({ page,
     origin: "http://127.0.0.1:4173",
   });
   await page.goto("/?scenario=ready");
-  await page.locator("#editor summary").click();
+  await page.locator("#editor > summary").click();
   const expected = await page.locator("#abc-draft").inputValue();
   await page.locator("#copy-draft").click();
 
@@ -210,14 +235,13 @@ test("copy ABC is an explicit user action with visible feedback", async ({ page,
 
 test("transposition is reviewable before it creates a new score revision", async ({ page }) => {
   await page.goto("/?scenario=ready");
-  await page.locator("#editor summary").click();
+  await page.locator("#editor > summary").click();
   await page.locator("#transpose-up").click();
 
-  await expect(page.locator("#editor-state")).toHaveText("Unsaved changes");
+  await expect(page.locator("#editor-state")).toHaveText("Saving soon…");
   await expect(page.locator("#status")).toHaveText("Revision 1 ready");
   await expect(page.locator("#abc-draft")).toHaveValue(/K:(?:Db|C#)/);
 
-  await page.locator("#apply-draft").click();
   await expect(page.locator("#status")).toHaveText("Revision 2 ready");
   await expect(page.locator("#editor-state")).toHaveText("Revision 2 saved");
   await expect(page.locator("#score")).toContainText("First architecture v2 vertical");
@@ -229,12 +253,11 @@ test("mixed pitched and percussion voices keep compatible controls and transposi
   await expect(percussionInstrument.locator("option")).toHaveCount(1);
   await expect(percussionInstrument).toHaveValue("standard_drum_kit");
 
-  await page.locator("#editor summary").click();
+  await page.locator("#editor > summary").click();
   await page.locator("#transpose-up").click();
   const draft = page.locator("#abc-draft");
   await expect(draft).toHaveValue(/K:Db/);
   await expect(draft).toHaveValue(/\[V:D\]\[K:none clef=perc\] C D E F\|C D E F\|\]/);
-  await page.locator("#apply-draft").click();
   await expect(page.locator("#status")).toHaveText("Revision 2 ready");
   await expect(percussionInstrument).toHaveValue("standard_drum_kit");
 });
@@ -264,10 +287,12 @@ test("primary controls follow a visible and operable keyboard path", async ({ pa
   await page.keyboard.press("Tab");
   await expect(page.locator('button.voice-mute[data-voice-id="LH"]')).toBeFocused();
   await page.keyboard.press("Tab");
-  const editorSummary = page.locator("#editor summary");
+  const editorSummary = page.locator("#editor > summary");
   await expect(editorSummary).toBeFocused();
   await page.keyboard.press("Enter");
   await expect(page.locator("#editor")).toHaveAttribute("open", "");
+  await page.keyboard.press("Tab");
+  await expect(page.locator("#version-picker > summary")).toBeFocused();
   await page.keyboard.press("Tab");
   await expect(page.locator("#abc-draft")).toBeFocused();
 });

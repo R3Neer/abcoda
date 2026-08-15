@@ -1,5 +1,12 @@
 :root {
   color-scheme: light dark;
+  --accent: light-dark(#2563eb, #60a5fa);
+  --accent-ink: light-dark(#ffffff, #071426);
+  --danger: light-dark(#c7354c, #fb7185);
+  --control-bg: color-mix(in srgb, CanvasText 7%, Canvas);
+  --control-border: color-mix(in srgb, CanvasText 22%, transparent);
+  --control-hover: color-mix(in srgb, var(--accent) 13%, Canvas);
+  --control-pressed: color-mix(in srgb, var(--accent) 23%, Canvas);
   font-family: ui-sans-serif, system-ui, sans-serif;
   color: CanvasText;
   background: Canvas;
@@ -18,8 +25,46 @@
 }
 
 :where(button, select, input, textarea, summary):focus-visible {
-  outline: 2px solid Highlight;
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+:where(button, select, summary) {
+  -webkit-tap-highlight-color: transparent;
+}
+
+:where(button, .version-picker > summary) {
+  transition:
+    color 130ms ease,
+    background-color 130ms ease,
+    border-color 130ms ease,
+    box-shadow 130ms ease,
+    transform 90ms ease;
+}
+
+@media (hover: hover) {
+  :where(button, .version-picker > summary):not(:disabled):hover {
+    border-color: color-mix(in srgb, var(--accent) 55%, var(--control-border));
+    background: var(--control-hover);
+  }
+}
+
+:where(button, .version-picker > summary):not(:disabled):active {
+  transform: translateY(1px) scale(0.96);
+  background: var(--control-pressed);
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+button[aria-pressed="true"],
+.version-picker[open] > summary {
+  border-color: color-mix(in srgb, var(--accent) 68%, var(--control-border));
+  color: var(--accent-ink);
+  background: var(--accent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, white 14%, transparent);
 }
 
 body {
@@ -83,10 +128,16 @@ body {
   width: 2px;
   min-height: 1rem;
   border-radius: 999px;
-  background: Highlight;
-  box-shadow: 0 0 0 1px color-mix(in srgb, Highlight 28%, transparent);
+  background: var(--accent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 28%, transparent);
   pointer-events: none;
   transform: translateX(-3px);
+}
+
+.score :where(.abcjs-note_selected, .abcjs-note_selected *) {
+  color: var(--accent) !important;
+  fill: var(--accent) !important;
+  stroke: var(--accent) !important;
 }
 
 .score svg {
@@ -183,6 +234,11 @@ body {
   min-width: 2.75rem;
   min-height: 2.75rem;
   padding: 0;
+  border: 1px solid var(--control-border);
+  border-radius: 999px;
+  color: CanvasText;
+  background: var(--control-bg);
+  cursor: pointer;
 }
 
 .control-icon {
@@ -194,11 +250,6 @@ body {
 
 .control-icon[hidden] {
   display: none;
-}
-
-.voice-mute[aria-pressed="true"] {
-  color: Canvas;
-  background: color-mix(in srgb, #c74444 78%, CanvasText);
 }
 
 .voice-range-warning {
@@ -216,7 +267,7 @@ body {
   background: color-mix(in srgb, CanvasText 4%, Canvas);
 }
 
-.editor summary {
+.editor > summary {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -229,7 +280,7 @@ body {
   list-style-position: inside;
 }
 
-.editor summary output {
+.editor > summary output {
   color: color-mix(in srgb, CanvasText 62%, transparent);
   font-size: 0.75rem;
   font-weight: 500;
@@ -241,22 +292,127 @@ body {
   padding: 0 0.8rem 0.8rem;
 }
 
-.editor-body > label {
+.editor-toolbar {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.editor-toolbar > label {
   font-size: 0.75rem;
   font-weight: 650;
+}
+
+.version-picker {
+  position: relative;
+}
+
+.version-picker > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 2.25rem;
+  padding: 0.35rem 0.65rem;
+  border: 1px solid var(--control-border);
+  border-radius: 999px;
+  background: var(--control-bg);
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 650;
+  list-style: none;
+}
+
+.version-picker > summary::-webkit-details-marker {
+  display: none;
+}
+
+.version-history {
+  position: absolute;
+  top: calc(100% + 0.4rem);
+  right: 0;
+  display: grid;
+  width: min(16rem, calc(100vw - 3rem));
+  max-height: 15rem;
+  overflow: auto;
+  padding: 0.35rem;
+  border: 1px solid var(--control-border);
+  border-radius: 0.75rem;
+  background: Canvas;
+  box-shadow: 0 0.75rem 2rem color-mix(in srgb, CanvasText 18%, transparent);
+}
+
+.version-history button {
+  display: grid;
+  grid-template-columns: 1.25rem minmax(0, 1fr);
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 2.4rem;
+  padding: 0.4rem 0.6rem;
+  border: 0;
+  border-radius: 0.45rem;
+  color: CanvasText;
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+.version-history button[aria-selected="true"] {
+  background: color-mix(in srgb, var(--accent) 18%, Canvas);
+}
+
+.version-history button[data-version-status="invalid"] {
+  color: var(--danger);
+}
+
+.version-marker {
+  display: inline-grid;
+  place-items: center;
+  width: 1.15rem;
+  height: 1.15rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, currentColor 13%, transparent);
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.textarea-shell {
+  position: relative;
 }
 
 #abc-draft {
   width: 100%;
   min-height: 12rem;
   resize: vertical;
-  padding: 0.75rem;
+  padding: 0.75rem 3.5rem 0.75rem 0.75rem;
   border: 1px solid color-mix(in srgb, CanvasText 20%, transparent);
   border-radius: 0.5rem;
   color: CanvasText;
   background: Canvas;
   font: 0.8rem/1.45 ui-monospace, "Cascadia Code", monospace;
   tab-size: 2;
+}
+
+.copy-button {
+  position: absolute;
+  top: 0.55rem;
+  right: 0.55rem;
+  width: 2.25rem;
+  min-width: 2.25rem;
+  min-height: 2.25rem;
+  background: color-mix(in srgb, Canvas 88%, transparent);
+  backdrop-filter: blur(8px);
+}
+
+.copy-status {
+  position: absolute;
+  top: 3.05rem;
+  right: 0.6rem;
+  color: color-mix(in srgb, CanvasText 65%, transparent);
+  font-size: 0.7rem;
 }
 
 .draft-diagnostics {
@@ -300,21 +456,17 @@ body {
 .transpose-controls button {
   min-height: 2.5rem;
   padding-inline: 0.75rem;
-  border: 1px solid color-mix(in srgb, CanvasText 20%, transparent);
+  border: 1px solid var(--control-border);
   border-radius: 0.5rem;
   color: CanvasText;
-  background: color-mix(in srgb, CanvasText 7%, Canvas);
+  background: var(--control-bg);
   font: inherit;
+  cursor: pointer;
 }
 
 .editor-actions button:disabled,
 .transpose-controls button:disabled {
   opacity: 0.5;
-}
-
-.copy-status {
-  color: color-mix(in srgb, CanvasText 65%, transparent);
-  font-size: 0.75rem;
 }
 
 .transport {
@@ -333,19 +485,16 @@ body {
 .transport button {
   min-height: 2.75rem;
   padding-inline: 0.9rem;
-  border: 1px solid color-mix(in srgb, CanvasText 24%, transparent);
+  border: 1px solid var(--control-border);
   border-radius: 999px;
   color: CanvasText;
-  background: color-mix(in srgb, CanvasText 8%, Canvas);
+  background: var(--control-bg);
   font: inherit;
+  cursor: pointer;
 }
 
 .transport .icon-button {
   padding-inline: 0;
-}
-
-.transport button[aria-pressed="true"] {
-  background: color-mix(in srgb, Highlight 25%, Canvas);
 }
 
 .tempo {
@@ -356,6 +505,10 @@ body {
   flex: 1;
   min-width: 0;
   font-size: 0.8rem;
+}
+
+.tempo input {
+  accent-color: var(--accent);
 }
 
 .audio-host {

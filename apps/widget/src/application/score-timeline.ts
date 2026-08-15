@@ -113,6 +113,10 @@ export function eventAtPoint(
   })[0];
 }
 
+export function firstTimingEvent(events: readonly ScoreTimingEvent[]): ScoreTimingEvent | undefined {
+  return events[0];
+}
+
 function eventsForPoint(
   events: readonly ScoreTimingEvent[],
   y: number,

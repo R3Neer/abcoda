@@ -28,8 +28,23 @@
           <output id="editor-state">Saved</output>
         </summary>
         <div class="editor-body">
-          <label for="abc-draft">ABC source</label>
-          <textarea id="abc-draft" rows="12" spellcheck="false"></textarea>
+          <div class="editor-toolbar">
+            <label for="abc-draft">ABC source</label>
+            <details id="version-picker" class="version-picker">
+              <summary aria-label="Version history" title="Version history">
+                <svg class="control-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3a9 9 0 1 1-8.45 5.91l-1.97-.02L6 5.5 9.42 8.9l-2.53.01A7 7 0 1 0 13 5v3l-4-4 4-4v3zm-1 5h2v5.17l3.24 1.87-1 1.73L12 14.32V8z" /></svg>
+                <span>Versions</span>
+              </summary>
+              <div id="version-history" class="version-history" role="listbox" aria-label="Draft versions"></div>
+            </details>
+          </div>
+          <div class="textarea-shell">
+            <textarea id="abc-draft" rows="12" spellcheck="false"></textarea>
+            <button id="copy-draft" class="icon-button copy-button" type="button" aria-label="Copy ABC" title="Copy ABC">
+              <svg class="control-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 7V3h11v13h-4v5H4V7h4zm2 0h5v7h2V5h-7v2zm3 2H6v10h7V9z" /></svg>
+            </button>
+            <output id="copy-status" class="copy-status" aria-live="polite"></output>
+          </div>
           <ul id="draft-diagnostics" class="draft-diagnostics" aria-live="polite"></ul>
           <div class="transpose-controls" role="group" aria-label="Transpose draft">
             <span>Transpose draft</span>
@@ -38,17 +53,12 @@
             <button id="transpose-up" type="button" data-semitones="1">+1</button>
             <button id="transpose-up-octave" type="button" data-semitones="12">+12</button>
           </div>
-          <div class="editor-actions">
-            <button id="apply-draft" type="button">Apply</button>
-            <button id="discard-draft" type="button">Last valid</button>
-            <button id="restore-original" type="button">Original</button>
-            <button id="copy-draft" type="button">Copy ABC</button>
-            <output id="copy-status" class="copy-status" aria-live="polite"></output>
-          </div>
         </div>
       </details>
       <footer class="transport" aria-label="Playback controls">
-        <button id="rewind" type="button" disabled aria-label="Return to beginning">↶</button>
+        <button id="rewind" class="icon-button" type="button" disabled aria-label="Return to beginning" title="Return to beginning">
+          <svg class="control-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 6V3L5 8l6 5v-3a6 6 0 1 1-5.65 8H3.26A8 8 0 1 0 11 6z" /></svg>
+        </button>
         <button id="playback" class="icon-button" type="button" disabled aria-label="Play" title="Play">
           <svg class="control-icon play-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
           <svg class="control-icon pause-icon" viewBox="0 0 24 24" aria-hidden="true" hidden><path d="M6 5h4v14H6zm8 0h4v14h-4z" /></svg>

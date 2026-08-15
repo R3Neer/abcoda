@@ -27,9 +27,7 @@ export interface VoiceMixActions {
 
 export interface DraftActions {
   readonly edit: (draft: string) => void;
-  readonly apply: () => void;
-  readonly restoreLastGood: () => void;
-  readonly restoreOriginal: () => void;
+  readonly restoreVersion: (id: string) => void;
   readonly transpose: (semitones: number) => void;
 }
 
@@ -53,9 +51,8 @@ export class DomWidgetView {
   private readonly editorState: HTMLOutputElement;
   private readonly draftInput: HTMLTextAreaElement;
   private readonly draftDiagnostics: HTMLElement;
-  private readonly applyDraftButton: HTMLButtonElement;
-  private readonly discardDraftButton: HTMLButtonElement;
-  private readonly restoreOriginalButton: HTMLButtonElement;
+  private readonly versionHistory: HTMLElement;
+  private readonly versionPicker: HTMLDetailsElement;
   private readonly copyDraftButton: HTMLButtonElement;
   private readonly copyStatus: HTMLOutputElement;
   private readonly transposeButtons: readonly HTMLButtonElement[];
@@ -79,9 +76,8 @@ export class DomWidgetView {
     this.editorState = this.required("editor-state");
     this.draftInput = this.required("abc-draft");
     this.draftDiagnostics = this.required("draft-diagnostics");
-    this.applyDraftButton = this.required("apply-draft");
-    this.discardDraftButton = this.required("discard-draft");
-    this.restoreOriginalButton = this.required("restore-original");
+    this.versionHistory = this.required("version-history");
+    this.versionPicker = this.required("version-picker");
     this.copyDraftButton = this.required("copy-draft");
     this.copyStatus = this.required("copy-status");
     this.transposeButtons = [
@@ -117,10 +113,13 @@ export class DomWidgetView {
     this.rewindButton.disabled = !interactive;
     this.loopButton.disabled = !interactive;
     this.tempoInput.disabled = state.status === "configuring" || state.status === "transitioning";
-    const playing = state.status === "ready" && state.mode === "playing";
+    const playing = (state.status === "ready" || state.status === "transitioning")
+      && state.mode === "playing";
     this.playIcon.toggleAttribute("hidden", playing);
     this.pauseIcon.toggleAttribute("hidden", !playing);
     this.playbackButton.setAttribute("aria-label", playing ? "Pause" : "Play");
+    this.playbackButton.setAttribute("aria-pressed", String(playing));
+    this.playbackButton.setAttribute("aria-busy", String(state.status === "transitioning"));
     this.playbackButton.title = playing ? "Pause" : "Play";
     this.loopButton.setAttribute("aria-pressed", String(state.loop));
     this.loopButton.setAttribute("aria-label", state.loop ? "Disable loop" : "Enable loop");
@@ -198,20 +197,28 @@ export class DomWidgetView {
     this.editorState.value = state.status === "clean"
       ? `Revision ${state.lastGood.revision} saved`
       : state.status === "dirty"
-        ? "Unsaved changes"
+        ? "Saving soon…"
         : state.status === "validating"
-          ? "Validating…"
-          : "Needs attention";
+          ? "Saving…"
+          : "Not applied";
     const busy = state.status === "validating";
-    this.draftInput.disabled = busy;
-    this.applyDraftButton.disabled = busy || state.status === "clean";
-    this.discardDraftButton.disabled = busy || state.draft === state.lastGood.document.source.text;
-    this.restoreOriginalButton.disabled = busy || (
-      state.draft === state.original.document.source.text
-      && state.lastGood.revision === state.original.revision
-    );
-    this.copyDraftButton.disabled = busy;
-    for (const button of this.transposeButtons) button.disabled = busy;
+    this.editor.toggleAttribute("aria-busy", busy);
+    this.versionHistory.replaceChildren(...state.history.map((version) => {
+      const button = this.documentObject.createElement("button");
+      button.type = "button";
+      button.dataset.versionId = version.id;
+      button.dataset.versionStatus = version.status;
+      button.setAttribute("role", "option");
+      button.setAttribute("aria-selected", String(version.id === state.currentVersionId));
+      const marker = this.documentObject.createElement("span");
+      marker.className = "version-marker";
+      marker.textContent = version.status === "invalid" ? "!" : "✓";
+      const label = this.documentObject.createElement("span");
+      label.textContent = version.label;
+      button.appendChild(marker);
+      button.appendChild(label);
+      return button;
+    }));
     this.draftDiagnostics.replaceChildren(...(
       state.status === "invalid" ? state.diagnostics.map((diagnostic) => {
         const item = this.documentObject.createElement("li");
@@ -279,25 +286,26 @@ export class DomWidgetView {
 
   bindDraft(actions: DraftActions): () => void {
     const edit = () => actions.edit(this.draftInput.value);
-    const apply = () => actions.apply();
-    const restoreLastGood = () => actions.restoreLastGood();
-    const restoreOriginal = () => actions.restoreOriginal();
     const copy = () => { void this.copyDraft(); };
+    const restoreVersion = (event: MouseEvent) => {
+      const button = event.target instanceof Element
+        ? event.target.closest<HTMLButtonElement>("button[data-version-id]")
+        : null;
+      if (!button?.dataset.versionId) return;
+      actions.restoreVersion(button.dataset.versionId);
+      this.versionPicker.open = false;
+    };
     const transposeListeners = this.transposeButtons.map((button) => {
       const transpose = () => actions.transpose(Number(button.dataset.semitones));
       button.addEventListener("click", transpose);
       return { button, transpose };
     });
     this.draftInput.addEventListener("input", edit);
-    this.applyDraftButton.addEventListener("click", apply);
-    this.discardDraftButton.addEventListener("click", restoreLastGood);
-    this.restoreOriginalButton.addEventListener("click", restoreOriginal);
+    this.versionHistory.addEventListener("click", restoreVersion);
     this.copyDraftButton.addEventListener("click", copy);
     return () => {
       this.draftInput.removeEventListener("input", edit);
-      this.applyDraftButton.removeEventListener("click", apply);
-      this.discardDraftButton.removeEventListener("click", restoreLastGood);
-      this.restoreOriginalButton.removeEventListener("click", restoreOriginal);
+      this.versionHistory.removeEventListener("click", restoreVersion);
       this.copyDraftButton.removeEventListener("click", copy);
       for (const { button, transpose } of transposeListeners) {
         button.removeEventListener("click", transpose);

@@ -20,6 +20,8 @@ describe("ScoreCursorController", () => {
     const view: CursorView = { show, hide: vi.fn() };
     const cursor = new ScoreCursorController(view);
     cursor.setTimeline(timeline);
+    expect(show).toHaveBeenCalledWith(timeline.events[0]);
+    show.mockClear();
     cursor.onPlaybackEvent({ timeMs: 0, sourceOffsets: [10] });
     expect(show).not.toHaveBeenCalled();
 
@@ -41,5 +43,17 @@ describe("ScoreCursorController", () => {
     expect(cursor.seekMeasure(99)).toBeUndefined();
     expect(cursor.seekPoint(72, 35)).toBe(0.25);
     expect(show).toHaveBeenLastCalledWith(timeline.events[1]);
+  });
+
+  it("keeps an explicit cursor while paused and rewinds to the first note", () => {
+    const show = vi.fn();
+    const view: CursorView = { show, hide: vi.fn() };
+    const cursor = new ScoreCursorController(view);
+    cursor.setTimeline(timeline);
+    cursor.seekPoint(72, 35);
+    cursor.setPlaying(false);
+    expect(show).toHaveBeenLastCalledWith(timeline.events[1]);
+    cursor.rewind();
+    expect(show).toHaveBeenLastCalledWith(timeline.events[0]);
   });
 });

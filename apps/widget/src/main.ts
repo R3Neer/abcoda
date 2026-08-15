@@ -26,7 +26,8 @@ const cursor = new ScoreCursorController(cursorView);
 const playback = new PlaybackSessionController(96, 96, false, (state) => {
   view.showPlayback(state);
   cursor.setPlaying(
-    (state.status === "ready" || state.status === "transitioning") && state.mode === "playing",
+    (state.status === "ready" || state.status === "transitioning")
+      && state.mode === "playing",
   );
 });
 const playbackMix = new PlaybackMixCoordinator(playback, (message) => {
@@ -73,6 +74,7 @@ const draft = new DraftSessionController(
   (state) => view.showDraft(state),
   (result) => { void controller.receive(result); },
   new AbcjsDraftTransformer(),
+  700,
 );
 const runtime = new WidgetRuntime(
   controller,
@@ -101,9 +103,7 @@ const unbindVoiceMix = view.bindVoiceMix({
 });
 const unbindDraft = view.bindDraft({
   edit: (text) => draft.edit(text),
-  apply: () => { void draft.apply(); },
-  restoreLastGood: () => draft.restoreLastGood(),
-  restoreOriginal: () => draft.restoreOriginal(),
+  restoreVersion: (id) => draft.restoreVersion(id),
   transpose: (semitones) => draft.transpose(semitones),
 });
 const unbindSeek = cursorView.bindSeek((x, y) => {

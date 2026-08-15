@@ -22,12 +22,11 @@ function snapshot(revision: number, text: string): ScoreSnapshotDto {
 describe("DraftSessionController", () => {
   it("keeps original, draft, and last-good revisions separate", async () => {
     const applied: EvaluateScoreResultDto[] = [];
-    const evaluator: DraftEvaluator = {
-      evaluate: vi.fn((abc: string, revision: number) => Promise.resolve<EvaluateScoreResultDto>({
+    const evaluate = vi.fn((abc: string, revision: number) => Promise.resolve<EvaluateScoreResultDto>({
         status: "success",
         snapshot: snapshot(revision, abc),
-      })),
-    };
+      }));
+    const evaluator: DraftEvaluator = { evaluate };
     const draft = new DraftSessionController(evaluator, () => undefined, (result) => applied.push(result));
     draft.adoptHostSnapshot(snapshot(4, "X:1\nK:C\nC|]"));
     draft.edit("X:1\nK:C\nD|]");
@@ -39,6 +38,13 @@ describe("DraftSessionController", () => {
       lastGood: { revision: 5, document: { source: { text: "X:1\nK:C\nD|]" } } },
     });
     expect(applied).toHaveLength(1);
+    expect(draft.snapshot()).toMatchObject({
+      history: [
+        { id: "original", status: "original" },
+        { id: "revision-5", status: "valid" },
+      ],
+      currentVersionId: "revision-5",
+    });
   });
 
   it("preserves the last good snapshot when validation is invalid", async () => {
@@ -58,7 +64,55 @@ describe("DraftSessionController", () => {
       draft: "K:C\nC|]",
       lastGood: { revision: 1 },
       diagnostics: [{ message: "missing X" }],
+      history: [
+        { status: "original" },
+        { status: "invalid", abc: "K:C\nC|]" },
+      ],
     });
+  });
+
+  it("auto-applies only after the configured idle period", async () => {
+    vi.useFakeTimers();
+    const evaluate = vi.fn((abc: string, revision: number) => Promise.resolve<EvaluateScoreResultDto>({
+        status: "success",
+        snapshot: snapshot(revision, abc),
+      }));
+    const evaluator: DraftEvaluator = { evaluate };
+    const draft = new DraftSessionController(evaluator, () => undefined, () => undefined, undefined, 700);
+    draft.adoptHostSnapshot(snapshot(1, "original"));
+    draft.edit("first");
+    await vi.advanceTimersByTimeAsync(500);
+    draft.edit("second");
+    await vi.advanceTimersByTimeAsync(699);
+    expect(evaluate).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(evaluate).toHaveBeenCalledOnce();
+    expect(evaluate).toHaveBeenCalledWith("second", 2, expect.any(AbortSignal));
+    vi.useRealTimers();
+  });
+
+  it("restores valid and invalid versions from one history", async () => {
+    const evaluator: DraftEvaluator = {
+      evaluate: vi.fn((abc: string, revision: number) => abc === "bad"
+        ? Promise.resolve<EvaluateScoreResultDto>({
+          status: "invalid",
+          diagnostics: [{ code: "ABC_SOURCE_EMPTY", severity: "error", message: "bad" }],
+        })
+        : Promise.resolve<EvaluateScoreResultDto>({ status: "success", snapshot: snapshot(revision, abc) })),
+    };
+    const applied: EvaluateScoreResultDto[] = [];
+    const draft = new DraftSessionController(evaluator, () => undefined, (result) => applied.push(result));
+    draft.adoptHostSnapshot(snapshot(1, "original"));
+    draft.edit("valid");
+    await draft.apply();
+    draft.edit("bad");
+    await draft.apply();
+
+    draft.restoreVersion("attempt-3");
+    expect(draft.snapshot()).toMatchObject({ status: "invalid", draft: "bad" });
+    draft.restoreVersion("revision-2");
+    expect(draft.snapshot()).toMatchObject({ status: "clean", draft: "valid" });
+    expect(applied.at(-1)).toMatchObject({ snapshot: { revision: 4 } });
   });
 
   it("does not let a stale validation overwrite a newer draft", async () => {

@@ -37,7 +37,14 @@ export class DomScoreCursor implements CursorView {
 
   bindSeek(onPoint: (x: number, y: number) => void): () => void {
     const click = (event: MouseEvent) => {
-      const point = this.toScorePoint(event.clientX, event.clientY);
+      const note = event.target instanceof Element
+        ? event.target.closest<SVGGraphicsElement>(".abcjs-note")
+        : null;
+      const noteRect = note?.getBoundingClientRect();
+      const point = this.toScorePoint(
+        noteRect ? noteRect.left + noteRect.width / 2 : event.clientX,
+        noteRect ? noteRect.top + noteRect.height / 2 : event.clientY,
+      );
       if (point) onPoint(point.x, point.y);
     };
     this.scoreTarget.addEventListener("click", click);
