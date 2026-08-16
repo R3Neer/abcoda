@@ -56,4 +56,15 @@ test("captures usual, extended, and unplayable instrument ranges for visual revi
     `ranges-light-mixer-${testInfo.project.name}`,
     mixer,
   );
+
+  if (testInfo.project.name === "mobile-chromium") {
+    const lastControl = mixer.locator(".voice-mix-row").last().locator(".transpose-stepper");
+    await lastControl.scrollIntoViewIfNeeded();
+    await page.evaluate(() => window.scrollBy(0, window.innerHeight));
+    await captureVisualReview(
+      page,
+      testInfo,
+      "ranges-light-clearance-mobile-chromium",
+    );
+  }
 });
