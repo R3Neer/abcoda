@@ -1,139 +1,137 @@
 # M8 · Revisión humana final de UX, accesibilidad y audio
 
-> Documento temporal. Se elimina solo cuando la revisión visual automatizada + inspección humana de artifacts esté cerrada y las comprobaciones que dependen de un host/audio real estén ejecutadas o claramente bloqueadas por M7.
+> Documento temporal. La subfase visual está cerrada. El documento permanece mientras M7 no produzca una preview pública y falten audición + host MCP Apps real.
 
-## 1. Estado de partida
+## 1. Estado
 
-M1–M6 están cerrados. M7 tiene código, sonda pública y workflow manual de deploy, pero sigue abierto hasta disponer de una preview pública autenticada en Cloudflare.
+M1–M6 están cerrados. M7 tiene build, sonda pública y workflow manual de deploy, pero sigue abierto hasta disponer de una preview pública autenticada en Cloudflare.
 
-La suite browser actual ya cubre responsive, navegación por teclado, cursor, reflow, transposición, rangos, forced-colors y genera artifacts visuales desktop/mobile en light/dark.
+M8 se divide deliberadamente en:
 
-La inspección humana del artifact del run verde `746f15af` revela un defecto visible no expresado por los tests existentes:
+1. revisión visual/geométrica reproducible;
+2. revisión humana de audio y ejecución dentro de un host MCP Apps real.
 
-- en viewport móvil el transporte sticky se divide en dos filas;
-- el transporte queda pegado al borde inferior;
-- el contenido de `mixer` puede desplazarse por debajo del dock;
-- la captura muestra la última fila/controles parcialmente ocultos por el transporte;
-- no hay overflow horizontal, por lo que el gate actual no lo detecta.
+La primera está **cerrada**. La segunda sigue bloqueada por M7.
 
-El CSS explica el defecto: `.transport { position: sticky; bottom: 0 }` y `.shell` solo reserva el padding normal/safe-area; no existe clearance vertical equivalente a la altura efectiva del dock.
+## 2. Hallazgo inicial: supuesto solapamiento móvil
 
-## 2. Objetivo visual
+La primera inspección del artifact visual mostraba el transporte sticky cubriendo parte del mixer en un viewport móvil intermedio. El CSS relevante es:
 
-Mantener el transporte sticky porque es una capacidad deseada, pero garantizar que cualquier contenido interactivo anterior pueda desplazarse completamente por encima de él.
+```css
+.transport {
+  position: sticky;
+  bottom: 0;
+}
+```
 
-No se pretende mantener siempre visibles simultáneamente todos los controles. El requisito es de **alcanzabilidad**: al hacer scroll hasta el final, el último control del mixer/editor debe poder quedar sin intersección con el rectángulo del transporte.
+La captura aislada sugería que podía existir un problema de alcanzabilidad de controles.
 
-### Invariante geométrica
+No se modificó CSS inmediatamente. Se creó primero una regresión geométrica permanente:
 
-Para un viewport móvil con mixer abierto y scroll al final:
+`tests/browser/mobile-transport-clearance.e2e.ts`
+
+que:
+
+- usa el proyecto `mobile-chromium`;
+- abre `scenario=ranges`;
+- despliega el mixer;
+- desplaza el último control de la última voz;
+- exige que su borde inferior quede al menos 8 px por encima del transporte sticky;
+- vuelve a comprobar ausencia de overflow horizontal.
+
+## 3. Resultado de caracterización
+
+La regresión **pasa con el CSS existente**.
+
+Por tanto, el supuesto defecto no era una pérdida real de alcanzabilidad. El dock puede ocluir contenido durante una posición intermedia de scroll, que es comportamiento normal de un elemento sticky, pero el contenido puede desplazarse completamente fuera de esa oclusión.
+
+Conclusión de diseño:
+
+- **no añadir padding ni clearance artificial**;
+- no convertir el dock en `static`;
+- no introducir cálculo JS de altura;
+- conservar el layout actual y la regresión geométrica.
+
+Modificar CSS aquí habría sido un parche a una impresión visual, no a un fallo reproducible.
+
+## 4. Evidencia visual añadida
+
+`tests/browser/visual-review.e2e.ts` genera ahora, además de las capturas existentes, una captura móvil después de desplazar el último control fuera del dock:
 
 ```text
-lastInteractive.bottom <= transport.top - clearance
+ranges-light-clearance-mobile-chromium.png
 ```
 
-con `clearance >= 8 px`.
+La revisión humana del artifact del run verde `5b8ac8a0` confirma:
 
-En desktop el comportamiento sticky y el layout actual deben permanecer sin cambios perceptibles.
+- las tres voces `USUAL`, `EXTENDED` y `UNPLAYABLE` están completamente visibles;
+- los tres controles de transposición quedan íntegros;
+- la jerarquía visual normal / naranja / rojo sigue clara;
+- `Edit ABC` queda separado del mixer;
+- el transporte permanece sticky y visible sin tapar el último control en ese estado de scroll;
+- no aparece overflow horizontal.
 
-## 3. Diseño
+## 5. Cobertura visual vigente
 
-La solución preferida es reservar espacio de scroll en el contenedor, no volver `static` el dock ni añadir márgenes ad hoc a `mixer`.
+La suite mantiene artifacts para:
 
-```mermaid
-flowchart TB
-    Shell[.shell]
-    Content[score + mixer + editor]
-    Spacer[bottom scroll clearance]
-    Dock[sticky .transport]
+- ready desktop light/dark;
+- ready mobile light/dark;
+- mixed desktop/mobile;
+- ranges desktop/mobile;
+- ranges mobile con estado de clearance explícito.
 
-    Shell --> Content
-    Content --> Spacer
-    Spacer --> Dock
-```
+Los gates browser existentes siguen cubriendo:
 
-El clearance se expresará como una custom property CSS de layout, con un valor móvil conservador que cubra el transporte de dos filas y safe-area inferior.
+- responsive y reflow;
+- navegación por teclado y focus visible;
+- cursor/seek;
+- transposición;
+- mezcla pitched + percusión;
+- forced-colors;
+- zoom/no-overflow;
+- severidad de rangos sin depender únicamente del color.
 
-No se calculará la altura con JavaScript/ResizeObserver salvo que CSS resulte insuficiente; introducir estado DOM para un problema puramente de flujo sería peor arquitectura que el defecto original.
+El CI integral del cambio de revisión visual está verde.
 
-## 4. Regresión browser
+## 6. Audio y host real pendientes
 
-Añadir un test específico y pequeño, separado de `widget-scenarios.e2e.ts`:
+No se declararán estas comprobaciones como hechas mediante mocks:
 
-1. usar el proyecto móvil real de Playwright;
-2. abrir `scenario=ranges` para disponer de tres filas y controles de transposición;
-3. abrir mixer;
-4. hacer scroll al final del documento;
-5. medir el último elemento interactivo de la última fila y `.transport`;
-6. exigir que no se solapen y exista un pequeño gap;
-7. comprobar también que `scrollWidth <= innerWidth`.
+1. audición humana de reproducción;
+2. cambio de instrumentos durante reproducción;
+3. comprobación perceptiva de notas `extended` audibles y `unplayable` silenciosas;
+4. comprobación de presets `unbounded` fuera de capacidad técnica sin errores audibles/404;
+5. ejecución dentro del host MCP Apps real contra una preview HTTPS;
+6. comprobación de CSP/audio en ese host real.
 
-El test debe saltarse o adaptarse en desktop; el defecto es específico del layout compacto.
+La lógica subyacente sí está cubierta por pruebas de eventos, mute, tesitura y capacidad técnica del SoundFont, pero M8 exige además percepción humana.
 
-## 5. Revisión visual posterior
+## 7. Dependencia de M7
 
-Tras el fix:
+M7 ya dispone de:
 
-- ejecutar CI completo;
-- descargar `browser-visual-review-*` del run verde;
-- inspeccionar al menos:
-  - ready desktop light/dark;
-  - ready mobile light/dark;
-  - mixed mobile;
-  - ranges mobile;
-- confirmar manualmente que el clearance no crea una franja absurda en desktop;
-- confirmar que la jerarquía de rangos naranja/rojo sigue clara.
+- `npm run deploy:v2-preview`;
+- `npm run verify:v2-preview -- <url>`;
+- `.github/workflows/deploy-preview.yml` manual;
+- comparación `artifactHash` local/remoto;
+- verificación real de `/health`, MCP, tools, resource, CORS, CSP y request IDs.
 
-Si el screenshot del viewport inicial sigue mostrando contenido detrás del dock, eso por sí mismo no es fallo: el criterio es que el contenido pueda desplazarse fuera de la oclusión. La captura diagnóstica se complementará, si hace falta, con una captura tras `scrollToEnd`.
+El cierre operacional requiere credenciales Cloudflare válidas y una URL pública de `abcoda-v2-preview`.
 
-## 6. Accesibilidad
+Hasta entonces:
 
-La revisión final conserva los gates existentes:
+- M7 permanece abierto;
+- M8 permanece abierto únicamente por host/audio humanos;
+- no se elimina este documento.
 
-- forced-colors distingue severidades sin depender solo de color;
-- focus-visible sigue visible;
-- controles conservan targets táctiles;
-- zoom/reflow no introduce overflow;
-- la reserva inferior incluye `--host-safe-bottom` y no lo sustituye.
+## 8. Criterio final de cierre
 
-## 7. Audio y host real
+M8 se cerrará cuando, además de la subfase visual ya completada:
 
-Hay dos comprobaciones que no se fingirán con mocks:
-
-1. audición real de reproducción/cambio de instrumento/rangos;
-2. ejecución dentro del host MCP Apps real contra una preview HTTPS.
-
-La lógica de audio ya tiene regresiones de eventos, mute, tesitura y capacidad del SoundFont. M8 exige además percepción humana, pero esa parte depende de M7 para el host público.
-
-Mientras M7 siga bloqueado por autenticación Cloudflare, M8 puede cerrar su subfase visual pero el documento permanece abierto con ese bloqueo explícito.
-
-## 8. Plan de implementación
-
-1. Añadir regresión geométrica móvil que falle con el estado actual.
-2. Implementar clearance CSS sin JavaScript.
-3. Ejecutar test focal y luego CI integral.
-4. Descargar artifacts del nuevo run e inspeccionarlos visualmente.
-5. Si hay nueva oclusión/layout raro, volver al diseño CSS y repetir.
-6. Mantener las comprobaciones audio/host pendientes hasta que M7 produzca URL pública.
-7. Eliminar este MD solo cuando las partes visual + host/audio humanas estén cerradas.
-
-## 9. No hacer
-
-- no hacer el transporte `static` en móvil solo para que el test pase;
-- no medir su altura con JS si CSS puede resolverlo;
-- no añadir padding enorme a todas las resoluciones;
-- no confundir captura inicial con alcanzabilidad por scroll;
-- no reducir targets táctiles;
-- no ocultar controles para evitar la colisión;
-- no declarar audio validado porque los eventos tengan volumen correcto en tests.
-
-## 10. Criterio de cierre
-
-M8 se cierra cuando:
-
-- no existen controles móviles inalcanzables por solapamiento del dock;
-- visual artifacts desktop/mobile/light/dark han sido inspeccionados tras el fix;
-- forced-colors, responsive y no-overflow siguen verdes;
-- preview/host real de M7 ha sido probado;
-- reproducción e instrumentos han sido escuchados por una persona en navegador/host real;
-- cualquier defecto encontrado se ha corregido y vuelto a pasar por el ciclo de pruebas/revisión.
+- M7 haya producido una preview pública validada;
+- la preview se haya abierto en el host MCP Apps real;
+- una persona haya escuchado reproducción y cambios de instrumento;
+- se hayan probado perceptivamente los límites musical y técnico de audio;
+- cualquier defecto encontrado haya vuelto a pasar por diseño → implementación → regresión → revisión;
+- después se eliminará este MD temporal.
