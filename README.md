@@ -1,63 +1,103 @@
 # ABCoda
 
-Interactive ABC music notation inside AI conversations. ABCoda is a small TypeScript MCP App: for new music the model first calls `prepare_composition`, then calls `render_score`; the server supplies a sandboxed single-file widget, and the browser does the rendering and audio work with abcjs.
+ABCoda is a TypeScript MCP App for interactive ABC music notation inside AI conversations. It validates and presents structured score data through MCP, serves a sandboxed single-file widget, and delegates engraving/audio to abcjs in the browser.
 
-## MVP capabilities
+`architecture-v2` is no longer a speculative rewrite. The core architecture, codec, Worker, widget session model, editing, playback, transposition and instrument-range policies are implemented and continuously tested. The remaining migration gates are a real public preview plus final human host/audio review.
 
-- responsive multi-voice notation from ABC;
-- combined play/pause, return-to-beginning, loop, and live tempo control;
-- searchable General MIDI instrument selection and mute per ABC voice, with yellow partial-range and red incompatible-range feedback;
-- one host-theme foreground color for every instrument and voice;
-- semitone transposition of the actual ABC, including key signatures and chord symbols, while percussion voices remain fixed;
-- safe coupling between pitched instruments and pitched notation, and between the standard drum kit and `clef=perc`/`K:none`;
-- a score/ABC toggle with editable source, copy, apply, and restore controls;
-- playback cursor synchronized with the engraved score;
-- click-to-seek by measure with a continuously moving playback cursor;
-- ChatGPT host tokens, light/dark theme changes, mobile layout, and an always-visible transport bar;
-- stateless MCP server: no auth, database, user data, or music backend.
-- style- and domain-aware composition guidance, silent musical review, and conservative ABC contract checks;
+## Current capabilities
+
+- typed composition guidance through `prepare_composition`;
+- structural ABC validation through `validate_score`;
+- `render_score` with useful structured data plus an MCP Apps UI resource;
+- responsive multivoice engraving;
+- play/pause, rewind, loop, live tempo and click-to-seek;
+- revisioned local ABC editing, copy, apply/restore and history;
+- global and per-voice semitone transposition of canonical ABC;
+- General MIDI instrument selection and mute per voice;
+- musicological instrument-range policy:
+  - normal `usual` notes;
+  - orange `extended` notes that remain audible;
+  - red `unplayable` notes that remain in notation/timeline but are silent;
+  - `unbounded` presets where ABCoda deliberately does not invent a physical hard range;
+- technical SoundFont capability kept separate from musical range policy;
+- pitched/percussion compatibility and percussion immunity to tonal transposition;
+- synchronized playback cursor and responsive reflow;
+- light/dark host themes, safe areas, forced-colors support and mobile layout;
+- stateless Cloudflare Worker with bounded requests, Origin/Host validation and request correlation.
 
 ## Architecture
 
 ```mermaid
-flowchart TD
-    A[ChatGPT] -->|render_score| B[Stateless MCP server]
-    B -->|validated score + ui resource| C[Sandboxed ABCoda widget]
-    C --> D[abcjs engraving]
-    C --> E[abcjs synth + FluidR3 samples]
+flowchart LR
+    Host["ChatGPT / MCP Apps host"] --> Worker["Cloudflare Worker\nHTTP + MCP adapters"]
+    Worker --> App["@abcoda/application"]
+    Worker --> Contracts["@abcoda/contracts"]
+    Worker --> Composition["@abcoda/composition"]
+    App --> Domain["@abcoda/domain"]
+    Codec["@abcoda/abc-codec"] --> App
+    Codec --> Domain
+
+    Worker --> Widget["single-file widget"]
+    Widget --> Session["WidgetSessionCoordinator"]
+    Session --> Controllers["specialized controllers"]
+    Session --> DOM["passive DOM views"]
+    Session --> ABCJS["abcjs adapters"]
 ```
 
-The built widget is a self-contained HTML file. The only runtime network dependency is the default abcjs FluidR3_GM sample host, explicitly declared in the resource CSP.
+The important boundaries are enforced by tests, not merely by directory names:
 
-## Tool contract
+- workspaces consume public `@abcoda/*` APIs instead of another package's `src` internals;
+- domain/application do not depend on MCP, Cloudflare, DOM or abcjs;
+- internal revisioned score state is separate from versioned transport DTOs;
+- `main.ts` is a composition root while `WidgetSessionCoordinator` owns cross-controller coordination;
+- editor, mixer, transport and shell are separate DOM views;
+- abcjs is browser-side only;
+- musical range, synth sample capability and visual severity are independent policies.
 
-For a composition or arrangement, `prepare_composition` first receives a compact typed brief. Version 4 separates style, form archetype/section plan, pitch framework, meter/rhythmic feel, texture, performer difficulty, composition/review effort, intent, instrument family/role/kind/transposition, constraints, and deliberate departures. It routes only the relevant review criteria into a macro → meso → local → performance hierarchy, with scope-aware backtracking until convergence, followed by a separate mechanical ABC preflight. This is a stateless planning pass: no plan is stored server-side, no separate review tool is used, and the same complete brief is included in the subsequent render call.
+The normative design and migration closeout plan live in:
 
-```ts
-render_score({
-  schemaVersion: 1,
-  composition: preparedBrief,
-  abc: "X:1\\nT:Duet\\n...",
-  playback: {
-    tempo: 72,
-    instruments: { RH: "acoustic_grand_piano", LH: "cello" },
-    mutedVoices: [],
-    loop: false
-  },
-  notation: {
-    voiceKinds: { DRUMS: "unpitched_percussion" }
-  },
-  display: {
-    title: "Short duet",
-    coloredVoices: false,
-    preferredMeasuresPerLine: 4
-  }
-})
+- [`docs/architecture/ABCoda-arquitectura-objetivo.md`](docs/architecture/ABCoda-arquitectura-objetivo.md)
+- [`docs/architecture/ABCoda-plan-implementacion-y-migracion.md`](docs/architecture/ABCoda-plan-implementacion-y-migracion.md)
+- [`docs/migration/STATUS.md`](docs/migration/STATUS.md)
+- [`docs/migration/CAPABILITIES.md`](docs/migration/CAPABILITIES.md)
+
+## Source layout
+
+```text
+apps/
+  worker/       Cloudflare HTTP/MCP/resource adapter
+  widget/       session/controllers + DOM/host/abcjs adapters
+
+packages/
+  domain/       pure musical model and policies
+  application/  use cases and ports
+  abc-codec/    source-preserving ABC parser/validator/operations
+  contracts/    versioned public schemas and build manifest
+  composition/  composition/review guidance
 ```
 
-Voice keys must match ABC `V:` identifiers. The authoritative schemas and instrument allowlist live in [`shared/score.ts`](shared/score.ts).
-`display.coloredVoices` remains parseable for old callers but is deprecated and ignored: all notation now follows the same ChatGPT-theme foreground color.
-ABCoda's bootstrap contract lives in [`shared/composer-instructions.ts`](shared/composer-instructions.ts), while the typed brief and modular assembler live in [`shared/composition-plan.ts`](shared/composition-plan.ts). Common-practice counterpoint is not silently imposed on jazz, pop, impressionist, post-tonal, or experimental writing. The mechanical normalizer in [`shared/abc-lint.ts`](shared/abc-lint.ts) aligns `Q:` with playback tempo, derives typed percussion/transposition metadata from the shared brief, couples unpitched notation to the General MIDI percussion samples, and reports inconsistent headers, tempo, meter, voice references, voice kinds, and suspiciously absent beam grouping in generated scores. It never rewrites beams automatically because ABC whitespace may encode a deliberate metric, vocal, or historical choice. Client edits remain local to the widget instance and do not insert arbitrary text into model context. The prompt coverage and developer-mode golden cases are documented in [`docs/GOLDEN_PROMPTS.md`](docs/GOLDEN_PROMPTS.md).
+`packages/composition` is internally modularized rather than storing its catalog and planner in one giant barrel. `packages/abc-codec` deliberately grows from real fixtures instead of pretending to implement the entire ABC ecosystem in advance.
+
+## Tool surface
+
+ABCoda currently exposes three MCP tools:
+
+- `prepare_composition`: data-only composition/review guidance;
+- `validate_score`: data-only structural score validation;
+- `render_score`: canonical score/presentation result plus the UI resource.
+
+The public schemas live in [`packages/contracts`](packages/contracts). The internal application model is intentionally not the same type as its public versioned DTO.
+
+## Instrument ranges and audio
+
+Instrument policy operates in sounding MIDI pitch. For concrete pitched instruments, the domain distinguishes `usualRange` and `playableRange`; percussion has its own policy; generic presets such as choir/organ/ensemble are not assigned invented organological hard limits.
+
+That is separate from what the current synth backend can technically load. The abcjs adapter characterizes the current abcjs 6.7.0 + FluidR3_GM integration:
+
+- melodic samples: MIDI 21–108;
+- percussion samples: MIDI 28–87.
+
+A pitch outside technical sample coverage is neutralized before sample loading without altering the ABC or deleting its timing event. Updating abcjs intentionally trips a regression until that backend assumption is re-characterized.
 
 ## Local development
 
@@ -66,62 +106,74 @@ Requirements: Node.js 20 or newer.
 ```bash
 npm install
 npm run check
-npm run dev
+npm run test:browser
 ```
 
-The MCP endpoint is `http://localhost:8787/mcp`; health is available at `/health`. Open `dist/widget/index.html?demo=1` to inspect the standalone demo. For ChatGPT, expose the MCP endpoint through an HTTPS tunnel and add that URL in Developer Mode.
-
-## Deployment
-
-### Cloudflare Workers (recommended)
-
-ABCoda includes a native stateless Worker entrypoint. The widget remains a single HTML asset embedded in the Worker bundle; no KV, D1, R2, secrets, environment variables, or paid service is required.
-
-In **Workers & Pages → Create application → Import a repository**, authorize GitHub and select `R3Neer/abcoda`. Use:
-
-- Production branch: `main`
-- Root directory: `/`
-- Build command: `npm run build:widget`
-- Deploy command: `npx wrangler deploy`
-
-After deployment, health is at `https://<worker>.workers.dev/health` and the ChatGPT MCP endpoint is `https://<worker>.workers.dev/mcp`.
-
-For a local Worker preview:
+Useful v2 commands:
 
 ```bash
-npm run dev:worker
+npm run dev:v2-widget
+npm run build:v2-worker
+npm run test:v2-worker
+npm run verify:v2-artifacts
 ```
 
-### Container alternative
+The standalone widget scenarios are used by Playwright as a deterministic UI laboratory. Browser CI covers desktop/mobile, themes, range states, reflow, cursor, keyboard/accessibility behavior and produces visual-review artifacts.
 
-The included Dockerfile is intentionally platform-neutral:
+## Preview deployment
+
+The v2 preview Worker is configured separately as `abcoda-v2-preview` in [`apps/worker/wrangler.jsonc`](apps/worker/wrangler.jsonc).
+
+Build/test the artifacts first, then deploy explicitly:
 
 ```bash
-docker build -t abcoda .
-docker run --rm -p 8787:8787 abcoda
+npm run check
+npm run deploy:v2-preview
+npm run verify:v2-preview -- https://<preview>.workers.dev
 ```
 
-Deploy that image to any HTTPS container host (Railway, Render, Fly.io, or equivalent). No volumes or environment variables are required; `PORT` is optional.
+`verify:v2-preview` is a real HTTPS probe. It compares the remote artifact hash with the locally tested widget and checks `/health`, MCP initialization, tool discovery/calls, UI resource, CORS, CSP and request-ID correlation.
+
+A manual GitHub Action, **Deploy v2 preview**, performs the same sequence when `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` are configured as repository secrets. It intentionally does not deploy on every branch push.
+
+The legacy `deploy:worker` command remains separate; do not confuse it with the v2 preview command while migration is still open. Humanity has suffered enough from scripts whose names are almost the same.
 
 ## Security and privacy
 
-- Input is Zod-validated and limited to 64 KiB.
-- The server is stateless and writes nothing.
-- Tool annotations declare the operation read-only and closed-world.
-- The widget resource declares only the SoundFont host in `connectDomains` and `resourceDomains`.
+- Worker requests are method/content-type/body bounded before MCP processing.
+- Origin/Host policy is validated and CORS reflects only allowed origins.
+- Worker/MCP execution is request-scoped and stateless.
+- Request IDs correlate HTTP and tool results.
+- Structured observability does not copy ABC or prompts by default.
 - ABC is rendered through abcjs APIs rather than inserted as HTML.
-- The single-file widget avoids third-party script/CDN dependencies.
+- The widget is built as a self-contained HTML asset.
+- The MCP Apps resource CSP limits network access to the required sample origin.
 
-For public deployment, add rate and request-body limits at the hosting edge. Authentication is intentionally absent from the MVP because the tool accesses no private data or privileged action.
+## Quality gates
+
+A normal CI run includes:
+
+- typed ESLint;
+- TypeScript checks;
+- unit/property/regression tests;
+- widget + Worker builds;
+- workerd integration tests;
+- artifact/bundle checks;
+- Playwright smoke and full browser suites;
+- visual-review artifact upload.
+
+Architecture-specific regressions additionally guard package boundaries, cycles, DOM-view cohesion, protocol/domain separation, source-preserving transformations, request privacy and synth capability assumptions.
+
+## Migration status
+
+The structural refactor is complete. The remaining candidate gates are:
+
+1. authenticated deployment of the real v2 preview and a green `v2-preview-validation.json`;
+2. final human validation in an MCP Apps host, including audible playback/instrument/range behavior and manual accessibility review;
+3. final CAP/FIX classification and candidate/rollback procedure.
+
+See [`docs/migration/STATUS.md`](docs/migration/STATUS.md) for the current authoritative state.
 
 ## Licensing
 
-ABCoda is MIT licensed. abcjs is MIT licensed. The default FluidR3_GM samples are loaded remotely and identified upstream as CC BY 3.0; see [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md). The sample attribution must remain visible in any public distribution.
-
-## Next milestones
-
-1. Reintroduce measure-range selection only after reliable desktop and touch hit-testing is available.
-2. Solo/volume per voice and transposition.
-3. Export ABC/MIDI, then opt-in MusicXML/PDF conversion.
-4. Self-hosted subsetted samples and better piano articulation.
-5. Typed edit operations returned to the model.
+ABCoda is MIT licensed. abcjs is MIT licensed. The default FluidR3_GM samples are loaded remotely and identified upstream as CC BY 3.0; see [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md). The sample attribution must remain visible in public distribution.
