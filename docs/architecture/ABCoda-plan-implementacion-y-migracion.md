@@ -1,333 +1,398 @@
 # ABCoda: plan de implementación y migración vigente
 
-> Estado: plan ejecutable sobre una reconstrucción ya avanzada  
+> Estado: cierre de reconstrucción y preparación de candidato  
 > Rama: `architecture-v2`  
 > Baseline legacy: `ae361541f05fd52abbd0fe1dc0f1240e3d627320`  
-> Base auditada de este documento: `540890c718f7f20c320cb4f8566f214fbd75e9c8`  
+> Corte arquitectónico cerrado: `2a40b50318a00ee6965cc4903a7b31c7a2339e5e`  
 > Arquitectura normativa: [ABCoda: arquitectura vigente](./ABCoda-arquitectura-objetivo.md)  
 > Estado operativo: [migration/STATUS.md](../migration/STATUS.md)  
 > Matriz viva: [migration/CAPABILITIES.md](../migration/CAPABILITIES.md)
 
 ## 1. Qué es este documento ahora
 
-El plan original se redactó antes de crear `architecture-v2`. Muchas de sus fases ya ocurrieron y algunas decisiones cambiaron al encontrar evidencia real.
+El plan original sirvió para levantar `architecture-v2` y después para auditarla. Esa etapa está esencialmente terminada.
 
-Este documento ya no dice “qué habría que construir si empezásemos mañana”. Dice:
+ARCH-01…ARCH-07 y M6 ya no son trabajo futuro: fueron ejecutados mediante refactors pequeños con diseño temporal, pruebas y auditoría. Mantenerlos escritos como tareas pendientes convertiría el plan en ficción histórica, que es una forma particularmente cara de documentación.
 
-- qué partes de la reconstrucción están materializadas;
-- qué decisiones del plan original siguen siendo normativas;
-- qué puertas debemos reabrir porque la implementación real no cumple todavía el estándar prometido;
-- qué trabajo debe hacerse antes de convertir `architecture-v2` en candidata;
-- qué trabajo puede esperar sin degradar la arquitectura.
+Este documento pasa a tener tres funciones:
 
-La prioridad ya no es mover más código a carpetas nuevas. Es **cerrar fronteras, deuda de coordinación, calidad del candidato y evidencia de paridad**.
+1. registrar qué hitos estructurales se completaron y qué evidencia los protege;
+2. definir los pasos exactos que quedan para una candidata real;
+3. definir sustitución y rollback sin destruir el baseline antes de tiempo.
+
+No se abrirán más refactors estructurales generales salvo que aparezca una nueva desviación demostrable respecto a la arquitectura normativa.
 
 ## 2. Resultado buscado
 
-La rama será candidata cuando disponga de:
+`architecture-v2` será candidata cuando:
 
-1. dominio musical independiente de infraestructura;
-2. codec ABC source-preserving suficiente para el corpus real;
-3. contratos públicos versionados y compatibilidad deliberada;
-4. Worker seguro y probado en workerd;
-5. widget con estado y efectos con propietario explícito;
-6. grabado, audio, edición, instrumentos y navegación estables;
-7. límites de paquete reales;
-8. evidencia visual y de navegador reproducible;
-9. preview integrado fuera de producción;
-10. procedimiento de sustitución y rollback.
+- las fronteras arquitectónicas internas permanezcan verdes;
+- el mismo artefacto probado se publique en una preview separada;
+- el host MCP Apps real consuma esa preview;
+- audio e interacción hayan pasado revisión humana;
+- CAP/FIX estén clasificados de forma final;
+- exista procedimiento de rollback verificable.
 
-Compilar, reproducir una demo o tener muchos tests no basta si una frontera arquitectónica importante sigue siendo ficticia.
+La arquitectura interna ya cumple su parte. El cuello de botella restante es evidencia operacional.
 
 ## 3. Estado de las fases originales
 
-| Fase | Estado auditado | Lectura actual |
+| Fase | Estado actual | Evidencia / pendiente |
 |---|---|---|
-| 0. Congelar y caracterizar | **complete** | Baseline y matriz de capacidades existen; legacy funciona como referencia histórica, no como dependencia. |
-| 1. Esqueleto y dependencias | **reopened** | Workspaces, lint y CI existen, pero ARCH-01 demuestra que las fronteras entre paquetes todavía se atraviesan con imports directos a `src`. |
-| 2. Contratos y modelo canónico | **implemented, debt** | Contratos y modelo existen; debe separarse el snapshot interno del DTO público versionado. |
-| 3. Codec y diagnósticos | **complete for current corpus** | Parser, source ranges, opaque nodes, validación, round-trip y operaciones funcionan para el alcance actual. No significa “ABC completo”. |
-| 4. Casos de uso | **complete for current scope** | `PrepareComposition`, `EvaluateScore`, `PresentScore`, operaciones y export ABC existen detrás de puertos. |
-| 5. MCP y Worker seguro | **implemented, preview pending** | Seguridad, MCP, recurso y workerd están cubiertos; falta validación del preview público real y cierre operativo. |
-| 6. Shell y bridge | **reopened for architecture cleanup** | HostBridge/controladores existen, pero `main.ts` conserva coordinación mutable transversal y `DomWidgetView` ha crecido demasiado. |
-| 7. Grabado | **implemented** | Reflow, cursor, selección, multivoz y pruebas browser existen. Mantener regresiones al refactorizar vistas/coordinador. |
-| 8. Reproducción | **implemented, hardening pending** | Transporte y carreras están cubiertos; falta audición humana final y caracterizar la capacidad técnica del SoundFont independientemente de tesitura musical. |
-| 9. Instrumentos y edición | **implemented for current scope** | Editor revisionado, transposición por voz/global, mix persistente y política `usual/extended/unplayable` están implementados. |
-| 10. Paridad, UX y robustez | **in progress** | CI browser y screenshots existen; faltan cierre de deuda arquitectónica, accesibilidad manual, audición, preview y clasificación final. |
-| 11. Candidato y sustitución | **pending** | No se sustituye `main` hasta cerrar las puertas descritas abajo. |
+| 0. Congelar y caracterizar | **complete** | Baseline legacy, matriz CAP/FIX y corpus reproducible. |
+| 1. Esqueleto y dependencias | **complete** | Workspaces consumidos mediante APIs públicas y test estructural de fronteras/ciclos. |
+| 2. Contratos y modelo canónico | **complete for current schema** | DTO externo separado de proyección interna revisionada; mappers y roundtrip. |
+| 3. Codec y diagnósticos | **complete for current corpus** | Parser source-preserving, fields/ranges, opaque nodes, validación y transformaciones estructuradas. |
+| 4. Casos de uso | **complete for current scope** | Casos de uso/puertos aislados de infraestructura. |
+| 5. MCP y Worker seguro | **implemented; preview pending** | Workerd, límites HTTP, Origin/Host, request IDs, logs estructurados, recurso y manifest. Falta M7 público. |
+| 6. Shell y bridge | **complete** | Coordinador de sesión y vistas DOM cohesionadas; `main.ts` composition root. |
+| 7. Grabado | **implemented** | Multivoz, reflow, cursor, selección y navegador real. |
+| 8. Reproducción | **implemented + hardened** | Transporte y capacidad técnica SoundFont separada de tesitura. Falta audición humana. |
+| 9. Instrumentos y edición | **implemented for current scope** | Mix persistente, editor revisionado, transposición y rangos musicológicos. |
+| 10. Paridad, UX y robustez | **automation/visual review complete; human pending** | CI, workerd, Playwright, artifacts y revisión móvil. Falta host/audio/accesibilidad humanos. |
+| 11. Candidato y sustitución | **pending M7/M8** | Preview aprobada + clasificación final + rollback. |
 
-Reabrir una fase no invalida el trabajo hecho. Significa que la evidencia real mostró una condición de salida que el estado anterior había dado por cerrada demasiado pronto.
+## 4. Hitos estructurales completados
 
-## 4. Trabajo prioritario antes de añadir grandes features
+### M1 · fronteras reales de workspace
 
-### M1. Hacer reales las fronteras de workspace
+**Estado: cerrado.**
 
-**Problema:** paquetes con nombres `@abcoda/*` y `exports` públicos siguen siendo consumidos mediante rutas relativas a `packages/.../src`.
+Resultado:
 
-**Trabajo:**
+- imports inter-package mediante `@abcoda/*`;
+- manifests expresan dependencias internas;
+- prohibición permanente de imports privados a `packages/*/src` desde otro workspace;
+- detección de ciclos/dependencias prohibidas.
 
-- declarar dependencias `workspace:*` en cada `package.json` consumidor;
-- sustituir imports inter-package por `@abcoda/domain`, `@abcoda/application`, `@abcoda/abc-codec`, `@abcoda/contracts` y `@abcoda/composition`;
-- impedir con ESLint imports a `packages/*/src/**` desde otro workspace;
-- mantener imports relativos únicamente dentro del propio paquete;
-- comprobar que los paquetes pueden typecheckear con sus APIs públicas.
+La implementación confirmó que el grafo conceptual original ya era correcto: el problema era encapsulación física, no inversión de dependencias.
 
-**No hacer:** crear un sistema de build de paquetes complejo si TypeScript/Vite ya resuelven los workspaces. El objetivo es frontera, no ceremonia.
+### M2 · coordinador de sesión
 
-**Gate M1:** CI falla ante un import interno cruzado deliberado.
+**Estado: cerrado.**
 
-### M2. Extraer coordinación de sesión de `main.ts`
+`WidgetSessionCoordinator` posee la coordinación transversal. Los controladores especializados permanecen como propietarios de sus estados. `main.ts` queda reducido a composition root, bindings DOM, `ResizeObserver` y teardown.
 
-**Problema:** `main.ts` sigue poseyendo estado transversal como pitches observados, presentación del host, revisión de cursor y datos de reflow, además de coordinar score, draft, playback, mix y cursor.
+No se sustituyó todo por un reducer global porque la evidencia de implementación mostró que habría empeorado la separación.
 
-**Trabajo:**
+### M3 · vistas DOM cohesionadas
 
-- crear `WidgetSessionCoordinator` o equivalente;
-- mover allí únicamente el estado que cruza controladores;
-- conservar `ScoreSessionController`, `DraftSessionController`, `PlaybackSessionController`, `VoiceMixController` y `ScoreCursorController`;
-- mantener adaptadores fuera del coordinador;
-- reducir `main.ts` a creación de dependencias, binding inicial y teardown;
-- probar continuidad de instrumento/mute, transposición, reflow, playback y host snapshot durante el refactor.
+**Estado: cerrado.**
 
-**No hacer:** sustituir los controladores por un reducer gigante solo porque el documento antiguo lo proponía. La propiedad explícita importa más que el patrón nominal.
+La fachada `DomWidgetView` delega en superficies independientes para shell, transporte, mixer y editor. Cursor/rangos mantienen adaptadores específicos.
 
-**Gate M2:** ninguna variable mutable de sesión relevante queda en ámbito de módulo de `main.ts`.
+Los tests arquitectónicos impiden que las vistas vuelvan a acoplarse indiscriminadamente.
 
-### M3. Dividir `DomWidgetView`
+### M4 · snapshot interno frente a DTO externo
 
-**Problema:** una vista única concentra demasiadas superficies y se convierte en punto de fricción para cualquier cambio UI.
+**Estado: cerrado.**
 
-**Trabajo orientativo:**
+Aplicación/dominio usan una proyección revisionada sin versión de protocolo. `ScoreSnapshotDto` vive en contratos y los adapters realizan el mapeo explícito.
 
-- `WidgetShellView`;
-- `ScoreView`;
-- `TransportView`;
-- `MixerView`;
-- `EditorView`;
-- mantener `DomScoreCursor` y `dom-range-presentation` como piezas específicas.
+Una regresión directa prueba el roundtrip de frontera.
 
-Las vistas reciben estado y emiten acciones. No deben importar políticas musicales para decidir tesitura, compatibilidad o reproducción.
+### M5 · modularización de composición
 
-**Gate M3:** añadir un control al mixer no exige editar código del editor o del transporte salvo composición explícita.
+**Estado: cerrado.**
 
-### M4. Separar snapshot interno y contrato externo
+`@abcoda/composition` separa schema, catálogos, política, planner e instrucciones. `index.ts` vuelve a ser una API pública pequeña. Golden prompts y combinatoria protegen el comportamiento.
 
-**Problema:** el tipo de dominio `ScoreSnapshot` incorpora `schemaVersion: 2`.
+### M6 · capacidad técnica del sintetizador
 
-**Trabajo:**
+**Estado: cerrado.**
 
-- introducir una proyección interna revisionada sin versión de protocolo;
-- mantener `ScoreSnapshotDto` y sus schemas en `packages/contracts`;
-- crear adaptadores explícitos dominio/aplicación ↔ contrato;
-- eliminar cualquier razón para que `domain` cambie cuando se publique schema 3.
+Se caracterizó la integración concreta abcjs 6.7.0 + FluidR3_GM:
 
-**Gate M4:** un cambio artificial de `schemaVersion` externo no requiere modificar `packages/domain`.
+- muestras melódicas MIDI 21–108;
+- percusión MIDI 28–87.
 
-### M5. Modularizar `packages/composition`
+El adaptador neutraliza requests técnicamente imposibles antes de sample loading sin:
 
-**Problema:** el conocimiento sigue correctamente aislado del dominio de partitura, pero su fichero principal ya es demasiado grande.
+- alterar el ABC;
+- borrar eventos;
+- confundir capacidad del backend con tesitura musical.
 
-**Trabajo:** separar internamente catálogos, políticas, ensamblador de plan, review plan e instrucciones. Mantener una API pública pequeña desde `index.ts`.
+Una actualización de abcjs hace fallar una regresión hasta recaracterizar el backend.
 
-**Gate M5:** los golden prompts y combinaciones existentes pasan sin cambios no explicados.
+## 5. Deudas ARCH cerradas
 
-M5 es menos urgente que M1-M4 y puede ejecutarse cuando se vuelva a trabajar activamente en composición.
+| ID | Estado | Cambio de arquitectura |
+|---|---|---|
+| ARCH-01 | closed | fronteras públicas reales entre workspaces |
+| ARCH-02 | closed | coordinación transversal con propietario explícito |
+| ARCH-03 | closed | vistas DOM separadas |
+| ARCH-04 | closed | modelo interno desacoplado de schema externo |
+| ARCH-05 | closed | composition modularizado |
+| ARCH-06 | closed | campos ABC/source ranges como base de transformaciones de tonalidad |
+| ARCH-07 | closed | observabilidad request-scoped y privada en el borde Worker/MCP |
 
-## 5. Hardening funcional del candidato
+No se conservan los documentos temporales de estas deudas porque su propósito era conducir el refactor, no convertirse en una segunda arquitectura paralela.
 
-### M6. Capacidad del sintetizador separada de tesitura musical
+## 6. M7 · preview real de Worker/MCP Apps
 
-La política musical ya diferencia:
+**Estado: abierto por autenticación/despliegue externo.**
 
-- `usual`;
-- `extended`;
-- `unplayable`;
-- presets sin frontera física (`unbounded`);
-- percusión.
+El código necesario está ya en repo.
 
-Queda garantizar que el adaptador audio conozca o gestione de forma segura la **capacidad técnica del backend** sin convertirla en musicología.
+### 6.1 Preparación existente
 
-**Trabajo:**
+- Worker separado: `abcoda-v2-preview`;
+- config: `apps/worker/wrangler.jsonc`;
+- `npm run deploy:v2-preview`;
+- `npm run verify:v2-preview -- <url>`;
+- workflow manual `.github/workflows/deploy-preview.yml`;
+- artifact verification previa al deploy;
+- sonda pública que compara el hash remoto con `dist/v2-widget/index.html`.
 
-- caracterizar cómo el SoundFont usado responde a pitches extremos por programa;
-- definir una política de síntesis segura en el adaptador;
-- evitar requests imposibles antes de sample loading;
-- no eliminar eventos del timeline;
-- mantener notas musicalmente válidas aunque el backend necesite una estrategia técnica distinta;
-- probar instrumentos `unbounded`, que ya no reciben accidentalmente protección de un hard range musical.
+La sonda real verifica:
 
-**Gate M6:** ninguna nota puede provocar un request de muestra imposible sin que el adaptador lo gestione de forma determinista.
+- `/health` y versiones;
+- artifact hash local/remoto;
+- security headers;
+- Origin permitido y rechazado;
+- MCP `initialize`;
+- `tools/list`;
+- `validate_score` sin UI;
+- `render_score`;
+- correlación `X-Request-Id` ↔ `_meta`;
+- `resources/read` del widget;
+- MIME MCP Apps;
+- CSP/allowlist;
+- ausencia de score de prueba incrustado en la plantilla UI.
 
-### M7. Preview real de Worker/MCP Apps
+### 6.2 Ejecución preferida
 
-**Trabajo:**
+Usar el workflow manual **Deploy v2 preview** con:
 
-- desplegar preview separado de producción;
-- verificar Origin/Host reales del host objetivo;
-- probar `/health`, `/mcp` y recurso UI sobre el artefacto construido;
-- comprobar CSP y carga de muestras;
-- registrar SHA, appVersion, schemaVersion, rulesVersion y artifactHash;
-- verificar que no se filtra ABC/prompts a logs;
-- probar fallback de herramientas sin UI.
+- `CLOUDFLARE_API_TOKEN`;
+- `CLOUDFLARE_ACCOUNT_ID`;
 
-**Gate M7:** el mismo artefacto probado en preview puede identificarse y redeplegarse sin recompilar cambios.
+almacenados como GitHub Secrets.
 
-### M8. Accesibilidad, UX y audio humanos
-
-Automatización obligatoria ya existente o a mantener:
-
-- teclado y foco;
-- mobile/desktop;
-- light/dark;
-- forced colors;
-- zoom;
-- overflow;
-- screenshots diagnósticos;
-- estados de tesitura;
-- carreras de playback y edición.
-
-Revisión humana final:
-
-- audición de instrumentos, mute, tempo, pause/resume, seek y rangos;
-- lector de pantalla o equivalente para controles críticos;
-- densidad del dock móvil;
-- legibilidad del mixer y advertencias;
-- edición durante una sesión real;
-- comportamiento dentro del host MCP Apps, no solo standalone.
-
-**Gate M8:** no existen defectos críticos/altos conocidos de interacción, audio o accesibilidad.
-
-## 6. Cierre de paridad
-
-Antes de candidato, `docs/migration/CAPABILITIES.md` debe clasificar cada CAP como:
-
-- `parity-proven`;
-- `intentionally-changed`;
-- `deferred` con decisión explícita.
-
-`implemented-v2` no basta para el cierre final si la capacidad depende de audio, host real o juicio visual que aún no se haya comprobado.
-
-Los FIX deben ser `closed` o tener aceptación explícita. En particular, FIX-04 vuelve a estar abierto hasta M2/M3, porque la concentración original de `main.ts` se redujo mucho pero la propiedad de coordinación todavía no está completamente encapsulada.
-
-## 7. Qué no hay que hacer ahora
-
-- No iniciar otra reescritura de ABCoda.
-- No introducir Redux/otra librería de estado por reflejo.
-- No convertir cada carpeta en un paquete.
-- No implementar toda la especificación ABC antes de que un caso real lo pida.
-- No convertir `usualRange` o `playableRange` en límites del SoundFont.
-- No silenciar errores de samples mediante `try/catch` como flujo normal.
-- No borrar eventos de audio para conseguir silencio.
-- No añadir más responsabilidades grandes a `main.ts` o `DomWidgetView` antes de M2/M3.
-- No copiar cambios legacy textualmente si rompen la nueva dirección de dependencias.
-- No declarar una fase `complete` solo porque CI esté verde si su puerta arquitectónica sigue incumplida.
-
-## 8. Evolución del codec
-
-El codec actual es deliberadamente incremental y conserva construcciones desconocidas cuando puede hacerlo sin corrupción.
-
-Antes de ampliar una transformación:
-
-1. añadir fixture real;
-2. comprobar parseo/source ranges;
-3. decidir si el modelo actual contiene semántica suficiente;
-4. enriquecer el evento si hace falta;
-5. transformar desde el evento parseado;
-6. comprobar round-trip e inversa cuando proceda.
-
-Si una feature exige regex cada vez más globales sobre `document.source.text`, eso es señal de que el modelo necesita crecer antes de la feature.
-
-## 9. Política de commits para los próximos cortes
-
-Cada commit debe cerrar una idea verificable. Ejemplos:
+El workflow:
 
 ```text
-refactor(workspaces): consume package public exports
-refactor(widget): own cross-controller state in session coordinator
-refactor(widget): split mixer and editor DOM views
-refactor(domain): separate protocol snapshot from revisioned score
-refactor(composition): split catalog and review policy modules
-test(audio): characterize soundfont pitch capability
-ops(preview): document validated architecture-v2 artifact
+checkout
+  → npm ci
+  → build:v2-worker
+  → verify:v2-artifacts
+  → wrangler deploy apps/worker/wrangler.jsonc
+  → verify:v2-preview <deployment-url>
+  → upload v2-preview-validation.json
 ```
 
-Evitar commits del tipo `cleanup architecture`, `refactor everything` o mezclas de los cinco milestones en un solo diff.
+No poner tokens, account IDs ni `.dev.vars` en Git.
 
-## 10. Definición de terminado por corte
+### 6.3 Evidencia requerida para cerrar M7
 
-Un corte está terminado cuando:
+Conservar en la historia operativa:
 
-1. preserva o cambia deliberadamente comportamiento;
-2. tiene prueba proporcional al riesgo;
-3. mantiene las dependencias en la dirección correcta;
-4. no deja estado o efecto sin propietario;
-5. maneja error/cancelación cuando aplica;
-6. CI queda verde;
-7. aporta screenshot si modifica UI relevante;
-8. actualiza `STATUS.md`/`CAPABILITIES.md` si cambia una puerta o una CAP;
-9. no depende de “ya lo arreglaremos después” para ser coherente;
-10. puede revertirse sin arrastrar trabajo no relacionado.
+- Git SHA desplegado;
+- URL pública de preview;
+- app/schema/rules versions;
+- `artifactHash`;
+- `localArtifactHash` idéntico;
+- fecha de comprobación;
+- todos los checks de `v2-preview-validation.json = ok`.
 
-## 11. Orden recomendado desde el estado actual
+Después actualizar `STATUS.md` y `CAPABILITIES.md` y eliminar `docs/architecture/work/M7-real-preview.md`.
 
-```mermaid
-flowchart TD
-    M1["M1 Package boundaries"] --> M2["M2 Session coordinator"]
-    M2 --> M3["M3 Split DOM views"]
-    M1 --> M4["M4 Internal vs external snapshot"]
-    M2 --> M6["M6 Synth capability"]
-    M3 --> M8["M8 UX/accessibility/audio review"]
-    M4 --> M7["M7 Preview real"]
-    M6 --> M7
-    M7 --> M8
-    M8 --> Candidate["Candidate + rollback"]
-    M5["M5 Composition modularization"] -. "cuando vuelva a crecer esa superficie" .-> Candidate
+### 6.4 Si falla M7
+
+Clasificación del fallo:
+
+- **build/hash distinto:** volver a build/deploy design; no aceptar artefactos reconstruidos silenciosamente;
+- **CORS/headers/HTTP:** volver a Worker boundary;
+- **MCP/tool/resource:** volver a adapter MCP/contratos;
+- **Cloudflare auth/config únicamente:** corregir despliegue, no tocar dominio/widget;
+- **CSP/audio host:** registrar para M8 si requiere navegador/host real.
+
+## 7. M8 · UX, accesibilidad y audio humanos
+
+**Estado: subfase visual cerrada; host/audio pendientes.**
+
+### 7.1 Evidencia visual ya cerrada
+
+La suite genera artifacts para desktop/móvil y light/dark, incluidos escenarios de tesitura y mezcla.
+
+Durante la revisión se sospechó que el dock sticky móvil hacía inalcanzables controles del mixer. Antes de modificar CSS se añadió una regresión geométrica. La prueba demostró que los controles pueden desplazarse íntegramente por encima del dock con margen suficiente.
+
+Conclusión correcta: **no había defecto reproducible y no se añadió un parche CSS innecesario**.
+
+Se mantiene permanentemente:
+
+- `mobile-transport-clearance.e2e.ts`;
+- screenshot móvil en estado de clearance;
+- no-overflow;
+- forced-colors;
+- focus/keyboard;
+- reflow/zoom;
+- estados `usual/extended/unplayable`.
+
+### 7.2 Revisión humana pendiente
+
+Una vez M7 produzca URL pública:
+
+1. abrir el MCP en el host objetivo;
+2. renderizar una pieza tonal sencilla y una multivoz;
+3. verificar play/pause/rewind/loop;
+4. cambiar tempo durante playback y escuchar continuidad;
+5. cambiar instrumento durante reproducción y confirmar continuidad/sin reinicio;
+6. mutear/desmutear voces;
+7. seek por nota/compás y observar cursor;
+8. probar una nota `extended`: naranja y audible;
+9. probar una `unplayable`: roja, silenciosa y con timeline intacto;
+10. probar preset `unbounded` cerca/fuera del límite técnico de muestras y confirmar ausencia de error audible/request imposible;
+11. abrir/cerrar editor, editar/aplicar/restaurar;
+12. revisar móvil y desktop dentro del host;
+13. revisar teclado/foco y, si está disponible, lector de pantalla.
+
+### 7.3 Evidencia para cerrar M8
+
+Registrar fecha, host/cliente, SHA/hash y resultado de la checklist. Si aparece un defecto, volver al ciclo:
+
+```text
+hallazgo
+  → análisis
+  → diseño temporal si afecta arquitectura/comportamiento no trivial
+  → regresión
+  → implementación
+  → CI
+  → nueva revisión humana
 ```
 
-M1 y M4 son principalmente server/paquetes. M2 y M3 son principalmente widget. Pueden ejecutarse con cierto paralelismo si cada corte mantiene CI verde.
+Solo entonces eliminar `docs/architecture/work/M8-human-review.md`.
 
-## 12. Checklist de candidato
+## 8. Cierre final de CAP/FIX
 
-- [ ] imports inter-workspace solo a APIs públicas;
-- [ ] dependencias workspace declaradas;
-- [ ] `main.ts` sin estado transversal de sesión;
-- [ ] vistas DOM separadas por responsabilidad;
-- [ ] snapshot interno desacoplado de schema externo;
-- [ ] dominio sin MCP, Cloudflare, DOM, abcjs o Zod;
-- [ ] Worker sin código de synth/grabado;
-- [ ] tunebooks múltiples tratados explícitamente;
-- [ ] transposición/percussion/rangos cubiertos por regresiones;
-- [ ] synth capability gestionada por adaptador;
-- [ ] Worker y MCP probados en preview real;
-- [ ] herramientas útiles sin UI;
-- [ ] screenshots desktop/mobile y light/dark revisados;
-- [ ] forced colors, zoom y teclado comprobados;
-- [ ] audición humana final completada;
-- [ ] accesibilidad manual crítica completada;
-- [ ] CAP/FIX cerradas o deliberadamente diferidas;
-- [ ] artefacto candidato identificado por hash y SHA;
-- [ ] rollback probado;
-- [ ] aprobación explícita antes de sustituir `main`.
+Tras M7/M8:
 
-## 13. Después del candidato
+- cada CAP debe quedar `parity-proven`, `intentionally-changed` o `deferred` con decisión explícita;
+- ningún CAP dependiente de audio/host debe pasar a `parity-proven` únicamente por unit tests;
+- FIX-01 puede cerrarse tras CORS/Origin real en preview;
+- FIX-10 puede cerrarse tras la revisión humana final;
+- no debe quedar ningún FIX alto/crítico abierto sin aceptación explícita.
 
-Solo después de cerrar la reconstrucción conviene ampliar superficie con features grandes como:
+Actualizar `docs/migration/CAPABILITIES.md` en un commit focal.
 
-- solo/volumen por voz;
-- export MIDI;
-- MusicXML/PDF opcionales;
-- samples propios/subsetted;
-- persistencia;
-- colaboración;
-- familias instrumentales más específicas;
-- operaciones musicales más sofisticadas.
+## 9. Preparación de candidato
 
-Cada una debe entrar por los puertos existentes o justificar un ADR nuevo. Ninguna es razón para volver a mezclar dominio, MCP, DOM y audio.
+Cuando M7/M8 estén cerrados:
 
-## 14. Conclusión
+1. elegir un SHA exacto de `architecture-v2`;
+2. ejecutar CI integral sin cambios posteriores;
+3. conservar artifacts de browser y preview validation;
+4. registrar artifact hash del widget;
+5. etiquetar/documentar el candidato;
+6. congelar cambios funcionales hasta completar la sustitución.
 
-El plan original acertó en lo esencial: reconstrucción incremental, dominio puro, codec explícito, Worker como adaptador, laboratorio UI temprano y pruebas en runtime real. La implementación ha validado esa dirección.
+No mezclar “último pequeño arreglo” con el mismo commit de promoción. Si hace falta un arreglo, vuelve a ser un candidato nuevo.
 
-La corrección necesaria ahora no es una tercera arquitectura. Es más incómoda y bastante más útil: **terminar de cumplir la segunda**.
+## 10. Sustitución de `main`
 
-Eso implica hacer reales las fronteras workspace, encapsular la coordinación del widget, dividir la vista DOM, separar protocolo y dominio, y cerrar la calidad operativa del candidato. Después de eso, ABCoda podrá crecer sin que cada feature vuelva a convertir el proyecto en una negociación entre `main.ts`, regex y plegarias.
+La migración final debe preservar rollback sencillo.
+
+### 10.1 Antes de sustituir
+
+- `main` legacy debe seguir identificable por SHA/tag;
+- candidato v2 debe estar verde y validado públicamente;
+- no eliminar inmediatamente rutas/archivos legacy solo para embellecer el árbol;
+- documentar cualquier cambio de URL Worker/host.
+
+### 10.2 Estrategia recomendada
+
+```text
+architecture-v2 candidate
+  → merge/fast-forward controlado a main
+  → deploy producción
+  → smoke público equivalente a M7
+  → smoke humano mínimo equivalente a M8
+  → observar
+```
+
+La forma Git concreta dependerá del estado de `main` en ese momento. Lo normativo es que el commit candidato siga identificable y no se mezcle con cambios no auditados.
+
+### 10.3 Rollback
+
+Si el deploy de producción presenta un defecto crítico:
+
+1. identificar si es host/deploy o código;
+2. si afecta servicio, redeploy inmediato del último artefacto legacy/conocido bueno;
+3. revertir/promover Git después, sin dejar al usuario esperando una investigación arquitectónica;
+4. conservar la preview v2 defectuosa para reproducir el fallo si no contiene riesgo de seguridad;
+5. abrir nuevo corte de corrección con regresión.
+
+Rollback es una capacidad operacional, no un acto de vergüenza. El verdadero fracaso sería no poder hacerlo porque alguien decidió “limpiar” todas las rutas de vuelta cinco minutos antes.
+
+## 11. Evolución futura del codec
+
+Después de candidato se mantiene la misma disciplina:
+
+1. fixture real;
+2. parseo/source range;
+3. comprobar si el modelo contiene semántica suficiente;
+4. enriquecer modelo si no;
+5. transformar desde estructura parseada;
+6. round-trip/inversa cuando proceda.
+
+Una necesidad creciente de regex sobre `document.source.text` es señal para enriquecer el modelo, no para escribir una regex más heroica.
+
+## 12. Regla de commits y refactors futuros
+
+Cada cambio debe cerrar una idea verificable. Si aparece deuda arquitectónica nueva, se reutiliza el proceso que cerró ARCH-01…07:
+
+1. diferencia actual/deseada;
+2. MD temporal detallado;
+3. plan + regresiones;
+4. implementación;
+5. pruebas;
+6. auditoría contra el diseño;
+7. iteración desde diseño o implementación según origen del fallo;
+8. eliminación del MD al cierre.
+
+No crear documentos temporales para cambios triviales. El proceso es proporcional al riesgo, no una religión con formularios.
+
+## 13. Checklist de candidato
+
+### Arquitectura
+
+- [x] dominio independiente de infraestructura;
+- [x] imports inter-workspace mediante APIs públicas;
+- [x] dependencias/ciclos protegidos por regresión;
+- [x] `main.ts` como composition root;
+- [x] coordinación transversal con propietario;
+- [x] vistas DOM separadas;
+- [x] snapshot interno separado de DTO externo;
+- [x] composition modularizado;
+- [x] codec sin reescaneo global de estructura para tonalidad;
+- [x] request observability en borde;
+- [x] tesitura musical y capacidad técnica separadas.
+
+### Automatización
+
+- [x] lint/typecheck/unit;
+- [x] builds Widget/Worker;
+- [x] workerd;
+- [x] Playwright desktop/móvil;
+- [x] forced colors/no-overflow;
+- [x] artifacts visuales;
+- [x] synth capability regression;
+- [x] script de sonda pública;
+- [x] workflow manual de preview.
+
+### Operacional/humano
+
+- [ ] deploy de `abcoda-v2-preview` autenticado;
+- [ ] `v2-preview-validation.json` completamente verde;
+- [ ] host MCP Apps real;
+- [ ] audición humana;
+- [ ] accesibilidad manual final;
+- [ ] CAP/FIX finalizados;
+- [ ] candidato identificado por SHA/hash;
+- [ ] rollback documentado y practicable.
+
+## 14. Próximo paso real
+
+No hay otro refactor estructural que hacer por inercia.
+
+El siguiente paso es ejecutar **Deploy v2 preview** con credenciales Cloudflare válidas, descargar/leer `v2-preview-validation.json` y continuar M8 contra esa URL. Cualquier trabajo que no acerque a esa evidencia debe justificar por qué merece entrar antes del candidato.
