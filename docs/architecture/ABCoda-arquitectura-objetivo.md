@@ -1,75 +1,71 @@
 # ABCoda: arquitectura vigente
 
-> Estado: arquitectura normativa y auditoría de la implementación real  
+> Estado: arquitectura normativa materializada  
 > Rama de trabajo: `architecture-v2`  
-> Base auditada: `540890c718f7f20c320cb4f8566f214fbd75e9c8`  
-> Plan asociado: [plan de implementación y migración](./ABCoda-plan-implementacion-y-migracion.md)
+> Corte arquitectónico auditado: `2a40b50318a00ee6965cc4903a7b31c7a2339e5e`  
+> Plan asociado: [plan de implementación y migración](./ABCoda-plan-implementacion-y-migracion.md)  
+> Estado operativo: [migration/STATUS.md](../migration/STATUS.md)
 
 ## 1. Propósito
 
-Este documento sustituye la antigua “arquitectura objetivo” redactada antes de empezar la reconstrucción. Ya no describe un sistema hipotético: describe la arquitectura que ABCoda **debe mantener**, qué partes están materializadas en el repositorio y qué desviaciones reales deben corregirse antes de considerar `architecture-v2` candidata a sustituir `main`.
+Este documento describe la arquitectura que ABCoda **tiene y debe preservar**. Ya no es una arquitectura hipotética ni una lista de refactors pendientes.
 
-La regla principal sigue siendo la misma: ABCoda debe ser un sistema pequeño, modular y comprobable en el que el dominio musical no dependa de MCP, Cloudflare, el DOM ni `abcjs`.
+La auditoría iniciada sobre `540890c7` detectó siete desviaciones estructurales. ARCH-01…ARCH-07 se corrigieron individualmente mediante análisis, diseño temporal, pruebas de regresión, implementación, CI integral y auditoría posterior. Los documentos temporales se eliminaron al cerrar cada corte.
 
-## 2. Veredicto de la auditoría
+La conclusión después de esos refactors es más fuerte que la inicial: ABCoda no necesita otra reescritura general. Su arquitectura base es suficientemente limpia para evolucionar mediante cambios pequeños y verificables.
 
-La arquitectura actual **no es una mala arquitectura que deba tirarse y rehacerse**. El núcleo nuevo está bien encaminado y conserva las decisiones correctas del plan original:
+Lo que queda antes de candidato es principalmente **evidencia operacional y humana**, no reconstrucción estructural:
 
-- dominio musical separado en `packages/domain`;
-- codec ABC propio y source-preserving en `packages/abc-codec`;
-- casos de uso y puertos en `packages/application`;
-- contratos externos versionados en `packages/contracts`;
-- conocimiento de composición aislado en `packages/composition`;
-- Worker y MCP como adaptadores en `apps/worker`;
-- widget con controladores de aplicación y adaptadores de host, DOM y abcjs;
-- Worker stateless y sin `abcjs`;
-- pruebas unitarias, workerd y Playwright dentro de CI;
-- laboratorio standalone para revisar UI y screenshots;
-- política de tesituras musical separada de la capacidad técnica del SoundFont.
+- M7: preview pública real de Worker/MCP Apps;
+- M8: audición y revisión dentro del host real;
+- clasificación final CAP/FIX y procedimiento de rollback.
 
-Sin embargo, la implementación ha acumulado deuda en cuatro puntos que conviene resolver **antes de seguir añadiendo grandes superficies funcionales**.
+## 2. Veredicto arquitectónico actual
 
-| ID | Deuda | Gravedad | Decisión |
-|---|---|---:|---|
-| ARCH-01 | Los workspaces existen, pero muchos consumidores importan directamente `packages/*/src/...` en vez de usar `@abcoda/*`. | alta | Convertir las fronteras lógicas en fronteras reales de paquete y declarar dependencias workspace. |
-| ARCH-02 | `apps/widget/src/main.ts` sigue poseyendo estado cruzado de sesión en variables de módulo y coordina demasiados subsistemas. | alta | Mantener los controladores existentes, pero introducir un `WidgetSessionCoordinator` y dejar `main.ts` como composition root casi declarativo. |
-| ARCH-03 | `DomWidgetView` supera ampliamente el tamaño razonable de una vista única y concentra editor, mixer, transporte y shell. | media-alta | Separar vistas/componentes por responsabilidad sin mover lógica musical al DOM. |
-| ARCH-04 | `ScoreSnapshot` vive en `domain` e incluye `schemaVersion`, aunque el plan separaba entidad de dominio y DTO externo. | media | Separar la proyección interna revisionada del DTO versionado de `packages/contracts`. |
-| ARCH-05 | `packages/composition/src/index.ts` concentra una gran cantidad de catálogo y ensamblado. | media | Dividir internamente por catálogos, políticas, ensamblado e instrucciones antes de que siga creciendo. |
-| ARCH-06 | El codec realiza transformaciones sobre eventos parseados, pero todavía reescribe lexemas y vuelve a parsear el fuente. | media | Mantenerlo como estrategia válida para el corpus actual, pero no extender regex globales como sustituto de semántica estructurada. |
-| ARCH-07 | Observabilidad y envelopes de request siguen más simples que el diseño original. | baja-media | Completar solo lo necesario para preview/candidato; no sobrearquitectar telemetría antes de tener necesidad operativa. |
+Las deudas de la auditoría están cerradas:
 
-La conclusión es, por tanto, **conservar la arquitectura y hacer una refactorización dirigida**, no reiniciar la reconstrucción.
+| ID | Problema auditado | Estado materializado |
+|---|---|---|
+| ARCH-01 | Fronteras workspace lógicas pero atravesadas mediante imports a `packages/*/src`. | **closed**. Los consumidores usan APIs públicas `@abcoda/*`; manifiestos expresan dependencias internas y una regresión estructural detecta imports privados y ciclos. |
+| ARCH-02 | Estado y coordinación transversal en `main.ts`. | **closed**. `WidgetSessionCoordinator` posee la coordinación cruzada; `main.ts` crea dependencias, enlaza acciones y teardown. |
+| ARCH-03 | `DomWidgetView` como vista monolítica. | **closed**. La fachada delega en `WidgetShellView`, `TransportView`, `MixerView` y `EditorView`; cursor y presentación de rangos siguen siendo adaptadores específicos. |
+| ARCH-04 | Snapshot interno mezclado con `schemaVersion` externo. | **closed**. Aplicación/dominio usan una proyección revisionada interna; `ScoreSnapshotDto` vive en contratos y los mappers de frontera están probados en round-trip. |
+| ARCH-05 | `packages/composition/src/index.ts` concentraba catálogo, política y ensamblado. | **closed**. Schema, catálogos, política de performance, planner e instrucciones están separados; el barrel vuelve a ser pequeño. |
+| ARCH-06 | Transformaciones source-preserving todavía podían recaer en reescaneos globales. | **closed** para el alcance actual. `ScoreField` y sus source ranges permiten transformar campos parseados; hay una regresión que prohíbe reintroducir el reescaneo global de tonalidades. |
+| ARCH-07 | Observabilidad/correlación más pobre que el diseño inicial. | **closed** para candidato. Request ID correlaciona HTTP y resultados MCP, los eventos son estructurados y los logs no copian ABC/prompts; no se introdujo un envelope público innecesario. |
+
+No hay actualmente una deuda arquitectónica conocida de severidad alta que justifique bloquear nuevas mejoras después de candidato.
 
 ## 3. Principios normativos
 
 ### P-01. Dominio puro
 
-`packages/domain` contiene reglas, invariantes, tipos y políticas musicales. No importa:
+`packages/domain` contiene tipos, invariantes y políticas musicales. No conoce:
 
-- MCP o MCP Apps;
+- MCP/MCP Apps;
 - Cloudflare o Node;
-- DOM, Web Audio o APIs de navegador;
+- DOM/Web Audio;
 - `abcjs`;
-- Zod o contratos externos.
+- Zod ni schemas de transporte.
+
+Una modificación de protocolo, host o sintetizador no debe obligar a modificar el dominio salvo que cambie una regla musical real.
 
 ### P-02. Dependencias hacia dentro
 
-La dirección conceptual es:
-
 ```mermaid
 flowchart LR
-    Host["MCP / Cloudflare / DOM / abcjs"] --> Adapters
+    Host["Cloudflare / MCP / DOM / abcjs"] --> Adapters
     Adapters --> Application
     Application --> Domain
-    Domain["Domain"]
+    Codec["ABC codec"] --> Domain
+    Codec --> Application
 ```
 
-Los adaptadores pueden depender de aplicación y dominio. El dominio no puede conocer adaptadores ni protocolos externos.
+Los adaptadores conocen las capas interiores; las capas interiores no conocen los adaptadores.
 
 ### P-03. Fronteras de paquete reales
 
-Los workspaces no son simples carpetas decorativas. El objetivo es que el código entre paquetes consuma sus exports públicos:
+Los workspaces se consumen mediante exports públicos:
 
 ```ts
 import { EvaluateScore } from "@abcoda/application";
@@ -77,287 +73,311 @@ import { CanonicalAbcCodec } from "@abcoda/abc-codec";
 import { instrumentDefinition } from "@abcoda/domain";
 ```
 
-No debe convertirse en práctica normal:
+No se permite que otro workspace importe `packages/<x>/src/**` para saltarse la API. La forma exacta de declarar la dependencia local en npm no es normativa; sí lo es que el manifiesto exprese el grafo y que el consumidor use la frontera pública.
 
-```ts
-import { EvaluateScore } from "../../../../packages/application/src/index";
-```
+La prueba arquitectónica de workspaces es parte de la definición de terminado, no una comprobación ocasional.
 
-Cada workspace declara sus dependencias `workspace:*`. CI y ESLint deben poder detectar una dependencia prohibida sin depender de contar niveles de `../`.
+### P-04. Documento ABC source-preserving
 
-### P-04. Documento canónico source-preserving
+ABCoda no pretende implementar toda la especificación ABC como un AST universal. El modelo canónico es deliberadamente incremental y conservador:
 
-ABCoda no necesita fingir que implementa toda la especificación ABC como un AST semántico perfecto. El modelo vigente es una representación canónica **estructurada y conservadora**:
-
-- headers y directivas conocidas;
-- voces;
+- headers/directivas y campos conocidos;
+- voces y eventos;
 - compases;
-- eventos con `SourceRange`;
-- duración cuando puede conocerse;
-- lexema original;
-- nodos opacos seguros para sintaxis no comprendida.
+- `SourceRange` y lexema original;
+- campos ABC con rango de valor;
+- nodos opacos cuando una construcción puede preservarse con seguridad.
 
-Esto es mejor que editar el fichero mediante regex globales y permite round-trip sin destruir construcciones desconocidas.
+Las transformaciones parten de elementos ya parseados y de sus rangos de fuente. Puede existir un parser local de lexema y puede reparsarse el documento al terminar una transformación. Lo prohibido es volver a usar búsqueda/reemplazo global como sustituto de estructura musical.
 
-Una transformación puede usar un parser local de lexema para una nota, acorde o armadura concreta, pero siempre debe partir de eventos identificados por el documento parseado y sus rangos de origen. No se debe volver a una arquitectura en la que buscar y reemplazar texto sea el modelo musical.
+Cuando una transformación necesite semántica que el modelo no contiene, se enriquece el modelo antes de añadir heurísticas de texto cada vez más amplias.
 
-### P-05. Estado con propietario
+### P-05. Estado mutable con propietario
 
-Cada estado mutable debe tener un propietario único. No se exige un reducer global si controladores pequeños expresan mejor el problema.
-
-La arquitectura vigente adopta explícitamente **controladores especializados + coordinador de sesión** en lugar del reducer monolítico propuesto originalmente.
-
-Propiedad objetivo:
+El estado se reparte por responsabilidad:
 
 | Estado | Propietario |
 |---|---|
 | snapshot y ciclo de grabado | `ScoreSessionController` |
 | borrador, historial y revisión local | `DraftSessionController` |
-| reproducción y tempo efectivo | `PlaybackSessionController` |
-| instrumento/mute por voz | `VoiceMixController` |
-| posición visual y seek | `ScoreCursorController` |
-| estado cruzado entre subsistemas | `WidgetSessionCoordinator` |
-| DOM | vistas/adaptadores DOM |
-| contexto de host | `HostBridge` / runtime |
+| reproducción/tempo/loop | `PlaybackSessionController` |
+| instrumento y mute por voz | `VoiceMixController` |
+| cursor/seek visual | `ScoreCursorController` |
+| coordinación entre subsistemas | `WidgetSessionCoordinator` |
+| elementos/estado visual | vistas DOM |
+| contexto del host | `HostBridge` / runtime |
 
-`main.ts` debe crear estos objetos, conectarlos y gestionar teardown. No debe convertirse en un segundo store mediante variables de módulo.
+ABCoda adopta controladores especializados + coordinador de sesión. No hay requisito de un reducer global.
 
 ### P-06. Concurrencia explícita
 
-Las operaciones asíncronas se asocian a una revisión o a una generación de efecto. Un resultado obsoleto nunca puede publicar sobre uno nuevo.
+Cada trabajo asíncrono que pueda quedar obsoleto se liga a revisión, generación o cancelación. Un resultado viejo no puede publicar sobre una revisión nueva.
 
-La cancelación puede implementarse con `AbortSignal`, tokens/generaciones o invalidación explícita según el adaptador. Lo normativo es el comportamiento, no una API concreta.
+La API concreta puede ser `AbortSignal`, generación o invalidación explícita. El comportamiento es normativo; el patrón nominal no.
 
-### P-07. UI opcional, datos útiles sin UI
+### P-07. Datos útiles sin UI
 
-`prepare_composition` y `validate_score` son herramientas de datos. `render_score` asocia el recurso UI, pero su `structuredContent` sigue siendo útil si el host ignora el widget.
+`prepare_composition` y `validate_score` son herramientas de datos. `render_score` aporta recurso UI, pero su `structuredContent` sigue siendo útil sin renderizado.
+
+La UI es una capacidad adicional, no la única representación del resultado.
 
 ### P-08. Tecnología en los bordes
 
-- `abcjs` pertenece al navegador y a sus adaptadores.
-- MCP SDK pertenece al adaptador MCP.
-- Cloudflare pertenece al Worker.
-- Zod pertenece a contratos/bordes.
-- las políticas musicales no se duplican en DOM o audio.
+- `abcjs` pertenece al navegador/adaptador de grabado y audio;
+- Cloudflare pertenece al Worker;
+- MCP SDK pertenece al adaptador MCP;
+- Zod pertenece a contratos/fronteras;
+- políticas musicales no se duplican en DOM ni en audio.
 
-## 4. Topología actual
+## 4. Topología materializada
 
 ```mermaid
 flowchart TB
     subgraph Worker["apps/worker"]
-        HTTP["HTTP/security"]
-        MCP["MCP tool/resource adapter"]
-        Assets["widget artifact"]
+        HTTP["HTTP security + request context"]
+        MCP["MCP tools/resources"]
+        Assets["widget artifact + manifest"]
+        Obs["request/tool observability"]
     end
 
     subgraph Packages["packages"]
-        Contracts["contracts"]
-        Application["application"]
-        Domain["domain"]
-        Codec["abc-codec"]
-        Composition["composition"]
+        Contracts["@abcoda/contracts"]
+        Application["@abcoda/application"]
+        Domain["@abcoda/domain"]
+        Codec["@abcoda/abc-codec"]
+        Composition["@abcoda/composition"]
     end
 
     subgraph Widget["apps/widget"]
-        WidgetApp["application controllers"]
-        Host["host adapters"]
-        DOM["DOM adapters"]
+        Main["main.ts\ncomposition root"]
+        Session["WidgetSessionCoordinator"]
+        Controllers["specialized controllers"]
+        Views["passive DOM views"]
         ABCJS["abcjs adapters"]
-        Local["local evaluation adapters"]
+        Host["HostBridge adapters"]
+        Local["local evaluator/transformer"]
     end
 
-    MCP --> Application
+    HTTP --> MCP
+    HTTP --> Obs
     MCP --> Contracts
-    MCP --> Codec
+    MCP --> Application
     MCP --> Composition
+    MCP --> Assets
     Application --> Domain
     Codec --> Domain
     Codec --> Application
-    Host --> WidgetApp
-    DOM --> WidgetApp
-    ABCJS --> WidgetApp
-    WidgetApp --> Domain
+
+    Main --> Session
+    Main --> Views
+    Main --> ABCJS
+    Main --> Host
+    Session --> Controllers
+    Session --> Views
+    Session --> ABCJS
+    Host --> Session
     Local --> Application
     Local --> Codec
 ```
 
-Esta topología es correcta. La deuda ARCH-01 no cuestiona la dirección, sino que actualmente TypeScript expresa varias de estas flechas mediante rutas internas de fichero en vez de imports de paquete.
+Las flechas entre workspaces pasan por sus APIs públicas. CI caracteriza esta topología para evitar que las fronteras vuelvan a ser puramente decorativas.
 
-## 5. Núcleo musical
+## 5. Núcleo musical y contratos
 
 ### 5.1 `ScoreDocument`
 
-`ScoreDocument` es el agregado rico utilizado por codec, validación y operaciones. Debe continuar siendo inmutable desde la perspectiva de los casos de uso.
+`ScoreDocument` es el agregado musical source-preserving. Es inmutable desde la perspectiva de los casos de uso y conserva identidad/rangos suficientes para validación y transformaciones.
 
-Las voces y eventos usan identificadores estables dentro de una revisión y conservan referencias a fuente.
+### 5.2 Proyección revisionada interna
 
-### 5.2 Snapshot interno frente a DTO externo
-
-La implementación actual contiene `schemaVersion: 2` dentro del `ScoreSnapshot` de dominio. Esto funciona, pero mezcla dos conceptos:
-
-1. una proyección revisionada que la aplicación necesita;
-2. un formato público versionado que MCP/widget intercambian.
-
-Objetivo de refactor:
-
-```text
-Domain/Application
-  RevisionedScore / ScoreProjection
-        ↓ adapter
-Contracts
-  ScoreSnapshotDto(schemaVersion)
-```
-
-El dominio puede conocer `RevisionId`, pero no debería necesitar saber que el protocolo externo está en schema 2.
-
-### 5.3 Operaciones
-
-Las operaciones tipadas vigentes incluyen transposición global y por voz, instrumento, mute y restauración. Percusión permanece fuera de la transposición tonal.
-
-La implementación de transposición usa eventos parseados y source ranges para reescribir únicamente lexemas afectados y después vuelve a parsear. Es aceptable mientras:
-
-- pase round-trip y propiedades;
-- no toque nodos opacos;
-- no cree regex globales que decidan estructura musical;
-- amplíe soporte solo a partir de fixtures reales.
-
-Si las operaciones empiezan a necesitar ligaduras complejas, múltiples capas de accidentalidad o semántica que no pueda expresarse de forma local, deberá enriquecerse el modelo antes de añadir más parches de texto.
-
-## 6. Conocimiento de composición
-
-`packages/composition` es deliberadamente distinto del dominio de partitura. Contiene conocimiento editorial/estilístico usado para preparar instrucciones de composición.
-
-La separación es buena, pero el módulo principal ya es suficientemente grande para justificar una división interna:
-
-```text
-packages/composition/src/
-  catalogs/
-  policies/
-  planner/
-  review/
-  instructions/
-  index.ts
-```
-
-No es necesario crear paquetes nuevos. El objetivo es que una modificación de, por ejemplo, reglas de revisión no obligue a navegar un único fichero masivo.
-
-## 7. Worker y MCP
-
-El Worker actual respeta la arquitectura deseada:
-
-- frontera HTTP antes del transporte MCP;
-- allowlist de Origin/Host;
-- límites de body;
-- headers defensivos;
-- request ID y logs estructurados;
-- servidor MCP creado por petición;
-- `prepare_composition`, `validate_score` y `render_score` como superficies diferenciadas;
-- recurso widget servido como artefacto;
-- no se importa `abcjs` en servidor.
-
-`create-server.ts` puede dividirse por herramienta y compatibilidad legacy cuando el fichero siga creciendo, pero no contiene una violación de dominio que justifique una reescritura inmediata.
-
-El Worker debe permanecer stateless hasta que exista un requisito real de persistencia.
-
-## 8. Widget
-
-### 8.1 Decisión revisada
-
-El diseño previo pedía “reducer + effect supervisor”. La implementación ha demostrado que varios controladores pequeños son más naturales para este producto. Esa desviación se acepta como mejora de diseño.
-
-Lo que **no** se acepta es dejar estado de sesión relacionado repartido indefinidamente en variables de `main.ts`.
-
-### 8.2 Objetivo inmediato
+Dominio/aplicación trabajan con una proyección revisionada interna (`RevisionedScore` o equivalente), sin `schemaVersion` de transporte.
 
 ```mermaid
-flowchart TB
-    Main["main.ts composition root"] --> Session["WidgetSessionCoordinator"]
-    Session --> Score["ScoreSessionController"]
-    Session --> Draft["DraftSessionController"]
-    Session --> Playback["PlaybackSessionController"]
-    Session --> Mix["VoiceMixController"]
-    Session --> Cursor["ScoreCursorController"]
-    Session --> Views["passive views"]
-    Session --> Engraver["Engraver port"]
-    Session --> Host["HostBridge"]
+flowchart LR
+    Internal["RevisionedScore\napplication/domain"] --> Mapper["boundary mapper"]
+    Mapper --> DTO["ScoreSnapshotDto\n@abcoda/contracts"]
+    DTO --> Mapper
 ```
 
-El coordinador no debe convertirse en una god class. Su trabajo es poseer exclusivamente la coordinación que hoy queda dispersa: presentación del host, análisis de pitches, identidad de revisión del cursor, estado de layout/reflow y orden de reconstrucción de subsistemas.
+El mapper es explícito y tiene prueba directa de ida/vuelta. Un futuro schema 3 no debe cambiar el dominio solo porque cambie la representación pública.
 
-### 8.3 Vistas DOM
+### 5.3 Versiones
 
-`DomWidgetView` debe partirse antes de introducir grandes controles nuevos. División orientativa:
-
-```text
-adapters/dom/
-  widget-shell-view.ts
-  score-view.ts
-  transport-view.ts
-  mixer-view.ts
-  editor-view.ts
-  range-presentation.ts
-  score-cursor-view.ts
-```
-
-Estas vistas siguen siendo pasivas: reciben estado y emiten acciones. No clasifican tesituras, no deciden compatibilidad instrumental y no gestionan reproducción.
-
-## 9. Grabado, audio y tesituras
-
-Hay tres conceptos distintos y no deben fusionarse:
-
-1. **política musical de tesitura**, propiedad del dominio;
-2. **capacidad técnica de síntesis**, propiedad del adaptador/backend de audio;
-3. **presentación visual**, propiedad del widget.
-
-Para instrumentos `bounded`, el dominio clasifica `usual`, `extended` y `unplayable` usando pitch sonante.
-
-Para presets `unbounded`, ABCoda no afirma una frontera organológica que no pueda justificar. Eso no implica que el SoundFont soporte cualquier pitch.
-
-El adaptador de audio debe garantizar que nunca solicita al backend una muestra técnicamente imposible. Esta protección no puede deducirse de `playableRange` y debe probarse por separado.
-
-Las notas musicalmente `unplayable` permanecen en notación y timeline, pero son silenciosas en playback. No se eliminan eventos para conseguir silencio.
-
-## 10. Seguridad y privacidad
-
-Normas vigentes:
-
-- validar Origin y Host en la frontera HTTP;
-- limitar método, content type y body antes de parsear;
-- responder CORS únicamente para orígenes permitidos;
-- no guardar ABC ni prompts en logs por defecto;
-- no introducir secretos en el widget;
-- CSP de mínima autoridad;
-- no insertar ABC como HTML;
-- mantener estado de petición fuera del ámbito global del Worker.
-
-Rate limiting de plataforma puede añadirse en despliegue público, pero no sustituye los límites internos.
-
-## 11. Estrategia de pruebas
-
-| Nivel | Responsabilidad |
-|---|---|
-| dominio | invariantes, tesituras, operaciones y tipos puros |
-| codec | parsing, round-trip, source ranges, validación y transformaciones |
-| aplicación | casos de uso con puertos/fakes |
-| contratos | schemas y compatibilidad legacy/v2 |
-| Worker | HTTP, seguridad, MCP y runtime workerd |
-| widget unitario | controladores, carreras y coordinadores |
-| navegador | DOM, layout, foco, abcjs, reproducción e integración |
-| visual | screenshots focalizados desktop/móvil y temas |
-| manual | audición, lector de pantalla y calidad subjetiva de interacción |
-
-Una captura no sustituye una aserción semántica y una aserción semántica no sustituye una revisión visual cuando el requisito es visual.
-
-## 12. Versionado
-
-Se mantienen separados:
+Se mantienen conceptos separados:
 
 - `appVersion`;
 - `schemaVersion`;
 - `rulesVersion`;
 - `artifactHash`.
 
-La fuente de verdad sigue en `packages/contracts`/manifiesto de build. La futura separación del snapshot interno no cambia esta regla: la versión pública pertenece al contrato, no al dominio.
+Las versiones de protocolo pertenecen a contratos/manifest, no a entidades musicales.
+
+## 6. Codec y operaciones
+
+La estrategia vigente combina estructura canónica + preservación textual:
+
+1. parsear y obtener documento/eventos/campos con ranges;
+2. validar que la operación conoce la construcción que modifica;
+3. producir replacements únicamente sobre rangos identificados;
+4. preservar el resto del texto, incluidos nodos opacos;
+5. reparsar y volver a validar el resultado.
+
+La transposición global y por voz, tonalidades y acordes siguen este patrón. La percusión permanece fuera de transposición tonal.
+
+No se exige eliminar el reparseo final. Es útil como comprobación de consistencia y evita mantener dos representaciones divergentes del mismo ABC.
+
+## 7. Conocimiento de composición
+
+`@abcoda/composition` es conocimiento editorial/estilístico, no dominio de partitura.
+
+Su estructura actual separa responsabilidades internas, aproximadamente:
+
+```text
+packages/composition/src/
+  catalogs/
+  schema.ts
+  performance-policy.ts
+  planner.ts
+  instructions.ts
+  index.ts
+```
+
+`index.ts` es el contrato público, no el lugar donde acumular de nuevo todos los catálogos. Golden prompts y pruebas de composición protegen el comportamiento durante futuras ampliaciones.
+
+## 8. Worker y MCP
+
+El Worker es stateless por petición. El flujo relevante es:
+
+```mermaid
+sequenceDiagram
+    participant Host
+    participant HTTP as Worker HTTP boundary
+    participant MCP as MCP server per request
+    participant App as Application
+    participant Widget as Widget artifact
+
+    Host->>HTTP: request
+    HTTP->>HTTP: Origin/Host/method/body validation
+    HTTP->>HTTP: create requestId
+    HTTP->>MCP: request-scoped server + observability
+    MCP->>App: use case
+    App-->>MCP: internal result
+    MCP-->>Host: structuredContent + requestId metadata
+    HTTP-->>Host: X-Request-Id + security headers
+```
+
+Propiedades normativas:
+
+- allowlist de Origin y comprobación Host;
+- límites de método/content type/body antes de parsear;
+- headers defensivos;
+- servidor MCP creado por request;
+- logs estructurados con campos allowlisted;
+- no registrar ABC/prompts por defecto;
+- `requestId` correlacionable entre HTTP y callbacks de herramienta;
+- `abcjs` ausente del grafo/bundle server-side.
+
+No se introduce persistencia hasta que exista un caso de uso real que la necesite.
+
+## 9. Widget
+
+### 9.1 Composition root
+
+`apps/widget/src/main.ts` crea la vista, el coordinador, adapters de host/local/abcjs, conecta acciones DOM y gestiona `ResizeObserver`/teardown.
+
+No posee ya el estado transversal de sesión.
+
+### 9.2 Coordinador
+
+`WidgetSessionCoordinator` posee únicamente la coordinación que cruza controladores: adopción de resultados, presentación, lifecycle de playback/mix/cursor y política de reflow. No debe absorber reglas musicales ni DOM específico.
+
+La regla para su crecimiento es simple: si una responsabilidad puede pertenecer a un controlador o adaptador especializado, no pertenece al coordinador.
+
+### 9.3 Vistas DOM
+
+La UI está separada en piezas cohesionadas:
+
+```text
+adapters/dom/
+  dom-widget-view.ts        # fachada
+  widget-shell-view.ts
+  transport-view.ts
+  mixer-view.ts
+  editor-view.ts
+  dom-score-cursor.ts
+  dom-range-presentation.ts
+  dom-elements.ts
+  dom-widget-actions.ts
+```
+
+Estas vistas reciben estado y emiten acciones. No clasifican tesituras, no deciden compatibilidad instrumental y no implementan política de reproducción.
+
+## 10. Grabado, tesitura y audio
+
+ABCoda mantiene **tres políticas independientes**:
+
+1. política musical de tesitura;
+2. capacidad técnica del backend de síntesis;
+3. presentación visual de severidad.
+
+### Tesitura musical
+
+El dominio define:
+
+- instrumentos `bounded` con `usualRange` y `playableRange`;
+- presets `unbounded` cuando no existe una frontera organológica defendible;
+- percusión con semántica propia.
+
+Para `bounded`:
+
+- `usual`: normal, audible;
+- `extended`: visualmente advertida, audible;
+- `unplayable`: visualmente crítica, silenciosa, pero permanece en notación/timeline.
+
+### Capacidad técnica
+
+El adaptador abcjs caracteriza la combinación soportada actualmente:
+
+- abcjs 6.7.0;
+- FluidR3_GM melódico MIDI 21–108;
+- FluidR3_GM percusión MIDI 28–87.
+
+Si una nota no tiene muestra, el adaptador neutraliza la petición antes del sample loading mediante pitch técnico seguro + volumen cero, sin alterar ABC ni eliminar el evento.
+
+La versión de abcjs caracterizada está protegida por una regresión que obliga a recaracterizar al actualizarla.
+
+### Presentación
+
+La UI consume el estado musical y lo presenta en notas/selectores. Forced-colors y descripciones accesibles evitan depender únicamente del color.
+
+## 11. Seguridad y privacidad
+
+Normas vigentes:
+
+- mínimo privilegio en CSP;
+- ABC nunca se inserta como HTML;
+- widget single-file sin scripts externos;
+- entrada limitada y validada en frontera;
+- no secretos en cliente/repo;
+- no contenido musical en observabilidad por defecto;
+- estado request-scoped en Worker;
+- preview separada de producción para validación final.
+
+## 12. Estrategia de pruebas
+
+| Nivel | Responsabilidad |
+|---|---|
+| dominio | invariantes, instrumentos y operaciones puras |
+| codec | parsing, ranges, round-trip, campos y transformaciones |
+| aplicación | casos de uso/controladores con fakes |
+| arquitectura | workspaces, ciclos, fronteras de vista y dependencias prohibidas |
+| contratos | schemas, mappers y compatibilidad |
+| Worker | HTTP/security/MCP/observabilidad en workerd |
+| navegador | DOM, abcjs, layout, playback, cursor, reflow e integración |
+| visual | artifacts desktop/móvil/light/dark y estados instrumentales |
+| manual | host real, audio, lector de pantalla y juicio de interacción |
+
+Una captura no sustituye una aserción semántica. Una aserción semántica tampoco sustituye la revisión visual cuando el requisito es visual.
 
 ## 13. Decisiones arquitectónicas vigentes
 
@@ -366,40 +386,52 @@ La fuente de verdad sigue en `packages/contracts`/manifiesto de build. La futura
 | A-001 | Monolito modular; no microservicios prematuros. |
 | A-002 | Dominio puro y documento ABC canónico source-preserving. |
 | A-003 | Herramientas de datos separadas de presentación. |
-| A-004 | MCP Apps como base; extensiones de host aisladas. |
-| A-005 | Controladores especializados + coordinador de sesión, no reducer global obligatorio. |
+| A-004 | MCP Apps como base; particularidades de host aisladas. |
+| A-005 | Controladores especializados + coordinador de sesión. |
 | A-006 | Worker stateless por defecto. |
-| A-007 | Una melodía por snapshot en el MVP; tunebooks se rechazan explícitamente. |
-| A-008 | `abcjs` únicamente como adaptador de navegador. |
-| A-009 | Versiones y artefacto derivados de una fuente central. |
-| A-010 | Workerd y navegador real forman parte de la evidencia de calidad. |
-| A-011 | Tesitura musical y capacidad del sintetizador son políticas independientes. |
-| A-012 | Sintaxis ABC desconocida se conserva de forma opaca o se rechaza explícitamente; nunca se borra en silencio. |
+| A-007 | Una melodía por snapshot en el alcance actual; tunebooks se rechazan explícitamente. |
+| A-008 | `abcjs` solo en adaptadores de navegador. |
+| A-009 | Versiones/artefacto derivados de fuentes centrales. |
+| A-010 | Workerd + navegador real + artifacts visuales forman parte de la evidencia. |
+| A-011 | Tesitura musical y capacidad técnica del sintetizador son independientes. |
+| A-012 | Sintaxis ABC desconocida se conserva opacamente o se rechaza explícitamente; nunca se borra silenciosamente. |
+| A-013 | Request observability se resuelve en el borde; no contamina casos de uso con telemetría prematura. |
 
-## 14. Criterios de aceptación arquitectónica
+## 14. Puertas restantes para candidato
 
-La arquitectura se considera suficientemente materializada para candidato cuando:
+Las condiciones arquitectónicas internas ya están satisfechas. Las puertas que quedan son operacionales:
 
-1. `domain` no importa infraestructura ni contratos externos;
-2. los workspaces se consumen mediante sus APIs públicas, no mediante rutas a `src`;
-3. el Widget no contiene reglas musicales en DOM/abcjs;
-4. `main.ts` es un composition root y el estado cruzado tiene propietario explícito;
-5. editor, mixer, transporte y shell no viven en una única vista gigante;
-6. una revisión antigua no puede publicar sobre una nueva;
-7. tunebooks múltiples reciben diagnóstico explícito;
-8. Worker, contratos y widget usan una fuente de versión coherente;
-9. Origin/Host/body/métodos están probados en workerd;
-10. `abcjs` no forma parte del bundle server-side;
-11. tests browser cubren los flujos críticos y generan evidencia visual focalizada;
-12. fallos de audio no invalidan notación ni edición;
-13. `ScoreSnapshotDto` y el modelo interno dejan de ser el mismo tipo por comodidad;
-14. tesitura musical y cobertura de muestras siguen separadas;
-15. toda desviación consciente respecto a esta arquitectura está documentada antes de extenderla.
+### M7 · preview pública
+
+El repo ya contiene:
+
+- `deploy:v2-preview`;
+- `verify:v2-preview`;
+- workflow manual `Deploy v2 preview`;
+- sonda real de `/health`, MCP, tools, resource, CORS, CSP, request IDs y artifact hash.
+
+M7 se cierra únicamente cuando una ejecución autenticada de Cloudflare produzca una URL pública y el hash remoto coincida con el artefacto probado.
+
+### M8 · validación humana
+
+La revisión visual automatizada/humana de artifacts está cerrada. Quedan:
+
+- abrir la preview en un host MCP Apps real;
+- audición de playback, pause/resume, seek, tempo, mute e instrumentos;
+- comprobación perceptiva de `extended`/`unplayable` y límites técnicos de sample;
+- accesibilidad manual final.
+
+Tras M7/M8 se actualiza CAP/FIX y se prepara candidato + rollback.
 
 ## 15. Regla para el trabajo futuro
 
-No se debe abrir otra reescritura general para “limpiar arquitectura”. Las deudas anteriores se corrigen en cortes pequeños con comportamiento preservado y CI verde.
+No iniciar otra reescritura general para “limpiar arquitectura”. Si aparece una nueva deuda:
 
-Pero tampoco se debe seguir añadiendo funcionalidad ilimitadamente sobre `main.ts`, `DomWidgetView` o imports internos entre paquetes. Esos tres puntos son ahora **límites de crecimiento**, no tareas cosméticas opcionales.
+1. demostrar la diferencia entre arquitectura normativa y código;
+2. escribir un diseño temporal proporcional al riesgo;
+3. fijar regresiones;
+4. implementar en cortes pequeños;
+5. ejecutar CI y auditar el resultado;
+6. eliminar el diseño temporal solo cuando la deuda esté realmente cerrada.
 
-La arquitectura buena de ABCoda ya existe en lo esencial. El trabajo pendiente consiste en hacer que sus fronteras sean tan reales en el código como lo son en los diagramas.
+Esta disciplina ya cerró ARCH-01…07 sin desmontar el producto. Es ahora parte de la forma de trabajar de ABCoda, no una excepción de esta migración.
