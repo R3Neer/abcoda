@@ -1,0 +1,209 @@
+name: Canonicalize post-migration names once
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/canonicalize-names-once.yml
+
+permissions:
+  contents: write
+
+jobs:
+  canonicalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      - name: Canonicalize names and add widget publication metadata
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          import shutil
+
+          def replace_once(path, old, new):
+              p = Path(path)
+              text = p.read_text()
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"Expected exactly one occurrence in {path}: {old!r}; found {count}")
+              p.write_text(text.replace(old, new))
+
+          def replace_all_checked(path, old, new, expected):
+              p = Path(path)
+              text = p.read_text()
+              count = text.count(old)
+              if count != expected:
+                  raise SystemExit(f"Expected {expected} occurrences in {path}: {old!r}; found {count}")
+              p.write_text(text.replace(old, new))
+
+          # The canonical unit suite no longer needs a migration-generation directory name.
+          if Path("tests/unit").exists():
+              raise SystemExit("tests/unit already exists")
+          shutil.move("tests/v2", "tests/unit")
+
+          # The shared application tsconfig is canonical, not a generation-specific config.
+          tsconfig_old = Path("tsconfig.v2.json")
+          tsconfig_new = Path("tsconfig.app.json")
+          tsconfig = json.loads(tsconfig_old.read_text())
+          tsconfig["include"] = [
+              entry.replace("tests/v2/", "tests/unit/") for entry in tsconfig["include"]
+          ]
+          tsconfig_new.write_text(json.dumps(tsconfig, indent=2) + "\n")
+          tsconfig_old.unlink()
+
+          # Canonical npm commands: one name per operation, no v2 aliases.
+          package_path = Path("package.json")
+          package = json.loads(package_path.read_text())
+          package["scripts"] = {
+              "build": "npm run build:worker",
+              "build:widget": "vite build --config apps/widget/vite.config.ts",
+              "build:worker": "npm run build:widget && wrangler deploy --dry-run --config apps/worker/wrangler.jsonc --outdir ../../dist/worker",
+              "dev": "npm run dev:widget",
+              "dev:widget": "vite --config apps/widget/vite.config.ts",
+              "dev:worker": "npm run build:widget && wrangler dev --config apps/worker/wrangler.jsonc",
+              "deploy:worker": "wrangler deploy --config apps/worker/wrangler.jsonc",
+              "lint": "eslint packages apps tests/unit tests/worker tests/browser playwright.config.ts",
+              "test": "vitest run",
+              "test:worker": "vitest run --config apps/worker/vitest.config.ts",
+              "test:browser": "playwright test",
+              "verify:artifacts": "node scripts/verify-artifacts.mjs",
+              "verify:deployment": "node scripts/verify-deployment.mjs",
+              "test:watch": "vitest",
+              "typecheck": "tsc -p packages/domain/tsconfig.json --noEmit && tsc -p tsconfig.app.json --noEmit",
+              "check": "npm run lint && npm run typecheck && npm test && npm run build:widget && npm run test:worker && npm run build:worker && npm run verify:artifacts",
+              "check:browser": "npm run check && npm run test:browser"
+          }
+          package_path.write_text(json.dumps(package, indent=2, ensure_ascii=False) + "\n")
+
+          # Canonical lint/test configuration.
+          replace_all_checked("eslint.config.js", "v2Files", "sourceFiles", 3)
+          replace_once("eslint.config.js", '"tests/v2/**/*.ts"', '"tests/unit/**/*.ts"')
+          replace_once("eslint.config.js", 'project: "./tsconfig.v2.json"', 'project: "./tsconfig.app.json"')
+          replace_once("vitest.config.ts", 'include: ["tests/v2/**/*.test.ts"]', 'include: ["tests/unit/**/*.test.ts"]')
+          replace_once("playwright.config.ts", 'npm run dev:v2-widget', 'npm run dev:widget')
+
+          # Canonical artifact paths.
+          replace_once("apps/widget/vite.config.ts", '../../dist/v2-widget', '../../dist/widget')
+          replace_once("apps/worker/wrangler.jsonc", '../../dist/v2-widget', '../../dist/widget')
+
+          # Canonical verification script names and output paths.
+          artifacts_old = Path("scripts/verify-v2-artifacts.mjs")
+          artifacts_text = artifacts_old.read_text().replace("../dist/v2-widget/index.html", "../dist/widget/index.html").replace("../dist/v2-worker/index.js", "../dist/worker/index.js")
+          Path("scripts/verify-artifacts.mjs").write_text(artifacts_text)
+          artifacts_old.unlink()
+
+          deployment_old = Path("scripts/verify-v2-preview.mjs")
+          deployment = deployment_old.read_text()
+          replacements = {
+              "verify:v2-preview": "verify:deployment",
+              "The preview URL": "The deployment URL",
+              "abcoda-preview-probe": "abcoda-deployment-probe",
+              "../dist/v2-widget/index.html": "../dist/widget/index.html",
+              "ABCODA_PREVIEW_PRIVATE_MARKER": "ABCODA_DEPLOYMENT_PRIVATE_MARKER",
+              "render_score input omitted the v2 snapshot.": "render_score input omitted the score snapshot.",
+              "../dist/v2-preview-validation.json": "../dist/deployment-validation.json",
+          }
+          for old, new in replacements.items():
+              if old not in deployment:
+                  raise SystemExit(f"Missing expected deployment verifier text: {old}")
+              deployment = deployment.replace(old, new)
+          domain_assertion = '''\nconst expectedWidgetDomain = baseUrl.origin;\nassert(widget._meta?.ui?.domain === expectedWidgetDomain, `Widget resource domain ${widget._meta?.ui?.domain} does not match ${expectedWidgetDomain}.`);\nassert(widget._meta?.["openai/widgetDomain"] === expectedWidgetDomain, "Widget resource omitted the ChatGPT widgetDomain compatibility alias.");\n'''
+          anchor = 'const csp = widget._meta?.ui?.csp;\n'
+          if deployment.count(anchor) != 1:
+              raise SystemExit("Could not locate widget CSP verification anchor")
+          deployment = deployment.replace(anchor, domain_assertion + anchor)
+          Path("scripts/verify-deployment.mjs").write_text(deployment)
+          deployment_old.unlink()
+
+          # The MCP server is canonical and publishes the dedicated widget origin required by ChatGPT submission.
+          server = Path("apps/worker/src/mcp/create-server.ts")
+          text = server.read_text()
+          text = text.replace("export function createV2McpServer(", "export function createMcpServer(")
+          csp_decl = 'const widgetResourceCsp = {\n'
+          if text.count(csp_decl) != 1:
+              raise SystemExit("Could not locate widget CSP declaration")
+          text = text.replace(csp_decl, 'const widgetDomain = "https://abcoda.mud-repo-patcher-mcp-probe.workers.dev";\n\n' + csp_decl)
+          old_ui = '''ui: {\n            csp: widgetResourceCsp,\n            prefersBorder: false,\n          },'''
+          new_ui = '''ui: {\n            domain: widgetDomain,\n            csp: widgetResourceCsp,\n            prefersBorder: false,\n          },'''
+          if text.count(old_ui) != 2:
+              raise SystemExit(f"Expected two resource UI metadata blocks, found {text.count(old_ui)}")
+          text = text.replace(old_ui, new_ui)
+          description_key = '          "openai/widgetDescription": "Interactive music notation for a validated ABC score.",'
+          if text.count(description_key) != 2:
+              raise SystemExit("Expected two widgetDescription compatibility metadata entries")
+          text = text.replace(description_key, '          "openai/widgetDomain": widgetDomain,\n' + description_key)
+          text = text.replace('"ABCoda v2 score widget"', '"ABCoda score widget"')
+          text = text.replace('"Interactive ABC score rendered by the isolated architecture v2 widget."', '"Interactive ABC score rendered by ABCoda."')
+          server.write_text(text)
+
+          replace_all_checked("apps/worker/src/index.ts", "createV2McpServer", "createMcpServer", 2)
+
+          # Widget laboratory text should describe the canonical app, not the migration generation.
+          replace_once("apps/widget/index.html", "ABCoda v2 widget laboratory", "ABCoda widget laboratory")
+          bridge = Path("apps/widget/src/adapters/host/standalone-host-bridge.ts")
+          bridge_text = bridge.read_text().replace("First architecture v2 vertical", "Canonical score fixture").replace("ABCoda v2 accepts exactly one complete tune per request.", "ABCoda accepts exactly one complete tune per request.")
+          bridge.write_text(bridge_text)
+          browser = Path("tests/browser/widget-scenarios.e2e.ts")
+          browser_text = browser.read_text().replace("First architecture v2 vertical", "Canonical score fixture").replace("ABCoda v2 accepts exactly one complete tune per request.", "ABCoda accepts exactly one complete tune per request.")
+          browser.write_text(browser_text)
+
+          # Test descriptions are canonical too.
+          for path in Path("tests/unit").glob("*.ts"):
+              body = path.read_text()
+              body = body.replace("architecture v2 workspace boundaries", "canonical workspace boundaries")
+              body = body.replace("architecture v2 first vertical slice", "canonical score evaluation")
+              body = body.replace("versioned v2 contracts", "versioned score contracts")
+              path.write_text(body)
+
+          # Resource metadata regression: dedicated domain + CSP + compatibility alias.
+          old_test = Path("tests/worker/widget-resource-csp.test.ts")
+          old_test.unlink()
+          Path("tests/worker/widget-resource-metadata.test.ts").write_text('''import { SELF } from "cloudflare:test";\nimport { LATEST_PROTOCOL_VERSION } from "@modelcontextprotocol/sdk/types.js";\nimport { describe, expect, it } from "vitest";\n\nconst widgetDomain = "https://abcoda.mud-repo-patcher-mcp-probe.workers.dev";\nconst widgetResourceUri = "ui://abcoda/score-schema-2.html";\n\nasync function rpcRequest(body: object): Promise<Response> {\n  return SELF.fetch("https://abcoda.test/mcp", {\n    method: "POST",\n    headers: {\n      Accept: "application/json, text/event-stream",\n      "Content-Type": "application/json",\n      "MCP-Protocol-Version": LATEST_PROTOCOL_VERSION,\n    },\n    body: JSON.stringify(body),\n  });\n}\n\ndescribe("ABCoda widget resource metadata", () => {\n  it("declares the dedicated widget domain and narrow SoundFont CSP", async () => {\n    const response = await rpcRequest({\n      jsonrpc: "2.0",\n      id: 1,\n      method: "resources/read",\n      params: { uri: widgetResourceUri },\n    });\n\n    expect(response.status).toBe(200);\n    await expect(response.json()).resolves.toMatchObject({\n      jsonrpc: "2.0",\n      id: 1,\n      result: {\n        contents: [{\n          uri: widgetResourceUri,\n          _meta: {\n            ui: {\n              domain: widgetDomain,\n              csp: {\n                connectDomains: ["https://paulrosen.github.io"],\n                resourceDomains: [],\n              },\n            },\n            "openai/widgetDomain": widgetDomain,\n          },\n        }],\n      },\n    });\n  });\n});\n''')
+
+          # README now documents the canonical command surface only.
+          readme = Path("README.md")
+          r = readme.read_text()
+          old_commands = '''Useful implementation-specific commands retained from the v2 migration naming:\n\n```bash\nnpm run dev:v2-widget\nnpm run build:v2-worker\nnpm run test:v2-worker\nnpm run verify:v2-artifacts\n```\n\nThe `v2` labels in these command names are historical naming only. They all address the canonical implementation on `main`.'''
+          new_commands = '''Useful commands:\n\n```bash\nnpm run dev:widget\nnpm run build:worker\nnpm run test:worker\nnpm run verify:artifacts\n```'''
+          if r.count(old_commands) != 1:
+              raise SystemExit("Could not replace historical command section in README")
+          r = r.replace(old_commands, new_commands)
+          r = r.replace('npm run verify:v2-preview -- https://abcoda.mud-repo-patcher-mcp-probe.workers.dev', 'npm run verify:deployment -- https://abcoda.mud-repo-patcher-mcp-probe.workers.dev')
+          old_verify_para = 'The verification script retains its historical `v2-preview` name, but it probes the deployed Worker over HTTPS and verifies health, MCP initialization, a stable tool list, schema-v2 `render_score`, tool calls, UI resource, CORS/CSP and request correlation.'
+          new_verify_para = 'The deployment verifier probes the Worker over HTTPS and verifies health, MCP initialization, a stable tool list, schema-v2 `render_score`, tool calls, widget publication metadata, CORS/CSP and request correlation.'
+          if old_verify_para not in r:
+              raise SystemExit("Could not replace deployment verifier paragraph in README")
+          r = r.replace(old_verify_para, new_verify_para)
+          readme.write_text(r)
+
+          # Fail if operational paths still carry migration-generation naming.
+          forbidden_paths = [
+              "tests/v2",
+              "tsconfig.v2.json",
+              "scripts/verify-v2-artifacts.mjs",
+              "scripts/verify-v2-preview.mjs",
+          ]
+          for item in forbidden_paths:
+              if Path(item).exists():
+                  raise SystemExit(f"Historical operational path still exists: {item}")
+          PY
+
+      - name: Verify canonical repository
+        run: npm run check
+
+      - name: Commit canonical names and widget metadata
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+R3Neer@users.noreply.github.com"
+          git add -A
+          git commit -m "refactor: canonicalize names and widget metadata"
+          git push origin HEAD:main
