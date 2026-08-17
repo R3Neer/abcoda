@@ -35,12 +35,14 @@ import {
 
 export type WidgetLoader = () => Promise<WidgetArtifact>;
 
+const widgetDomain = "https://abcoda.mud-repo-patcher-mcp-probe.workers.dev";
+
 const widgetResourceCsp = {
   connectDomains: ["https://paulrosen.github.io"],
   resourceDomains: [],
 };
 
-export function createV2McpServer(
+export function createMcpServer(
   loadWidget?: WidgetLoader,
   observability?: McpRequestObservability,
 ): McpServer {
@@ -78,9 +80,7 @@ export function createV2McpServer(
     (rawInput) => {
       const observation = startMcpToolObservation(observability, "prepare_composition");
       try {
-        const result = prepareComposition.execute({
-          brief: compositionBriefSchema.parse(rawInput),
-        });
+        const result = prepareComposition.execute({ brief: compositionBriefSchema.parse(rawInput) });
         return observation.complete("success", {
           structuredContent: result,
           content: [{ type: "text" as const, text: result.prompt }],
@@ -164,23 +164,19 @@ export function createV2McpServer(
         const observation = startMcpToolObservation(observability, "render_score");
         try {
           const input = renderScoreToolInputSchema.parse(rawInput);
-          const internalResult = presentScore.execute({
-            score: fromScoreSnapshotDto(input.snapshot),
-          });
+          const internalResult = presentScore.execute({ score: fromScoreSnapshotDto(input.snapshot) });
           const result = toEvaluateScoreResultDto(internalResult);
           const adapted = input.presentation !== undefined
             ? { ...result, presentation: input.presentation }
             : result;
           return observation.complete(adapted.status, {
             structuredContent: adapted,
-            content: [
-              {
-                type: "text" as const,
-                text: adapted.status === "success" && adapted.snapshot
-                  ? `Prepared revision ${adapted.snapshot.revision} for interactive presentation.`
-                  : "The score could not be presented because validation failed.",
-              },
-            ],
+            content: [{
+              type: "text" as const,
+              text: adapted.status === "success" && adapted.snapshot
+                ? `Prepared revision ${adapted.snapshot.revision} for interactive presentation.`
+                : "The score could not be presented because validation failed.",
+            }],
           });
         } catch (error) {
           const message = error instanceof Error ? error.message : "Invalid presentation request.";
@@ -194,16 +190,18 @@ export function createV2McpServer(
 
     registerAppResource(
       server,
-      "ABCoda v2 score widget",
+      "ABCoda score widget",
       widgetResourceUri,
       {
-        description: "Interactive ABC score rendered by the isolated architecture v2 widget.",
+        description: "Interactive ABC score rendered by ABCoda.",
         mimeType: RESOURCE_MIME_TYPE,
         _meta: {
           ui: {
+            domain: widgetDomain,
             csp: widgetResourceCsp,
             prefersBorder: false,
           },
+          "openai/widgetDomain": widgetDomain,
           "openai/widgetDescription": "Interactive music notation for a validated ABC score.",
           "openai/widgetPrefersBorder": false,
         },
@@ -218,9 +216,11 @@ export function createV2McpServer(
             _meta: {
               "abcoda/artifactHash": artifact.manifest.artifactHash,
               ui: {
+                domain: widgetDomain,
                 csp: widgetResourceCsp,
                 prefersBorder: false,
               },
+              "openai/widgetDomain": widgetDomain,
               "openai/widgetDescription": "Interactive music notation for a validated ABC score.",
               "openai/widgetPrefersBorder": false,
             },
