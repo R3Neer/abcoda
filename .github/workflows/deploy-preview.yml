@@ -1,4 +1,4 @@
-name: Deploy v2 preview
+name: Deploy ABCoda
 
 on:
   workflow_dispatch:
@@ -19,13 +19,13 @@ jobs:
 
       - run: npm ci
 
-      - name: Build v2 artifacts
+      - name: Build production artifacts
         run: npm run build:v2-worker
 
-      - name: Verify v2 artifacts
+      - name: Verify production artifacts
         run: npm run verify:v2-artifacts
 
-      - name: Deploy Cloudflare preview
+      - name: Deploy ABCoda to Cloudflare
         id: deploy
         uses: cloudflare/wrangler-action@v4
         with:
@@ -33,12 +33,12 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: deploy --config apps/worker/wrangler.jsonc
 
-      - name: Verify public preview
+      - name: Verify public deployment
         env:
           ABCODA_PREVIEW_URL: ${{ steps.deploy.outputs.deployment-url }}
         run: npm run verify:v2-preview -- "$ABCODA_PREVIEW_URL"
 
-      - name: Upload preview validation
+      - name: Upload deployment validation
         uses: actions/upload-artifact@v4
         with:
           name: v2-preview-validation

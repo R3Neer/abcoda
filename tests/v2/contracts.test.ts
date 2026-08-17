@@ -3,6 +3,7 @@ import {
   evaluateScoreRequestSchema,
   evaluateScoreResultSchema,
   playbackProfileSchema,
+  renderScoreToolInputSchema,
   scoreOperationSchema,
 } from "../../packages/contracts/src/index";
 
@@ -34,6 +35,13 @@ describe("versioned v2 contracts", () => {
       kind: "restore_original",
     });
     expect(() => scoreOperationSchema.parse({ kind: "transpose", semitones: 2.5 })).toThrow();
+  });
+
+  it("keeps render_score public input strictly on schema v2", () => {
+    expect(() => renderScoreToolInputSchema.parse({
+      schemaVersion: 1,
+      abc: "X:1\nK:C\nC|]",
+    })).toThrow();
   });
 
   it("normalizes playback defaults at the external boundary", () => {

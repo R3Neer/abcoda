@@ -216,7 +216,4 @@ export const legacyRenderScoreRequestSchema = z.object({
 
 export type LegacyRenderScoreRequest = z.infer<typeof legacyRenderScoreRequestSchema>;
 
-export const renderScoreToolInputSchema = z.union([
-  presentScoreRequestSchema,
-  legacyRenderScoreRequestSchema,
-]);
+export const renderScoreToolInputSchema = presentScoreRequestSchema;

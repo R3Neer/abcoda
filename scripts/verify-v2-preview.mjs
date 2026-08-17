@@ -113,13 +113,26 @@ checks.mcpInitialize = "ok";
 const tools = await rpc("tools/list");
 const toolList = tools.body.result?.tools;
 assert(Array.isArray(toolList), "tools/list omitted tools.");
-const toolNames = new Set(toolList.map((tool) => tool.name));
-for (const name of ["prepare_composition", "validate_score", "render_score"]) {
-  assert(toolNames.has(name), `tools/list omitted ${name}.`);
-}
+const expectedToolNames = ["prepare_composition", "render_score", "validate_score"];
+const actualToolNames = toolList.map((tool) => tool.name).sort();
+assert(
+  JSON.stringify(actualToolNames) === JSON.stringify(expectedToolNames),
+  `tools/list returned unexpected tools ${JSON.stringify(actualToolNames)}.`,
+);
+const toolsAgain = await rpc("tools/list");
+assert(
+  JSON.stringify(toolsAgain.body.result?.tools) === JSON.stringify(toolList),
+  "Two consecutive tools/list calls returned different tool definitions.",
+);
 const resourceUri = `ui://abcoda/score-schema-${health.schemaVersion}.html`;
 const renderTool = toolList.find((tool) => tool.name === "render_score");
 assert(renderTool?._meta?.ui?.resourceUri === resourceUri, "render_score points at the wrong UI resource.");
+assert(renderTool?.inputSchema?.type === "object", "render_score must expose one object schema, not a union.");
+const renderProperties = renderTool.inputSchema?.properties ?? {};
+assert("snapshot" in renderProperties, "render_score input omitted the v2 snapshot.");
+for (const legacyProperty of ["abc", "composition", "playback", "notation", "display"]) {
+  assert(!(legacyProperty in renderProperties), `render_score still exposes legacy property ${legacyProperty}.`);
+}
 checks.toolsList = "ok";
 
 const privateMarker = "ABCODA_PREVIEW_PRIVATE_MARKER";

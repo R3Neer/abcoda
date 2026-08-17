@@ -75,8 +75,22 @@ describe("ABCoda Worker request observability", () => {
     expectCorrelated(validation.response, validation.body);
 
     const render = await callTool(203, "render_score", {
-      schemaVersion: 1,
-      abc: "X:4\nM:4/4\nL:1/4\nK:C\nG A B c|]",
+      schemaVersion: 2,
+      snapshot: {
+        schemaVersion: 2,
+        revision: 3,
+        document: {
+          tuneId: "4",
+          meter: "4/4",
+          key: "C",
+          voices: [{ id: "default", kind: "pitched" }],
+          source: {
+            format: "abc",
+            text: "X:4\nM:4/4\nL:1/4\nK:C\nG A B c|]",
+          },
+        },
+        diagnostics: [],
+      },
     });
     expect(render.response.status).toBe(200);
     expectCorrelated(render.response, render.body);

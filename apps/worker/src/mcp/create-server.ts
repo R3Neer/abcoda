@@ -19,11 +19,7 @@ import {
 import {
   evaluateScoreRequestSchema,
   evaluateScoreResultSchema,
-  legacyRenderScoreRequestSchema,
   renderScoreToolInputSchema,
-  type LegacyRenderScoreRequest,
-  type ScorePresentationDto,
-  type ScoreSnapshotDto,
   versions,
   widgetResourceUri,
 } from "@abcoda/contracts";
@@ -43,40 +39,6 @@ const widgetResourceCsp = {
   connectDomains: ["https://paulrosen.github.io"],
   resourceDomains: [],
 };
-
-function legacyPresentation(input: LegacyRenderScoreRequest): ScorePresentationDto {
-  return {
-    tempo: input.playback.tempo,
-    instruments: Object.fromEntries(
-      Object.entries(input.playback.instruments).map(([voiceId, instrument]) => [
-        voiceId,
-        instrument === "percussion" ? "standard_drum_kit" : instrument,
-      ]),
-    ),
-    mutedVoices: input.playback.mutedVoices,
-    loop: input.playback.loop,
-    ...(input.display.title === undefined ? {} : { title: input.display.title }),
-    ...(input.display.preferredMeasuresPerLine === undefined
-      ? {}
-      : { preferredMeasuresPerLine: input.display.preferredMeasuresPerLine }),
-  };
-}
-
-function applyLegacyVoiceKinds(
-  snapshot: ScoreSnapshotDto,
-  voiceKinds: LegacyRenderScoreRequest["notation"]["voiceKinds"],
-): ScoreSnapshotDto {
-  return {
-    ...snapshot,
-    document: {
-      ...snapshot.document,
-      voices: snapshot.document.voices.map((voice) => ({
-        ...voice,
-        kind: voiceKinds[voice.id] ?? voice.kind,
-      })),
-    },
-  };
-}
 
 export function createV2McpServer(
   loadWidget?: WidgetLoader,
@@ -202,26 +164,20 @@ export function createV2McpServer(
         const observation = startMcpToolObservation(observability, "render_score");
         try {
           const input = renderScoreToolInputSchema.parse(rawInput);
-          const internalResult = input.schemaVersion === 1
-            ? evaluateScore.execute({ abc: input.abc, revision: 0 })
-            : presentScore.execute({ score: fromScoreSnapshotDto(input.snapshot) });
+          const internalResult = presentScore.execute({
+            score: fromScoreSnapshotDto(input.snapshot),
+          });
           const result = toEvaluateScoreResultDto(internalResult);
-          const adapted = input.schemaVersion === 1 && result.status === "success" && result.snapshot
-            ? {
-                ...result,
-                snapshot: applyLegacyVoiceKinds(result.snapshot, input.notation.voiceKinds),
-                presentation: legacyPresentation(legacyRenderScoreRequestSchema.parse(input)),
-              }
-            : input.schemaVersion === 2 && input.presentation !== undefined
-              ? { ...result, presentation: input.presentation }
-              : result;
+          const adapted = input.presentation !== undefined
+            ? { ...result, presentation: input.presentation }
+            : result;
           return observation.complete(adapted.status, {
             structuredContent: adapted,
             content: [
               {
                 type: "text" as const,
                 text: adapted.status === "success" && adapted.snapshot
-                  ? `Prepared revision ${adapted.snapshot.revision} for interactive presentation${input.schemaVersion === 1 ? " through the schema 1 compatibility adapter" : ""}.`
+                  ? `Prepared revision ${adapted.snapshot.revision} for interactive presentation.`
                   : "The score could not be presented because validation failed.",
               },
             ],

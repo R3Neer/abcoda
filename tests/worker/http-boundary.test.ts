@@ -386,15 +386,7 @@ describe("ABCoda v2 Worker HTTP boundary", () => {
         name: "render_score",
         arguments: {
           schemaVersion: 1,
-          abc: "X:8\nT:Legacy input\nM:4/4\nL:1/4\nK:C\nV:LEAD\nV:DR\n[V:LEAD] C D E F|]\n[V:DR] C D E F|]",
-          playback: {
-            tempo: 112,
-            instruments: { LEAD: "cello", DR: "percussion" },
-            mutedVoices: ["DR"],
-            loop: true,
-          },
-          notation: { voiceKinds: { DR: "unpitched_percussion" } },
-          display: { title: "Legacy presentation", preferredMeasuresPerLine: 3 },
+          abc: "X:8\nT:Legacy input\nM:4/4\nL:1/4\nK:C\nC D E F|]",
         },
       },
     });
@@ -402,30 +394,7 @@ describe("ABCoda v2 Worker HTTP boundary", () => {
     await expect(legacyPresentation.json()).resolves.toMatchObject({
       jsonrpc: "2.0",
       id: 41,
-      result: {
-        structuredContent: {
-          status: "success",
-          snapshot: {
-            schemaVersion: 2,
-            revision: 0,
-            document: {
-              tuneId: "8",
-              voices: [
-                { id: "LEAD", kind: "pitched" },
-                { id: "DR", kind: "unpitched_percussion" },
-              ],
-            },
-          },
-          presentation: {
-            tempo: 112,
-            instruments: { LEAD: "cello", DR: "standard_drum_kit" },
-            mutedVoices: ["DR"],
-            loop: true,
-            title: "Legacy presentation",
-            preferredMeasuresPerLine: 3,
-          },
-        },
-      },
+      result: { isError: true },
     });
 
     const resource = await rpcRequest({
