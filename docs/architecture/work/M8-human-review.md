@@ -1,137 +1,156 @@
 # M8 · Revisión humana final de UX, accesibilidad y audio
 
-> Documento temporal. La subfase visual está cerrada. El documento permanece mientras M7 no produzca una preview pública y falten audición + host MCP Apps real.
+> Documento temporal. La subfase visual está cerrada. M7 también está cerrado; este documento permanece únicamente hasta completar host MCP Apps + audición + accesibilidad manual.
 
 ## 1. Estado
 
-M1–M6 están cerrados. M7 tiene build, sonda pública y workflow manual de deploy, pero sigue abierto hasta disponer de una preview pública autenticada en Cloudflare.
+M1–M7 están cerrados. La preview que debe usarse para esta revisión es:
+
+```text
+URL: https://abcoda-v2-preview.mud-repo-patcher-mcp-probe.workers.dev
+SHA validado: 541eedc343df87c1d176b570d681615257ee4374
+Worker Version ID: d67a4b98-a105-4496-bf62-7747347891ec
+appVersion: 0.13.0-alpha.1
+schemaVersion: 2
+rulesVersion: 4
+artifactHash: 9e6785eb96dd7da4350526b310c466b09cecbacea049a700cb2a8351d5d1320d
+```
+
+La sonda pública M7 ya confirmó `/health`, headers, CORS/Origin, MCP initialize, tools, `validate_score`, `render_score`, recurso widget, CSP y coincidencia exacta del artifact hash.
 
 M8 se divide deliberadamente en:
 
-1. revisión visual/geométrica reproducible;
-2. revisión humana de audio y ejecución dentro de un host MCP Apps real.
+1. revisión visual/geométrica reproducible, **cerrada**;
+2. revisión humana de audio, accesibilidad e integración dentro del host MCP Apps real, **pendiente**.
 
-La primera está **cerrada**. La segunda sigue bloqueada por M7.
+## 2. Revisión visual ya cerrada
 
-## 2. Hallazgo inicial: supuesto solapamiento móvil
-
-La primera inspección del artifact visual mostraba el transporte sticky cubriendo parte del mixer en un viewport móvil intermedio. El CSS relevante es:
-
-```css
-.transport {
-  position: sticky;
-  bottom: 0;
-}
-```
-
-La captura aislada sugería que podía existir un problema de alcanzabilidad de controles.
-
-No se modificó CSS inmediatamente. Se creó primero una regresión geométrica permanente:
+La primera inspección del artifact visual mostraba el transporte sticky cubriendo parte del mixer en una posición intermedia de scroll móvil. Antes de tocar CSS se creó la regresión:
 
 `tests/browser/mobile-transport-clearance.e2e.ts`
 
-que:
+La prueba demuestra que el último control puede desplazarse al menos 8 px por encima del transporte sticky y que no aparece overflow horizontal.
 
-- usa el proyecto `mobile-chromium`;
-- abre `scenario=ranges`;
-- despliega el mixer;
-- desplaza el último control de la última voz;
-- exige que su borde inferior quede al menos 8 px por encima del transporte sticky;
-- vuelve a comprobar ausencia de overflow horizontal.
+Conclusión:
 
-## 3. Resultado de caracterización
+- no había pérdida de alcanzabilidad;
+- no se añadió padding artificial;
+- no se convirtió el dock en `static`;
+- no se introdujo cálculo JS de altura.
 
-La regresión **pasa con el CSS existente**.
+`tests/browser/visual-review.e2e.ts` conserva además `ranges-light-clearance-mobile-chromium.png` para inspección humana explícita.
 
-Por tanto, el supuesto defecto no era una pérdida real de alcanzabilidad. El dock puede ocluir contenido durante una posición intermedia de scroll, que es comportamiento normal de un elemento sticky, pero el contenido puede desplazarse completamente fuera de esa oclusión.
+La cobertura visual vigente incluye desktop/móvil, light/dark, mixed, ranges, forced-colors, focus, responsive/reflow y no-overflow.
 
-Conclusión de diseño:
+## 3. Objetivo de la revisión humana
 
-- **no añadir padding ni clearance artificial**;
-- no convertir el dock en `static`;
-- no introducir cálculo JS de altura;
-- conservar el layout actual y la regresión geométrica.
+No demostrar de nuevo lo que Playwright ya sabe, sino comprobar lo que necesita un host real y oídos humanos:
 
-Modificar CSS aquí habría sido un parche a una impresión visual, no a un fallo reproducible.
+- que el MCP se integra correctamente en ChatGPT/MCP Apps;
+- que el widget se comporta correctamente dentro de ese host;
+- que audio, cursor y controles permanecen sincronizados perceptivamente;
+- que la semántica de rangos se corresponde con lo que se oye;
+- que la interacción móvil real sigue siendo cómoda;
+- que la accesibilidad manual no descubre un defecto que los gates automáticos no expresan.
 
-## 4. Evidencia visual añadida
+## 4. Checklist host MCP Apps
 
-`tests/browser/visual-review.e2e.ts` genera ahora, además de las capturas existentes, una captura móvil después de desplazar el último control fuera del dock:
+1. conectar el endpoint MCP de la preview;
+2. comprobar que aparecen `prepare_composition`, `validate_score` y `render_score`;
+3. renderizar una pieza tonal sencilla;
+4. renderizar una pieza multivoz;
+5. comprobar que el widget aparece dentro del host;
+6. abrir/cerrar mixer y editor;
+7. confirmar que no aparece overflow o corte grave en el viewport del host.
+
+## 5. Checklist de audio
+
+### Transporte
+
+- Play inicia desde la posición esperada.
+- Pause conserva posición.
+- Reanudar no reinicia la pieza.
+- Rewind vuelve al comienzo.
+- Loop repite sin perder sincronía visual.
+
+### Tempo
+
+- cambiar tempo durante reproducción no reinicia el audio;
+- cursor y audio siguen coordinados;
+- el valor mostrado coincide con la percepción de cambio.
+
+### Instrumentos y mezcla
+
+- cambiar instrumento durante reproducción conserva la posición;
+- mute/unmute no reinicia la pieza;
+- voces independientes siguen correctamente asignadas;
+- percusión no recibe transposición tonal accidental.
+
+### Rangos
+
+Probar explícitamente:
+
+1. una nota `usual`: aspecto normal y audible;
+2. una nota `extended`: naranja y audible;
+3. una nota `unplayable`: roja y silenciosa, sin romper duración/cursor;
+4. un preset `unbounded` cerca del límite técnico del SoundFont: no debe aparecer una falsa advertencia organológica;
+5. un pitch técnicamente no disponible para el backend: no debe provocar error de muestra ni romper playback.
+
+No hace falta evaluar virtuosismo instrumental aquí. Eso ya pertenece a la política musicológica revisada y sus regresiones.
+
+## 6. Edición e interacción
+
+Comprobar en host real:
+
+- editar ABC;
+- aplicar;
+- restaurar;
+- historial local;
+- copiar si el host permite clipboard;
+- transposición global;
+- transposición por voz;
+- instrumento/mute persistentes entre revisiones locales;
+- seek sobre la partitura;
+- cursor correcto tras seek/reflow.
+
+## 7. Accesibilidad manual
+
+Cuando el dispositivo/host lo permita:
+
+- foco visible y orden lógico de controles;
+- nombres accesibles de Play/Pause, Loop, mute e instrumentos;
+- controles táctiles cómodos en móvil;
+- VoiceOver/lector de pantalla para al menos transporte y mixer;
+- estados naranja/rojo comprensibles sin depender exclusivamente del color.
+
+Forced-colors y ARIA ya tienen regresiones automáticas; esta revisión busca problemas de experiencia real, no duplicar aserciones.
+
+## 8. Si aparece un defecto
+
+Aplicar el mismo ciclo de trabajo:
 
 ```text
-ranges-light-clearance-mobile-chromium.png
+hallazgo
+  → localizar capa responsable
+  → análisis de diferencia con arquitectura/comportamiento deseado
+  → MD temporal si el cambio es no trivial
+  → regresión
+  → implementación
+  → CI integral
+  → redeploy preview si cambia código desplegado
+  → repetir la comprobación humana afectada
 ```
 
-La revisión humana del artifact del run verde `5b8ac8a0` confirma:
+No se alteran límites musicológicos para esconder limitaciones de muestras y no se mueve lógica de host al dominio.
 
-- las tres voces `USUAL`, `EXTENDED` y `UNPLAYABLE` están completamente visibles;
-- los tres controles de transposición quedan íntegros;
-- la jerarquía visual normal / naranja / rojo sigue clara;
-- `Edit ABC` queda separado del mixer;
-- el transporte permanece sticky y visible sin tapar el último control en ese estado de scroll;
-- no aparece overflow horizontal.
+## 9. Criterio final de cierre
 
-## 5. Cobertura visual vigente
+M8 se cierra cuando:
 
-La suite mantiene artifacts para:
-
-- ready desktop light/dark;
-- ready mobile light/dark;
-- mixed desktop/mobile;
-- ranges desktop/mobile;
-- ranges mobile con estado de clearance explícito.
-
-Los gates browser existentes siguen cubriendo:
-
-- responsive y reflow;
-- navegación por teclado y focus visible;
-- cursor/seek;
-- transposición;
-- mezcla pitched + percusión;
-- forced-colors;
-- zoom/no-overflow;
-- severidad de rangos sin depender únicamente del color.
-
-El CI integral del cambio de revisión visual está verde.
-
-## 6. Audio y host real pendientes
-
-No se declararán estas comprobaciones como hechas mediante mocks:
-
-1. audición humana de reproducción;
-2. cambio de instrumentos durante reproducción;
-3. comprobación perceptiva de notas `extended` audibles y `unplayable` silenciosas;
-4. comprobación de presets `unbounded` fuera de capacidad técnica sin errores audibles/404;
-5. ejecución dentro del host MCP Apps real contra una preview HTTPS;
-6. comprobación de CSP/audio en ese host real.
-
-La lógica subyacente sí está cubierta por pruebas de eventos, mute, tesitura y capacidad técnica del SoundFont, pero M8 exige además percepción humana.
-
-## 7. Dependencia de M7
-
-M7 ya dispone de:
-
-- `npm run deploy:v2-preview`;
-- `npm run verify:v2-preview -- <url>`;
-- `.github/workflows/deploy-preview.yml` manual;
-- comparación `artifactHash` local/remoto;
-- verificación real de `/health`, MCP, tools, resource, CORS, CSP y request IDs.
-
-El cierre operacional requiere credenciales Cloudflare válidas y una URL pública de `abcoda-v2-preview`.
-
-Hasta entonces:
-
-- M7 permanece abierto;
-- M8 permanece abierto únicamente por host/audio humanos;
-- no se elimina este documento.
-
-## 8. Criterio final de cierre
-
-M8 se cerrará cuando, además de la subfase visual ya completada:
-
-- M7 haya producido una preview pública validada;
-- la preview se haya abierto en el host MCP Apps real;
-- una persona haya escuchado reproducción y cambios de instrumento;
-- se hayan probado perceptivamente los límites musical y técnico de audio;
-- cualquier defecto encontrado haya vuelto a pasar por diseño → implementación → regresión → revisión;
-- después se eliminará este MD temporal.
+- la preview validada se ha abierto dentro del host MCP Apps real;
+- una persona ha escuchado reproducción, tempo, seek, mute y cambio de instrumento;
+- se han comprobado perceptivamente `usual`, `extended`, `unplayable` y el límite técnico del backend;
+- se ha realizado una pasada manual razonable de accesibilidad/interacción;
+- cualquier defecto encontrado ha completado el ciclo de regresión y nueva revisión;
+- se actualizan CAP/FIX;
+- después se elimina este MD temporal.
