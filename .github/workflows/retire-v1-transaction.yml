@@ -1,0 +1,118 @@
+name: Retire legacy v1 transaction
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/retire-v1-transaction.yml
+
+permissions:
+  contents: write
+
+jobs:
+  retire:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Apply retirement candidate
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          import shutil
+
+          source = Path("tests/composition-plan.test.ts")
+          text = source.read_text()
+          text = text.replace('} from "../shared/composition-plan";', '} from "@abcoda/composition";')
+          text = text.replace('import { renderScoreInputSchema } from "../shared/score";\n', '')
+          legacy_test = '''  it("passes the same complete brief to render_score.composition", () => {\n    const result = plan({ difficulty: "beginner", effort: "exhaustive" });\n    const renderInput = renderScoreInputSchema.parse({\n      abc: "X:1\\nT:Test\\nM:4/4\\nL:1/4\\nQ:1/4=96\\nK:C\\nC D E F|]",\n      composition: result.brief,\n    });\n    expect(renderInput.composition).toEqual(result.brief);\n  });\n\n'''
+          if text.count(legacy_test) != 1:
+              raise SystemExit("Could not isolate the v1-only composition contract test")
+          text = text.replace(legacy_test, "")
+          old_effort_omit = '    const { effort: _effort, ...withoutEffort } = base;'
+          new_effort_omit = '''    const withoutEffort: Partial<CompositionBrief> = { ...base };\n    delete withoutEffort.effort;'''
+          if text.count(old_effort_omit) != 1:
+              raise SystemExit("Could not normalize migrated effort-default test")
+          text = text.replace(old_effort_omit, new_effort_omit)
+          Path("tests/v2/composition-plan.test.ts").write_text(text)
+          source.unlink()
+
+          src = Path("tests/characterization/fixtures/abc")
+          dst = Path("tests/fixtures/abc")
+          dst.mkdir(parents=True, exist_ok=True)
+          for name in ["inline-clef.abc", "multi-voice.abc", "octave-clef.abc", "percussion.abc", "single-voice.abc"]:
+              shutil.move(str(src / name), str(dst / name))
+          shutil.rmtree("tests/characterization")
+          codec = Path("tests/v2/abc-codec.test.ts")
+          body = codec.read_text()
+          old = "../characterization/fixtures/abc/"
+          if body.count(old) != 1:
+              raise SystemExit("Unexpected canonical fixture path count")
+          codec.write_text(body.replace(old, "../fixtures/abc/"))
+
+          for path in [
+              "tests/abc-edit.test.ts", "tests/abc-lint.test.ts", "tests/cursor.test.ts",
+              "tests/deferred-audio.test.ts", "tests/fixture-widget.html", "tests/mcp.test.ts",
+              "tests/score.test.ts", "tests/standalone.test.ts", "tests/synth-options.test.ts",
+              "tests/transport.test.ts", "tests/widget-markup.test.ts",
+          ]:
+              Path(path).unlink()
+          for directory in ["server", "shared", "web", "worker"]:
+              shutil.rmtree(directory)
+          for path in [".dockerignore", "Dockerfile", "tsconfig.server.json", "tsconfig.test.json", "tsconfig.worker.json", "vite.config.ts"]:
+              Path(path).unlink()
+
+          Path("tsconfig.json").write_text(json.dumps({
+              "compilerOptions": {
+                  "target": "ES2022", "useDefineForClassFields": True, "module": "ESNext",
+                  "moduleResolution": "Bundler", "strict": True, "noUncheckedIndexedAccess": True,
+                  "exactOptionalPropertyTypes": True, "skipLibCheck": True,
+                  "lib": ["ES2022", "DOM", "DOM.Iterable"], "types": ["vite/client"]
+              }
+          }, indent=2) + "\n")
+
+          package_path = Path("package.json")
+          package = json.loads(package_path.read_text())
+          package["scripts"].pop("build:server", None)
+          package["scripts"].pop("start", None)
+          package_path.write_text(json.dumps(package, indent=2, ensure_ascii=False) + "\n")
+
+          Path("vitest.config.ts").write_text('''import { configDefaults, defineConfig } from "vitest/config";\n\nexport default defineConfig({\n  test: {\n    environment: "node",\n    include: ["tests/v2/**/*.test.ts"],\n    exclude: [...configDefaults.exclude],\n  },\n});\n''')
+
+          forbidden = ["legacyRenderScoreRequestSchema", "LegacyRenderScoreRequest", "legacyInstrumentIdSchema", "schemaVersion: 1 as const"]
+          offenders = []
+          for root in [Path("apps"), Path("packages")]:
+              for path in root.rglob("*.ts"):
+                  body = path.read_text(errors="ignore")
+                  for needle in forbidden:
+                      if needle in body:
+                          offenders.append(f"{path}: {needle}")
+          if offenders:
+              raise SystemExit("Retired v1 symbols remain:\n" + "\n".join(offenders))
+          PY
+      - name: Verify and commit transaction result
+        run: |
+          set +e
+          npm run check > /tmp/v1-retirement-check.log 2>&1
+          status=$?
+          set -e
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+R3Neer@users.noreply.github.com"
+          if [ "$status" -eq 0 ]; then
+            rm -f docs/retirement-failure.txt
+            git add -A
+            git commit -m "refactor: remove legacy v1 stack"
+          else
+            git reset --hard HEAD
+            cp /tmp/v1-retirement-check.log docs/retirement-failure.txt
+            git add docs/retirement-failure.txt
+            git commit -m "ci: record v1 retirement failure"
+          fi
+          git push origin HEAD:main
