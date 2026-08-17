@@ -85,6 +85,13 @@ jobs:
           source = source[:start] + replacement + source[end:]
           p.write_text(source)
 
+          # Observability must exercise the canonical v2 validate -> render flow, not schema 1.
+          replace_once(
+              "tests/worker/request-observability.test.ts",
+              '''    const render = await callTool(203, "render_score", {\n      schemaVersion: 1,\n      abc: "X:4\\nM:4/4\\nL:1/4\\nK:C\\nG A B c|]",\n    });''',
+              '''    const render = await callTool(203, "render_score", {\n      schemaVersion: 2,\n      snapshot: {\n        schemaVersion: 2,\n        revision: 3,\n        document: {\n          tuneId: "4",\n          meter: "4/4",\n          key: "C",\n          voices: [{ id: "default", kind: "pitched" }],\n          source: {\n            format: "abc",\n            text: "X:4\\nM:4/4\\nL:1/4\\nK:C\\nG A B c|]",\n          },\n        },\n        diagnostics: [],\n      },\n    });''',
+          )
+
           # Public deployment probe: exact tool set, stable discovery, and no v1 properties.
           p = Path("scripts/verify-v2-preview.mjs")
           source = p.read_text()
@@ -137,7 +144,7 @@ jobs:
         run: |
           rm .github/workflows/fix-mcp-surface-once.yml
           git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.email "41898282+R3Neer@users.noreply.github.com"
           git add -A
           git commit -m "fix: make production MCP surface v2-only"
           git push origin HEAD:main
