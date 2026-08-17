@@ -66,7 +66,7 @@ test("playback controls adopt score tempo and remain operable without starting a
   await loop.click();
   await expect(loop).toHaveAttribute("aria-pressed", "true");
   await expect(loop).toHaveAttribute("aria-label", "Disable loop");
-  await expect(loop).toHaveCSS("background-color", "rgb(37, 99, 235)");
+  await expect(loop).toHaveCSS("background-color", "rgb(24, 24, 24)");
   await expect(loop).toHaveCSS("color", "rgb(255, 255, 255)");
   await tempo.fill("109");
   await expect(tempoValue).toHaveValue("109");
