@@ -187,33 +187,4 @@ export const presentScoreRequestSchema = z.object({
 
 export type PresentScoreRequest = z.infer<typeof presentScoreRequestSchema>;
 
-const legacyInstrumentIdSchema = z.union([
-  instrumentIdSchema.exclude(["standard_drum_kit"]),
-  z.literal("percussion"),
-]);
-
-export const legacyRenderScoreRequestSchema = z.object({
-  schemaVersion: z.literal(1).default(1),
-  abc: z.string().min(1).max(65_536),
-  playback: z.object({
-    tempo: z.number().int().min(20).max(300).default(96),
-    instruments: z.record(z.string(), legacyInstrumentIdSchema).default({}),
-    mutedVoices: z.array(z.string()).default([]),
-    loop: z.boolean().default(false),
-  }).default({ tempo: 96, instruments: {}, mutedVoices: [], loop: false }),
-  notation: z.object({
-    voiceKinds: z.record(
-      z.string(),
-      z.enum(["pitched", "unpitched_percussion"]),
-    ).default({}),
-  }).default({ voiceKinds: {} }),
-  display: z.object({
-    title: z.string().max(120).optional(),
-    coloredVoices: z.boolean().default(false),
-    preferredMeasuresPerLine: z.number().int().min(1).max(8).optional(),
-  }).default({ coloredVoices: false }),
-}).passthrough();
-
-export type LegacyRenderScoreRequest = z.infer<typeof legacyRenderScoreRequestSchema>;
-
 export const renderScoreToolInputSchema = presentScoreRequestSchema;
