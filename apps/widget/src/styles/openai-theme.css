@@ -1,0 +1,204 @@
+/*
+ * OpenAI Apps SDK UI token subset, vendored from @openai/apps-sdk-ui v0.2.2.
+ * ABCoda stays framework-agnostic while following the official semantic token contract.
+ */
+
+:root {
+  color-scheme: light dark;
+
+  --font-sans: ui-sans-serif, -apple-system, system-ui, "Segoe UI", "Noto Sans", "Helvetica", "Arial", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+  --font-mono: ui-monospace, "SFMono-Regular", "SF Mono", "Menlo", "Monaco", "Consolas", "Liberation Mono", "DejaVu Sans Mono", "Courier New", monospace;
+
+  --radius-xs: 0.25rem;
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.625rem;
+  --radius-xl: 0.75rem;
+  --radius-2xl: 1rem;
+  --radius-full: 9999px;
+
+  --color-text: light-dark(#0d0d0d, #ffffff);
+  --color-text-secondary: light-dark(#5d5d5d, #afafaf);
+  --color-text-tertiary: light-dark(#8f8f8f, #8f8f8f);
+  --color-text-inverse: light-dark(#ffffff, #0d0d0d);
+  --color-ring: light-dark(#0169cc, #0285ff);
+
+  --color-surface: light-dark(#ffffff, #212121);
+  --color-surface-secondary: light-dark(#f9f9f9, #181818);
+  --color-surface-tertiary: light-dark(#f3f3f3, #131313);
+  --color-surface-elevated: light-dark(#ffffff, #303030);
+  --color-surface-elevated-secondary: light-dark(#f9f9f9, #414141);
+
+  --color-border-subtle: light-dark(rgb(13 13 13 / 5%), rgb(255 255 255 / 6%));
+  --color-border: light-dark(rgb(13 13 13 / 10%), rgb(255 255 255 / 12%));
+  --color-border-strong: light-dark(rgb(13 13 13 / 15%), rgb(255 255 255 / 20%));
+
+  --color-background-primary-soft: light-dark(#ededed, #303030);
+  --color-background-primary-soft-hover: light-dark(#dfdfdf, #393939);
+  --color-background-primary-soft-active: light-dark(#cdcdcd, #414141);
+  --color-background-primary-solid: light-dark(#181818, #f3f3f3);
+  --color-background-primary-solid-hover: light-dark(#303030, #ededed);
+  --color-background-primary-solid-active: light-dark(#414141, #dcdcdc);
+  --color-text-primary-solid: var(--color-text-inverse);
+
+  --color-text-danger: light-dark(#911e1b, #e02e2a);
+  --color-background-danger-surface: light-dark(rgb(250 66 62 / 8%), rgb(250 66 62 / 16%));
+  --color-border-danger-surface: light-dark(rgb(250 66 62 / 8%), rgb(250 66 62 / 16%));
+
+  --color-text-warning: light-dark(#923b0f, #e25507);
+  --color-background-warning-surface: light-dark(rgb(251 106 34 / 7%), rgb(251 106 34 / 16%));
+
+  --shadow: 0 10px 15px -3px light-dark(rgb(0 0 0 / 10%), rgb(0 0 0 / 20%)), 0 4px 6px -4px light-dark(rgb(0 0 0 / 10%), rgb(0 0 0 / 20%));
+
+  /* ABCoda semantic aliases. */
+  --accent: var(--color-ring);
+  --accent-ink: var(--color-text-inverse);
+  --danger: var(--color-text-danger);
+  --control-bg: var(--color-background-primary-soft);
+  --control-border: var(--color-border);
+  --control-hover: var(--color-background-primary-soft-hover);
+  --control-pressed: var(--color-background-primary-soft-active);
+  --range-extended: var(--color-text-warning);
+  --range-unplayable: var(--color-text-danger);
+
+  font-family: var(--font-sans);
+  color: var(--color-text);
+  background: var(--color-surface);
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+.header {
+  border-bottom-color: var(--color-border-strong);
+}
+
+.eyebrow,
+.mixer-heading span,
+.editor > summary output,
+.copy-status,
+.transpose-control-label {
+  color: var(--color-text-secondary);
+}
+
+.status {
+  background: var(--color-background-primary-soft);
+}
+
+.error {
+  border-color: var(--color-border-danger-surface);
+  color: var(--color-text-danger);
+  background: var(--color-background-danger-surface);
+}
+
+.mixer,
+.editor {
+  border-color: var(--color-border);
+  background: var(--color-surface-secondary);
+}
+
+.voice-instrument {
+  border-color: var(--color-border-strong);
+  color: var(--color-text);
+  background: var(--color-surface);
+}
+
+.icon-button,
+.commit-button,
+.editor-actions button,
+.transport button,
+.transpose-step-button {
+  color: var(--color-text);
+}
+
+.voice-range-warning {
+  color: var(--color-text-warning);
+}
+
+.commit-form input,
+.version-history,
+#abc-draft,
+.transpose-step-value,
+.tempo-value {
+  color: var(--color-text);
+  background: var(--color-surface);
+}
+
+.commit-form input {
+  font-family: var(--font-sans);
+}
+
+#abc-draft {
+  font-family: var(--font-mono);
+}
+
+.version-history {
+  border-color: var(--color-border);
+  box-shadow: var(--shadow);
+}
+
+.version-history button,
+.transpose-step-input {
+  color: var(--color-text);
+}
+
+.version-history button[aria-selected="true"] {
+  background: var(--color-background-primary-soft);
+}
+
+.copy-button {
+  background: color-mix(in srgb, var(--color-surface) 88%, transparent);
+}
+
+.draft-diagnostics li {
+  border-left-color: var(--color-text-danger);
+  background: var(--color-background-danger-surface);
+}
+
+.voice-instrument[data-range-status="extended"] {
+  border-color: color-mix(in srgb, var(--color-text-warning) 72%, var(--color-border));
+  background: var(--color-background-warning-surface);
+}
+
+.voice-instrument[data-range-status="unplayable"] {
+  border-color: color-mix(in srgb, var(--color-text-danger) 76%, var(--color-border));
+  background: var(--color-background-danger-surface);
+}
+
+.transport {
+  border-color: var(--color-border);
+  background: color-mix(in srgb, var(--color-surface-elevated) 96%, transparent);
+}
+
+.transport-divider {
+  background: var(--color-border-strong);
+}
+
+button[aria-pressed="true"],
+.version-picker[open] > summary,
+.transport button[aria-pressed="true"] {
+  border-color: var(--color-background-primary-solid);
+  color: var(--color-text-primary-solid);
+  background: var(--color-background-primary-solid);
+  box-shadow: none;
+}
+
+:where(button, select, input, textarea, summary):focus-visible {
+  outline-color: var(--color-ring);
+}
+
+@media (forced-colors: active) {
+  :root {
+    --accent: Highlight;
+    --accent-ink: HighlightText;
+    --control-bg: Canvas;
+    --control-border: ButtonText;
+    --control-hover: Canvas;
+    --control-pressed: Highlight;
+  }
+}
