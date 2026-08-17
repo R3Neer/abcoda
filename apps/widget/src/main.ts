@@ -1,5 +1,6 @@
 import "./styles/index.css";
 import "./styles/ranges.css";
+import "./styles/openai-theme.css";
 import { AbcjsEngraver } from "./adapters/abcjs/abcjs-engraver";
 import { DomScoreCursor } from "./adapters/dom/dom-score-cursor";
 import { applyVoiceRangePresentation } from "./adapters/dom/dom-range-presentation";
