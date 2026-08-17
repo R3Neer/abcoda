@@ -2,6 +2,11 @@ name: Deploy v2 preview
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - architecture-v2
+    paths:
+      - .github/workflows/deploy-preview.yml
 
 permissions:
   contents: read
