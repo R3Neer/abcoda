@@ -23,14 +23,14 @@
 | CAP-14 | Tema del host y layout móvil | implemented-v2 | Temas, safe areas, responsive, no-overflow y artifacts visuales auditados. | Host MCP Apps real. |
 | CAP-15 | Transporte siempre accesible | implemented-v2 | Dock sticky, teclado/foco/reduced motion y regresión geométrica móvil de clearance. | Lector de pantalla/revisión manual. |
 | CAP-16 | Demo independiente | parity-proven | Host standalone y escenarios Playwright reproducibles. | Mantener como laboratorio obligatorio. |
-| CAP-17 | Operación stateless | implemented-v2 | Worker por petición, workerd, request IDs y ausencia de contaminación entre requests. | Preview real/carga moderada. |
+| CAP-17 | Operación stateless | implemented-v2 | Worker por petición, workerd, request IDs y preview pública real con sonda MCP completa. | Carga moderada solo si se convierte en requisito de candidato. |
 | CAP-18 | Claves, transposición sonora y claves de octava | parity-proven | Codec/abcjs caracterizados para pitch sonante y octave clefs. | Audición humana continua. |
 
 ## Defectos y riesgos
 
 | ID | Defecto | Estado | Evidencia de cierre / pendiente |
 |---|---|---|---|
-| FIX-01 | CORS permisivo y sin validación Origin/Host | implemented | Workerd lo cubre; preview real antes de `closed`. |
+| FIX-01 | CORS permisivo y sin validación Origin/Host | **closed** | Workerd + preview pública: origin permitido reflejado, origen atacante rechazado y sin `*`. |
 | FIX-02 | Tunebooks múltiples mezclan voces/render | closed | Diagnóstico específico, sin snapshot ambiguo. |
 | FIX-03 | Resultados asíncronos obsoletos | closed | Revisiones/cancelación y browser race; coordinación encapsulada en sesión. |
 | FIX-04 | `main.ts` concentra responsabilidades/estado | **closed** | `WidgetSessionCoordinator` posee coordinación; vistas DOM separadas; `main.ts` composition root. |
@@ -39,7 +39,7 @@
 | FIX-07 | abcjs completo importado en servidor | closed | Grafo/bundle servidor prohíbe `abcjs`. |
 | FIX-08 | Sin lint/no-floating-promises | closed | ESLint tipado forma parte de `npm run check`. |
 | FIX-09 | Errores UI dispersos | closed for current scope | Controladores/coordinador y estados de recuperación con propietario explícito. |
-| FIX-10 | UX evaluada tarde | partial | Laboratorio, screenshots, geometría móvil y browser por corte ya existen; faltan host, audición y accesibilidad manual. |
+| FIX-10 | UX evaluada tarde | partial | Laboratorio, screenshots, geometría móvil, browser y preview pública existen; faltan host, audición y accesibilidad manual. |
 
 ## Deuda arquitectónica auditada
 
@@ -66,11 +66,15 @@
 
 ### M7 · preview
 
-**pending external execution.** Sonda y workflow existen; falta deploy autenticado y evidencia pública por SHA/hash.
+**closed.** La preview Cloudflare `abcoda-v2-preview` pasó la sonda pública completa en el deploy run `32068849961`, con SHA `541eedc343df87c1d176b570d681615257ee4374` y artifact hash local/remoto `9e6785eb96dd7da4350526b310c466b09cecbacea049a700cb2a8351d5d1320d`. El informe permanente está resumido en `STATUS.md` y el artifact de validación es `9300946092`.
+
+La primera ejecución real descubrió un 404 de routing en `/health`; se corrigió haciendo al Worker propietario de todas las rutas antes de assets (`run_worker_first = true`) y se añadió una regresión para esa frontera. La segunda ejecución quedó verde.
 
 ### M8 · revisión humana
 
 **visual automation/review complete; host/audio pending.** El supuesto solapamiento del dock móvil se caracterizó y no era un defecto de alcanzabilidad. La regresión permanente evita que sí lo sea en el futuro.
+
+Queda validar dentro del host MCP Apps real, escuchar audio/cambios/rangos y realizar la revisión manual final de accesibilidad.
 
 ## Regla de mantenimiento
 
