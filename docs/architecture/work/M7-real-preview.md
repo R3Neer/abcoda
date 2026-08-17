@@ -9,13 +9,11 @@ ABCoda v2 ya tiene un Worker de preview separado en `apps/worker/wrangler.jsonc`
 - nombre `abcoda-v2-preview`;
 - entrada `apps/worker/src/index.ts`;
 - assets desde `dist/v2-widget`;
-- `/mcp` y `/health` ejecutan primero el Worker;
+- `/mcp` y `/health` deben ejecutar el Worker antes que la capa de assets;
 - allowlist para ChatGPT y desarrollo local;
 - observabilidad de Cloudflare activada.
 
-El CI actual construye y prueba ese Worker mediante `wrangler deploy --dry-run`, workerd y Playwright, pero no lo publica.
-
-El repositorio tuvo anteriormente un Worker legacy conectado directamente a Cloudflare Builds desde GitHub. No existe un GitHub Deployment visible ni un workflow de deploy v2 en esta rama. El conector GitHub usado por esta sesión tampoco puede inspeccionar secrets de Actions, por lo que no se asumirá que existen credenciales CI.
+El CI actual construye y prueba ese Worker mediante `wrangler deploy --dry-run`, workerd y Playwright, pero una preview pública solo cuenta como validada después de ejecutar la sonda de esta fase.
 
 ## 2. Objetivo
 
@@ -56,7 +54,7 @@ El artefacto se crea y pasa CI antes del deploy. `verify-v2-artifacts.mjs` sigue
 
 ### Deploy
 
-El comando canónico v2 será explícito y no reutilizará `deploy:worker` legacy:
+El comando canónico v2 es explícito y no reutiliza `deploy:worker` legacy:
 
 ```text
 npm run deploy:v2-preview
@@ -132,7 +130,7 @@ La sonda automatizada puede comprobar los metadatos CSP del recurso. La comproba
 
 La sonda usa un marcador ABC reconocible para `validate_score`, pero ese marcador nunca se imprime en el informe persistido.
 
-La ausencia de ABC/prompts en los logs propios está cubierta por ARCH-07 y sus regresiones. La validación operacional adicional en Cloudflare Logs requiere acceso al proyecto Cloudflare; si el conector/usuario proporciona ese acceso se inspecciona, pero M7 no añadirá endpoints de debug ni telemetría que devuelva logs al cliente.
+La ausencia de ABC/prompts en los logs propios está cubierta por ARCH-07 y sus regresiones. La validación operacional adicional en Cloudflare Logs requiere acceso al proyecto Cloudflare; M7 no añadirá endpoints de debug ni telemetría que devuelva logs al cliente.
 
 ## 7. Reproducibilidad del deploy
 
@@ -148,31 +146,78 @@ Una segunda ejecución de `deploy:v2-preview` desde el mismo árbol puede produc
 
 ## 8. Mecanismo de autenticación
 
-Orden de preferencia:
+La vía utilizada para esta fase es GitHub Actions con `CLOUDFLARE_API_TOKEN` y `CLOUDFLARE_ACCOUNT_ID` almacenados como repository secrets. Los secretos no se guardan en Git, `.dev.vars`, documentación ni scripts.
 
-1. conector Cloudflare autenticado disponible para la sesión;
-2. Cloudflare Builds/Git integration configurada explícitamente para `architecture-v2` y el comando/config v2;
-3. GitHub Actions manual con `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID` almacenados como secrets;
-4. Wrangler local autenticado.
-
-No se guardan credenciales en Git, `.dev.vars`, documentación ni scripts.
-
-Si esta sesión no dispone de acceso autenticado a Cloudflare, se completan build, scripts y regresiones, pero **M7 permanece abierto** hasta ejecutar la sonda contra una preview real.
+El workflow `Deploy v2 preview` construye, valida, despliega y ejecuta la sonda pública. Durante la fase M7 puede recibir un trigger de push temporal y estrechamente acotado para permitir iteraciones desde esta sesión; al cerrar M7 debe volver a `workflow_dispatch` únicamente.
 
 ## 9. Implementación en repo
 
-1. Añadir `deploy:v2-preview` al `package.json`, sin build implícito.
-2. Añadir `scripts/verify-v2-preview.mjs`.
-3. Añadir pruebas unitarias de helpers puros de la sonda cuando proceda; no mockear una “preview real” y llamarla M7.
-4. Añadir documentación corta de ejecución, preferiblemente en `docs/migration`, solo si queda como procedimiento permanente.
-5. Ejecutar CI integral.
-6. Desplegar preview separada.
-7. Ejecutar la sonda contra la URL pública.
-8. Guardar evidencia del informe y, si es posible, Worker version/deployment ID.
-9. Comprobar la preview dentro del host MCP Apps real o dejar esa parte explícitamente para M8 si requiere interacción humana.
-10. Solo entonces eliminar este MD.
+1. Mantener `deploy:v2-preview` sin build implícito.
+2. Mantener `scripts/verify-v2-preview.mjs` como sonda pública reproducible.
+3. Mantener el workflow de preview separado de CI y de producción.
+4. Ejecutar CI integral.
+5. Desplegar preview separada.
+6. Ejecutar la sonda contra la URL pública.
+7. Guardar evidencia del informe y Worker version/deployment ID cuando esté disponible.
+8. Comprobar la preview dentro del host MCP Apps real o dejar esa parte explícitamente para M8 si requiere interacción humana.
+9. Solo entonces eliminar este MD.
 
-## 10. Criterio de cierre
+## 10. Iteración pública 1 · routing de assets
+
+### Evidencia
+
+El primer deployment autenticado se ejecutó desde el commit `78ca5583dcbe0709655deda91eaf89552062938e`.
+
+Cloudflare desplegó correctamente:
+
+- Worker: `abcoda-v2-preview`;
+- URL: `https://abcoda-v2-preview.mud-repo-patcher-mcp-probe.workers.dev`;
+- Worker Version ID: `dbd919dd-2cca-4df6-bce8-481e28cf6840`;
+- artifact hash local previo al deploy: `9e6785eb96dd7da4350526b310c466b09cecbacea049a700cb2a8351d5d1320d`.
+
+La autenticación y el upload fueron correctos. La sonda falló inmediatamente porque `GET /health` devolvió HTTP 404.
+
+### Análisis
+
+El Worker implementa `/health` y `/mcp` antes de delegar rutas GET desconocidas a `env.ASSETS.fetch()`. Por tanto, el propietario lógico del routing es el Worker.
+
+La configuración desplegada utilizaba un `assets.run_worker_first` selectivo con `['/mcp', '/health']`. El despliegue real demuestra que esa configuración no materializó la frontera como esperábamos. No se concluye que los patrones exactos sean inválidos en general; se concluye que nuestra configuración selectiva no es una base suficientemente robusta para esta arquitectura.
+
+Cloudflare documenta `run_worker_first: true` como la forma de invocar incondicionalmente el Worker antes de assets, permitiendo al propio Worker recuperar assets mediante el binding. Esa semántica coincide exactamente con la implementación actual.
+
+### Revisión del diseño
+
+El diseño no necesita una segunda capa de routing selectivo en Wrangler. La topología deseada queda simplificada a:
+
+```mermaid
+sequenceDiagram
+    participant C as Cliente
+    participant W as Worker ABCoda
+    participant A as ASSETS binding
+    C->>W: cualquier request
+    alt /health
+        W-->>C: health JSON
+    else /mcp
+        W-->>C: MCP response
+    else GET asset/shell
+        W->>A: env.ASSETS.fetch(request)
+        A-->>W: asset response
+        W-->>C: asset + headers
+    else ruta/método no permitido
+        W-->>C: error tipado
+    end
+```
+
+### Plan de corrección
+
+1. fijar `assets.run_worker_first = true`;
+2. añadir una regresión estructural que haga explícita esa decisión;
+3. ejecutar CI normal;
+4. redeploy mediante el workflow temporal de M7;
+5. volver a ejecutar exactamente la misma sonda;
+6. si el siguiente fallo aparece más adentro (`/mcp`, CSP, hash, etc.), clasificarlo y repetir el bucle desde diseño o implementación según corresponda.
+
+## 11. Criterio de cierre
 
 M7 queda cerrado cuando:
 
@@ -183,4 +228,5 @@ M7 queda cerrado cuando:
 - git SHA + versiones + artifactHash quedan registrados;
 - no se han introducido secretos en repo;
 - el mismo checkout puede redeployarse sin reconstruir el widget;
+- el workflow de preview vuelve a ser manual después de la iteración;
 - cualquier parte que requiera juicio humano está explícitamente trasladada a M8, no fingida mediante mocks.
