@@ -7,6 +7,7 @@ on:
       - architecture-v2
     paths:
       - .github/workflows/deploy-preview.yml
+      - apps/worker/wrangler.jsonc
 
 permissions:
   contents: read
