@@ -45,6 +45,11 @@ jobs:
           if text.count(legacy_test) != 1:
               raise SystemExit("Could not isolate the v1-only composition contract test")
           text = text.replace(legacy_test, "")
+          old_effort_omit = '    const { effort: _effort, ...withoutEffort } = base;'
+          new_effort_omit = '''    const withoutEffort: Partial<CompositionBrief> = { ...base };\n    delete withoutEffort.effort;'''
+          if text.count(old_effort_omit) != 1:
+              raise SystemExit("Could not normalize the migrated effort-default test")
+          text = text.replace(old_effort_omit, new_effort_omit)
           destination = Path("tests/v2/composition-plan.test.ts")
           if destination.exists():
               raise SystemExit(f"Unexpected existing file: {destination}")
