@@ -1,0 +1,115 @@
+
+> abcoda@0.1.0 check
+> npm run lint && npm run typecheck && npm test && npm run build:v2-widget && npm run test:v2-worker && npm run build:v2-worker && npm run verify:v2-artifacts
+
+
+> abcoda@0.1.0 lint
+> eslint packages apps tests/v2 tests/worker tests/browser playwright.config.ts scripts/verify-v2-preview.mjs
+
+
+> abcoda@0.1.0 typecheck
+> npm run typecheck:v2
+
+
+> abcoda@0.1.0 typecheck:v2
+> tsc -p packages/domain/tsconfig.json --noEmit && tsc -p tsconfig.v2.json --noEmit
+
+
+> abcoda@0.1.0 test
+> vitest run
+
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.10 [39m[90m/home/runner/work/abcoda/abcoda[39m
+
+ [32m✓[39m tests/v2/draft-session.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 30[2mms[22m[39m
+ [32m✓[39m tests/v2/abcjs-playback-source.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m tests/v2/playback-session.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 16[2mms[22m[39m
+ [32m✓[39m tests/v2/composition-plan.test.ts [2m([22m[2m33 tests[22m[2m)[22m[33m 334[2mms[22m[39m
+ [32m✓[39m tests/v2/score-operations.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 16[2mms[22m[39m
+ [32m✓[39m tests/v2/widget-session-coordinator.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 229[2mms[22m[39m
+ [32m✓[39m tests/v2/abcjs-playback-engine.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+ [32m✓[39m tests/v2/architecture-boundaries.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m tests/v2/abc-codec.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 51[2mms[22m[39m
+ [32m✓[39m tests/v2/widget-session.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 24[2mms[22m[39m
+ [32m✓[39m tests/v2/playback-mix-coordinator.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m tests/v2/score-cursor.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [31m❯[39m tests/v2/evaluate-score.test.ts [2m([22m[2m7 tests[22m[2m | [22m[31m3 failed[39m[2m)[22m[32m 31[2mms[22m[39m
+[31m     [31m×[31m turns one ABC tune into a protocol-neutral revisioned score[39m[32m 7[2mms[22m[39m
+[31m     [31m×[31m extracts percussion as canonical voice semantics[39m[32m 4[2mms[22m[39m
+     [32m✓[39m does not invent a playback tempo when ABC does not express one canonically[32m 12[2mms[22m[39m
+[31m     [31m×[31m rejects a tunebook instead of merging voices across tunes[39m[32m 1[2mms[22m[39m
+     [32m✓[39m rejects missing and empty tune references with stable codes[32m 1[2mms[22m[39m
+     [32m✓[39m rejects mechanically inconsistent ABC after syntactic decoding[32m 1[2mms[22m[39m
+     [32m✓[39m keeps versions centralized and requires a real artifact digest[32m 2[2mms[22m[39m
+ [32m✓[39m tests/v2/composition-architecture.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m tests/v2/instruments.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+ [32m✓[39m tests/v2/voice-mix.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m tests/v2/widget-runtime.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 12[2mms[22m[39m
+ [32m✓[39m tests/v2/score-timeline.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m tests/v2/request-observability.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m tests/v2/contracts.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 20[2mms[22m[39m
+ [32m✓[39m tests/v2/dom-view-architecture.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m tests/v2/voice-range.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m tests/v2/canonical-draft-transformer.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 17[2mms[22m[39m
+ [32m✓[39m tests/v2/widget-composition-root.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m tests/v2/abcjs-synth-capability.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m tests/v2/abcjs-voice-pitches.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m tests/v2/openai-theme.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m tests/v2/application-use-cases.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m tests/v2/protocol-boundary.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m tests/v2/score-contract-mapper.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 11[2mms[22m[39m
+ [32m✓[39m tests/v2/abc-field-architecture.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m tests/v2/score-session-reflow.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 17[2mms[22m[39m
+ [32m✓[39m tests/v2/score-layout.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m tests/v2/worker-routing-config.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 3[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 3 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m tests/v2/evaluate-score.test.ts[2m > [22marchitecture v2 first vertical slice[2m > [22mturns one ABC tune into a protocol-neutral revisioned score
+[31m[1mError[22m: ENOENT: no such file or directory, open '/home/runner/work/abcoda/abcoda/tests/characterization/fixtures/abc/multi-voice.abc'[39m
+[36m [2m❯[22m tests/v2/evaluate-score.test.ts:[2m25:12[22m[39m
+    [90m 23|[39m   it("turns one ABC tune into a protocol-neutral revisioned score", as…
+    [90m 24|[39m     [35mconst[39m request [33m=[39m evaluateScoreRequestSchema[33m.[39m[34mparse[39m({
+    [90m 25|[39m       abc[33m:[39m [35mawait[39m [34mreadFixture[39m([32m"multi-voice"[39m)[33m,[39m
+    [90m   |[39m            [31m^[39m
+    [90m 26|[39m       revision[33m:[39m [34m7[39m[33m,[39m
+    [90m 27|[39m     })[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m tests/v2/evaluate-score.test.ts[2m > [22marchitecture v2 first vertical slice[2m > [22mextracts percussion as canonical voice semantics
+[31m[1mError[22m: ENOENT: no such file or directory, open '/home/runner/work/abcoda/abcoda/tests/characterization/fixtures/abc/percussion.abc'[39m
+[36m [2m❯[22m tests/v2/evaluate-score.test.ts:[2m53:12[22m[39m
+    [90m 51|[39m   [34mit[39m([32m"extracts percussion as canonical voice semantics"[39m[33m,[39m [35masync[39m () [33m=>[39m {
+    [90m 52|[39m     [35mconst[39m result [33m=[39m evaluate[33m.[39m[34mexecute[39m({
+    [90m 53|[39m       abc[33m:[39m [35mawait[39m [34mreadFixture[39m([32m"percussion"[39m)[33m,[39m
+    [90m   |[39m            [31m^[39m
+    [90m 54|[39m       revision[33m:[39m [34m9[39m[33m,[39m
+    [90m 55|[39m     })[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m tests/v2/evaluate-score.test.ts[2m > [22marchitecture v2 first vertical slice[2m > [22mrejects a tunebook instead of merging voices across tunes
+[31m[1mError[22m: ENOENT: no such file or directory, open '/home/runner/work/abcoda/abcoda/tests/characterization/fixtures/abc/legacy-tunebook.abc'[39m
+[36m [2m❯[22m tests/v2/evaluate-score.test.ts:[2m83:12[22m[39m
+    [90m 81|[39m   it("rejects a tunebook instead of merging voices across tunes", asyn…
+    [90m 82|[39m     [35mconst[39m result [33m=[39m evaluate[33m.[39m[34mexecute[39m({
+    [90m 83|[39m       abc[33m:[39m [35mawait[39m [34mreadFixture[39m([32m"legacy-tunebook"[39m)[33m,[39m
+    [90m   |[39m            [31m^[39m
+    [90m 84|[39m       revision[33m:[39m [34m8[39m[33m,[39m
+    [90m 85|[39m     })[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m33 passed[39m[22m[90m (34)[39m
+[2m      Tests [22m [1m[31m3 failed[39m[22m[2m | [22m[1m[32m180 passed[39m[22m[90m (183)[39m
+[2m   Start at [22m 22:36:03
+[2m   Duration [22m 3.21s[2m (transform 931ms, setup 0ms, import 3.05s, tests 965ms, environment 5ms)[22m
+
+
+::error file=/home/runner/work/abcoda/abcoda/tests/v2/evaluate-score.test.ts,title=tests/v2/evaluate-score.test.ts > architecture v2 first vertical slice > turns one ABC tune into a protocol-neutral revisioned score,line=25,column=12::Error: ENOENT: no such file or directory, open '/home/runner/work/abcoda/abcoda/tests/characterization/fixtures/abc/multi-voice.abc'%0A ❯ tests/v2/evaluate-score.test.ts:25:12%0A%0A⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯%0ASerialized Error: { errno: -2, code: 'ENOENT', syscall: 'open', path: '/home/runner/work/abcoda/abcoda/tests/characterization/fixtures/abc/multi-voice.abc' }%0A
+
+::error file=/home/runner/work/abcoda/abcoda/tests/v2/evaluate-score.test.ts,title=tests/v2/evaluate-score.test.ts > architecture v2 first vertical slice > extracts percussion as canonical voice semantics,line=53,column=12::Error: ENOENT: no such file or directory, open '/home/runner/work/abcoda/abcoda/tests/characterization/fixtures/abc/percussion.abc'%0A ❯ tests/v2/evaluate-score.test.ts:53:12%0A%0A⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯%0ASerialized Error: { errno: -2, code: 'ENOENT', syscall: 'open', path: '/home/runner/work/abcoda/abcoda/tests/characterization/fixtures/abc/percussion.abc' }%0A
+
+::error file=/home/runner/work/abcoda/abcoda/tests/v2/evaluate-score.test.ts,title=tests/v2/evaluate-score.test.ts > architecture v2 first vertical slice > rejects a tunebook instead of merging voices across tunes,line=83,column=12::Error: ENOENT: no such file or directory, open '/home/runner/work/abcoda/abcoda/tests/characterization/fixtures/abc/legacy-tunebook.abc'%0A ❯ tests/v2/evaluate-score.test.ts:83:12%0A%0A⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯%0ASerialized Error: { errno: -2, code: 'ENOENT', syscall: 'open', path: '/home/runner/work/abcoda/abcoda/tests/characterization/fixtures/abc/legacy-tunebook.abc' }%0A
