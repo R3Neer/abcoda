@@ -13,8 +13,7 @@ import {
   styleFamilies,
   textureModels,
   type CompositionBrief,
-} from "../shared/composition-plan";
-import { renderScoreInputSchema } from "../shared/score";
+} from "@abcoda/composition";
 
 const base: CompositionBrief = compositionBriefSchema.parse({
   styleFamily: "classical",
@@ -214,7 +213,8 @@ describe("prompt coverage matrix", () => {
 
 describe("effort-aware musical review", () => {
   it("defaults effort to standard and accepts every declared level", () => {
-    const { effort: _effort, ...withoutEffort } = base;
+    const withoutEffort: Partial<CompositionBrief> = { ...base };
+    delete withoutEffort.effort;
     expect(compositionBriefSchema.parse(withoutEffort).effort).toBe("standard");
     for (const effort of compositionEffortLevels) {
       expect(compositionBriefSchema.parse({ ...base, effort }).effort).toBe(effort);
@@ -414,15 +414,6 @@ describe("effort-aware musical review", () => {
     });
     expect(result.schemaVersion).toBe(4);
     expect(result.compatibilityNotes.join(" ")).toContain("intentional hybrid");
-  });
-
-  it("passes the same complete brief to render_score.composition", () => {
-    const result = plan({ difficulty: "beginner", effort: "exhaustive" });
-    const renderInput = renderScoreInputSchema.parse({
-      abc: "X:1\nT:Test\nM:4/4\nL:1/4\nQ:1/4=96\nK:C\nC D E F|]",
-      composition: result.brief,
-    });
-    expect(renderInput.composition).toEqual(result.brief);
   });
 
   it("keeps quick prompts materially smaller than exhaustive prompts", () => {

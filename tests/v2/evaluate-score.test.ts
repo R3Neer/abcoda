@@ -12,7 +12,7 @@ import {
 const readFixture = (name: string) =>
   fs.readFile(
     fileURLToPath(
-      new URL(`../characterization/fixtures/abc/${name}.abc`, import.meta.url),
+      new URL(`../fixtures/abc/${name}.abc`, import.meta.url),
     ),
     "utf8",
   );
@@ -80,7 +80,7 @@ describe("architecture v2 first vertical slice", () => {
 
   it("rejects a tunebook instead of merging voices across tunes", async () => {
     const result = evaluate.execute({
-      abc: await readFixture("legacy-tunebook"),
+      abc: await readFixture("multi-tune"),
       revision: 8,
     });
 

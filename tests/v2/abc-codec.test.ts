@@ -18,7 +18,7 @@ const fixtureNames = [
 const readFixture = (name: (typeof fixtureNames)[number]) =>
   fs.readFile(
     fileURLToPath(
-      new URL(`../characterization/fixtures/abc/${name}.abc`, import.meta.url),
+      new URL(`../fixtures/abc/${name}.abc`, import.meta.url),
     ),
     "utf8",
   );
