@@ -9,12 +9,9 @@
 
 La reconstrucción arquitectónica de `architecture-v2` está esencialmente terminada. Las siete deudas ARCH detectadas en la auditoría se han cerrado mediante refactors pequeños, cada uno con diseño temporal, regresiones y CI integral.
 
-Ya no queda una deuda estructural que justifique otra reescritura general.
+M7 también está cerrado: existe una preview pública Cloudflare separada de producción y la sonda HTTPS completa pasa contra ella con hash local/remoto idéntico.
 
-El trabajo pendiente es operacional y de validación humana:
-
-- **M7:** publicar y validar una preview real Cloudflare/MCP Apps;
-- **M8:** audición y prueba dentro del host real. La subfase visual de M8 ya está cerrada.
+El único gate sustancial pendiente antes de candidato es **M8 humano**: abrir la preview dentro del host MCP Apps real, escuchar el audio y hacer la revisión manual final de accesibilidad/interacción. La subfase visual automatizada de M8 ya está cerrada.
 
 ## Fases
 
@@ -25,13 +22,13 @@ El trabajo pendiente es operacional y de validación humana:
 | 2. Contratos y modelo canónico | **complete for current schema** | Modelo interno `RevisionedScore` separado de `ScoreSnapshotDto`; mappers explícitos y roundtrip probado. |
 | 3. Codec y diagnósticos | **complete for current corpus** | Parser source-preserving, opaque nodes, fields/ranges estructurados, validación, normalización y operaciones sin reescaneo global de armaduras. |
 | 4. Casos de uso | **complete for current scope** | Casos de uso y puertos aislados de infraestructura. |
-| 5. MCP y Worker seguro | **implemented, preview pending** | Seguridad HTTP, MCP, request IDs, logs redactados, workerd y artefactos pasan. Preview pública aún no ejecutada. |
+| 5. MCP y Worker seguro | **complete for preview scope** | Seguridad HTTP, MCP, observabilidad, workerd y sonda pública real pasan sobre Cloudflare. |
 | 6. Shell y bridge | **complete** | `WidgetSessionCoordinator` posee coordinación transversal; `main.ts` es composition root; vistas DOM divididas por responsabilidad. |
 | 7. Grabado | **implemented** | Multivoz, reflow, cursor, selección y responsive cubiertos por navegador. |
 | 8. Reproducción | **implemented + technically hardened** | Transporte, tempo, loop, seek, pause/resume y capacidad SoundFont separada de tesitura; falta audición humana final. |
 | 9. Instrumentos y edición | **implemented for current scope** | Editor revisionado, mix persistente, transposición global/por voz y política `bounded/unbounded/percussion`. |
 | 10. Paridad, UX y robustez | **visual automation complete; human review pending** | Playwright, screenshots, forced-colors, móvil y clearance sticky auditados. Falta host/audio humanos. |
-| 11. Candidato y sustitución | **pending M7/M8** | No se sustituye `main` hasta preview pública, revisión humana y rollback. |
+| 11. Candidato y sustitución | **pending M8** | Preview pública ya validada; faltan revisión humana final, clasificación CAP/FIX y rollback. |
 
 ## Cierre de la deuda arquitectónica
 
@@ -58,14 +55,22 @@ El trabajo pendiente es operacional y de validación humana:
 
 ### M7 · preview real
 
-**Abierto por dependencia externa.** El repo ya contiene:
+**Cerrado.** Evidencia operacional validada el 17-ago-2026:
 
-- `deploy:v2-preview`;
-- `verify:v2-preview`;
-- sonda HTTPS que compara artifact hash y prueba `/health`, MCP, tools, resource, CORS, CSP y request IDs;
-- workflow manual `.github/workflows/deploy-preview.yml` con secrets Cloudflare.
+- URL pública: `https://abcoda-v2-preview.mud-repo-patcher-mcp-probe.workers.dev`;
+- SHA validado: `541eedc343df87c1d176b570d681615257ee4374`;
+- Cloudflare Worker Version ID: `d67a4b98-a105-4496-bf62-7747347891ec`;
+- `appVersion`: `0.13.0-alpha.1`;
+- `schemaVersion`: `2`;
+- `rulesVersion`: `4`;
+- widget artifact hash: `9e6785eb96dd7da4350526b310c466b09cecbacea049a700cb2a8351d5d1320d`;
+- hash remoto = hash local;
+- GitHub Actions deploy run: `32068849961`;
+- validation artifact: `9300946092` (`v2-preview-validation`).
 
-Falta una ejecución autenticada que produzca una URL pública y un `v2-preview-validation.json` válido.
+La sonda pública confirmó `health`, headers de seguridad, política Origin/CORS, inicialización MCP, lista de tools, `validate_score` sin UI, `render_score` y lectura del recurso widget.
+
+La primera iteración pública detectó que el routing selectivo de assets producía 404 en `/health`. Se corrigió haciendo al Worker propietario explícito de todo el routing (`assets.run_worker_first = true`) y se añadió una regresión estructural. El segundo deploy pasó completo. El workflow de preview volvió después a ejecución manual.
 
 ### M8 · revisión humana
 
@@ -88,17 +93,17 @@ Queda:
 - `abcjs` pertenece al borde navegador.
 - Dominio musical, capacidad técnica del sintetizador y presentación visual son políticas distintas.
 - Los presets ambiguos no reciben límites organológicos inventados.
+- El Worker posee el routing público y delega assets mediante `env.ASSETS`; Wrangler no mantiene una segunda política selectiva para las rutas API.
 - CI verde es necesario, pero cada cierre arquitectónico requiere además una prueba que exprese la frontera correspondiente.
 
 ## Próxima secuencia
 
 ```text
-M7 deploy preview real
-  → ejecutar verify:v2-preview
-  → host MCP Apps real
-  → M8 audición/accesibilidad humana
+M8 host MCP Apps real
+  → audición/accesibilidad humana
   → clasificación final CAP/FIX
-  → candidate + rollback
+  → candidate por SHA + artifactHash
+  → rollback verificable
 ```
 
 ## Criterio de actualización
