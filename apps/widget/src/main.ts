@@ -46,19 +46,20 @@ const unbindPlayback = view.bindPlayback({
 });
 const unbindVoiceMix = view.bindVoiceMix({
   setInstrument: (voiceId, instrument) => {
-    // Seed canonical ABC with the pre-change assignments first. This makes the
-    // first GUI instrument change as lossless as later ones: existing printed
-    // labels can be preserved when the instrument did not change and replaced
-    // only for the voice that actually changed.
+    // Capture the complete pre-change assignment map before the mixer rerenders.
+    // The second normalization is derived from that stable map plus the exact
+    // user change, so a deliberately split remembered grand staff is never
+    // mistaken for a newly incomplete piano that needs a companion staff.
+    const previousAssignments = view.instrumentAssignments();
     const beforeChange = draftTransformer.synchronizeInstruments(
       view.currentDraft(),
-      view.instrumentAssignments(),
+      previousAssignments,
     );
     session.setInstrument(voiceId, instrument);
     session.editDraft(
       draftTransformer.synchronizeInstruments(
         beforeChange,
-        view.instrumentAssignments(),
+        { ...previousAssignments, [voiceId]: instrument },
       ),
     );
   },
