@@ -64,7 +64,7 @@ describe("instrumentation synchronization", () => {
     expect(restored).not.toContain("subname=");
   });
 
-  it("uses later-system abbreviations when more than one instrument unit remains", () => {
+  it("uses canonical later-system abbreviations when more than one instrument unit remains", () => {
     const ensemble = `X:1
 T:Trio
 M:4/4
@@ -86,7 +86,8 @@ K:C
 
     expect(result).toContain('V:RH clef=treble name="Piano" subname="Pno."');
     expect(result).toContain("V:LH clef=bass");
-    expect(result).toContain('V:Vln clef=treble name="Violin I" subname="Vln. I"');
+    expect(result).toContain('V:Vln clef=treble name="Violin" subname="Vln."');
+    expect(result).not.toContain('name="Violin I"');
   });
 
   it("completes a one-staff treble piano with a silent lower staff", () => {
