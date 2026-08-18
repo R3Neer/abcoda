@@ -1,4 +1,5 @@
 import "./styles/index.css";
+import "./styles/score-clearance.css";
 import "./styles/ranges.css";
 import "./styles/openai-theme.css";
 import { AbcjsEngraver } from "./adapters/abcjs/abcjs-engraver";
