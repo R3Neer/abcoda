@@ -37,6 +37,17 @@ export class WidgetShellView {
     const root = this.documentObject.documentElement;
     if (context.theme) root.dataset.theme = context.theme;
     if (context.displayMode) root.dataset.displayMode = context.displayMode;
+
+    const dimensions = context.containerDimensions;
+    const constrainedHeight = dimensions?.height ?? dimensions?.maxHeight;
+    if (constrainedHeight !== undefined && Number.isFinite(constrainedHeight) && constrainedHeight > 0) {
+      root.dataset.hostHeight = dimensions?.height !== undefined ? "fixed" : "max";
+      root.style.setProperty("--host-container-height", `${constrainedHeight}px`);
+    } else {
+      delete root.dataset.hostHeight;
+      root.style.removeProperty("--host-container-height");
+    }
+
     const safeArea = context.safeAreaInsets;
     if (safeArea) {
       root.style.setProperty("--host-safe-top", `${safeArea.top}px`);
