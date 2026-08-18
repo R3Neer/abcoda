@@ -2,6 +2,7 @@ import "./styles/index.css";
 import "./styles/score-clearance.css";
 import "./styles/ranges.css";
 import "./styles/openai-theme.css";
+import "./styles/host-viewport.css";
 import { AbcjsEngraver } from "./adapters/abcjs/abcjs-engraver";
 import { DomScoreCursor } from "./adapters/dom/dom-score-cursor";
 import { applyVoiceRangePresentation } from "./adapters/dom/dom-range-presentation";
