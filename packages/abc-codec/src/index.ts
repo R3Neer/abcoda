@@ -4,6 +4,7 @@ import { parseAbc } from "./parser";
 
 export { parseAbc } from "./parser";
 export * from "./operations";
+export { normalizeEngravingLayoutAbc } from "./engraving-layout";
 export {
   synchronizeInstrumentationAbc,
   type InstrumentAssignments,
