@@ -18,10 +18,12 @@ import {
   analyzeVoicePitches,
   type VoicePitchTarget,
 } from "./abcjs-voice-pitches";
+import {
+  scoreVisualClearance,
+} from "../../application/score-clearance";
 import { scoreStaffWidth } from "../../application/score-layout";
 import type { VoiceMixSnapshot } from "../../application/voice-mix";
 
-const SCORE_VISUAL_BUFFER_PX = 8;
 const scoreOverflowProperty = "--score-visual-overflow-bottom";
 
 interface SelectionRange {
@@ -48,10 +50,7 @@ function syncScoreVisualClearance(target: HTMLElement): void {
     if (Number.isFinite(rect.bottom)) visualBottom = Math.max(visualBottom, rect.bottom);
   }
 
-  const overflow = Math.max(0, visualBottom - svgRect.bottom);
-  const clearance = overflow > 0.5
-    ? Math.ceil(overflow + SCORE_VISUAL_BUFFER_PX)
-    : 0;
+  const clearance = scoreVisualClearance(svgRect.bottom, visualBottom);
   scoreShell.style.setProperty(scoreOverflowProperty, `${clearance}px`);
 }
 
