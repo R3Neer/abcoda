@@ -1,15 +1,26 @@
 import type { ScoreCodec } from "@abcoda/application";
 import type { DecodeScoreResult, ScoreDocument } from "@abcoda/domain";
+import { normalizeEngravingLayoutAbc } from "./engraving-layout";
+import {
+  synchronizeInstrumentationAbc as synchronizeCanonicalInstrumentation,
+  type InstrumentAssignments,
+} from "./canonical-instrumentation";
 import { parseAbc } from "./parser";
 
 export { parseAbc } from "./parser";
 export * from "./operations";
 export { normalizeEngravingLayoutAbc } from "./engraving-layout";
-export {
-  synchronizeInstrumentationAbc,
-  type InstrumentAssignments,
-} from "./canonical-instrumentation";
+export type { InstrumentAssignments } from "./canonical-instrumentation";
 export { validateScore } from "./validation";
+
+export function synchronizeInstrumentationAbc(
+  source: string,
+  instruments: InstrumentAssignments,
+): string {
+  return normalizeEngravingLayoutAbc(
+    synchronizeCanonicalInstrumentation(source, instruments),
+  );
+}
 
 /**
  * Lossless serialization is the safe baseline for the canonical model: until a
