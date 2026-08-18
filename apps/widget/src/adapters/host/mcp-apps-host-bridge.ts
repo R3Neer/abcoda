@@ -2,17 +2,36 @@ import { App } from "@modelcontextprotocol/ext-apps";
 import type {
   HostBridge,
   HostBridgeHandlers,
+  HostContainerDimensions,
   HostPresentationContext,
 } from "../../application/host-bridge";
 
+type McpHostContext = NonNullable<ReturnType<App["getHostContext"]>>;
+
+function containerDimensions(
+  dimensions: McpHostContext["containerDimensions"],
+): HostContainerDimensions | undefined {
+  if (!dimensions) return undefined;
+  const result: {
+    height?: number;
+    maxHeight?: number;
+    width?: number;
+    maxWidth?: number;
+  } = {};
+  if (typeof dimensions.height === "number") result.height = dimensions.height;
+  if (typeof dimensions.maxHeight === "number") result.maxHeight = dimensions.maxHeight;
+  if (typeof dimensions.width === "number") result.width = dimensions.width;
+  if (typeof dimensions.maxWidth === "number") result.maxWidth = dimensions.maxWidth;
+  return Object.keys(result).length === 0 ? undefined : result;
+}
+
 function presentationContext(context: ReturnType<App["getHostContext"]>): HostPresentationContext {
   if (!context) return {};
+  const dimensions = containerDimensions(context.containerDimensions);
   return {
     ...(context.theme === undefined ? {} : { theme: context.theme }),
     ...(context.displayMode === undefined ? {} : { displayMode: context.displayMode }),
-    ...(context.containerDimensions === undefined
-      ? {}
-      : { containerDimensions: context.containerDimensions }),
+    ...(dimensions === undefined ? {} : { containerDimensions: dimensions }),
     ...(context.safeAreaInsets === undefined
       ? {}
       : { safeAreaInsets: context.safeAreaInsets }),
