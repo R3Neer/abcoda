@@ -46,11 +46,10 @@ const unbindPlayback = view.bindPlayback({
 });
 const unbindVoiceMix = view.bindVoiceMix({
   setInstrument: (voiceId, instrument) => {
-    // Capture the complete pre-change assignment map before the mixer rerenders.
-    // The second normalization is derived from that stable map plus the exact
-    // user change, so a deliberately split remembered grand staff is never
-    // mistaken for a newly incomplete piano that needs a companion staff.
-    const previousAssignments = view.instrumentAssignments();
+    // The select has already changed by the time its change event fires, so the
+    // DOM cannot provide the pre-change assignment map. Read that canonical
+    // state from the session controller before mutating the mix instead.
+    const previousAssignments = session.instrumentAssignments();
     const beforeChange = draftTransformer.synchronizeInstruments(
       view.currentDraft(),
       previousAssignments,
