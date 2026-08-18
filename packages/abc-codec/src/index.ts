@@ -4,7 +4,10 @@ import { parseAbc } from "./parser";
 
 export { parseAbc } from "./parser";
 export * from "./operations";
-export * from "./instrumentation";
+export {
+  synchronizeInstrumentationAbc,
+  type InstrumentAssignments,
+} from "./canonical-instrumentation";
 export { validateScore } from "./validation";
 
 /**
