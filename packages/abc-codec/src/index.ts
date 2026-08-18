@@ -4,6 +4,7 @@ import { parseAbc } from "./parser";
 
 export { parseAbc } from "./parser";
 export * from "./operations";
+export * from "./instrumentation";
 export { validateScore } from "./validation";
 
 /**
