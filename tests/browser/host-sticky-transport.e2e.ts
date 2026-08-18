@@ -11,9 +11,9 @@ test("host max height keeps the transport docked while ABCoda scrolls internally
   await expect(transport).toHaveCSS("position", "sticky");
 
   const mixer = page.locator("#mixer");
-  await mixer.locator("summary").click();
+  await mixer.locator(":scope > summary").click();
   const editor = page.locator("#editor");
-  await editor.locator("summary").click();
+  await editor.locator(":scope > summary").click();
   await expect(editor).toHaveAttribute("open", "");
   await expect(transport).toHaveCSS("position", "sticky");
 
