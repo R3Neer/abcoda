@@ -45,10 +45,18 @@ const unbindPlayback = view.bindPlayback({
 });
 const unbindVoiceMix = view.bindVoiceMix({
   setInstrument: (voiceId, instrument) => {
+    // Seed canonical ABC with the pre-change assignments first. This makes the
+    // first GUI instrument change as lossless as later ones: existing printed
+    // labels can be preserved when the instrument did not change and replaced
+    // only for the voice that actually changed.
+    const beforeChange = draftTransformer.synchronizeInstruments(
+      view.currentDraft(),
+      view.instrumentAssignments(),
+    );
     session.setInstrument(voiceId, instrument);
     session.editDraft(
       draftTransformer.synchronizeInstruments(
-        view.currentDraft(),
+        beforeChange,
         view.instrumentAssignments(),
       ),
     );
