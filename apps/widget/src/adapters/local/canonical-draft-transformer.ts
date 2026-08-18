@@ -1,6 +1,8 @@
 import {
+  synchronizeInstrumentationAbc,
   transposeAbc,
   transposeVoiceAbc,
+  type InstrumentAssignments,
 } from "@abcoda/abc-codec";
 import type {
   DraftTransformer,
@@ -27,5 +29,12 @@ export class CanonicalDraftTransformer implements DraftTransformer {
       voiceId,
       semitones,
     );
+  }
+
+  synchronizeInstruments(
+    abc: string,
+    instruments: InstrumentAssignments,
+  ): string {
+    return synchronizeInstrumentationAbc(abc, instruments);
   }
 }
