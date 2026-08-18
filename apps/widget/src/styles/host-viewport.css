@@ -1,0 +1,37 @@
+/*
+ * Inline MCP hosts such as ChatGPT provide a maximum container height. Keep
+ * ABCoda's scrolling inside that host-sized viewport so sticky controls are
+ * sticky relative to what the user can actually see, not to an auto-growing
+ * iframe that scrolls away with the conversation.
+ */
+:root[data-host-height] body {
+  overflow: hidden;
+}
+
+:root[data-host-height] .shell {
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scrollbar-gutter: stable;
+  scroll-padding-bottom: calc(6rem + var(--host-safe-bottom, 0px));
+}
+
+:root[data-host-height="fixed"] .shell {
+  height: var(--host-container-height);
+}
+
+:root[data-host-height="max"] .shell {
+  max-height: var(--host-container-height);
+}
+
+:root[data-host-height] .transport {
+  position: sticky;
+  bottom: 0;
+}
+
+/* The generic compact layout makes an open editor non-sticky. In a bounded
+ * host that defeats the whole dock contract, so the host-aware rule wins. */
+@media (max-width: 52rem) {
+  :root[data-host-height] .editor[open] ~ .transport {
+    position: sticky;
+  }
+}
