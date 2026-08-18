@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { readFile, writeFile } from "node:fs/promises";
+import { setTimeout as delay } from "node:timers/promises";
 import { LATEST_PROTOCOL_VERSION } from "@modelcontextprotocol/sdk/types.js";
 
 const inputUrl = process.argv[2];
@@ -18,6 +19,8 @@ baseUrl.hash = "";
 
 const allowedOrigin = "https://chatgpt.com";
 const rejectedOrigin = "https://preview-probe.invalid";
+const deploymentReadinessTimeoutMs = 60_000;
+const deploymentReadinessPollMs = 2_000;
 const localWidget = await readFile(new URL("../dist/widget/index.html", import.meta.url));
 const localArtifactHash = createHash("sha256").update(localWidget).digest("hex");
 const gitSha = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
@@ -64,14 +67,57 @@ async function rpc(method, params = undefined) {
   return { response, body, requestId: id };
 }
 
-const healthResponse = await fetch(new URL("/health", baseUrl), { headers: { Origin: allowedOrigin } });
+async function waitForExpectedHealthArtifact() {
+  const deadline = Date.now() + deploymentReadinessTimeoutMs;
+  let attempt = 0;
+  let lastObserved = "no response";
+
+  while (true) {
+    attempt += 1;
+    try {
+      const response = await fetch(new URL("/health", baseUrl), {
+        headers: {
+          "Cache-Control": "no-cache",
+          Origin: allowedOrigin,
+        },
+      });
+      if (response.status === 200) {
+        const id = requestId(response);
+        const health = await jsonResponse(response, "/health");
+        lastObserved = `widget hash ${health.artifactHash ?? "missing"}`;
+        if (health.artifactHash === localArtifactHash) {
+          return { response, health, requestId: id };
+        }
+      } else {
+        lastObserved = `HTTP ${response.status}`;
+      }
+    } catch (error) {
+      lastObserved = error instanceof Error ? error.message : String(error);
+    }
+
+    if (Date.now() >= deadline) {
+      throw new Error(
+        `Deployment did not expose local widget hash ${localArtifactHash} within ${deploymentReadinessTimeoutMs / 1000}s; last observed ${lastObserved}.`,
+      );
+    }
+
+    process.stdout.write(
+      `Deployment readiness attempt ${attempt}: observed ${lastObserved}; waiting for widget hash ${localArtifactHash}.\n`,
+    );
+    await delay(deploymentReadinessPollMs);
+  }
+}
+
+const {
+  response: healthResponse,
+  health,
+  requestId: healthRequestId,
+} = await waitForExpectedHealthArtifact();
 assert(healthResponse.status === 200, `/health returned HTTP ${healthResponse.status}.`);
-const healthRequestId = requestId(healthResponse);
 assert(healthResponse.headers.get("Access-Control-Allow-Origin") === allowedOrigin, "/health did not reflect the allowed ChatGPT origin.");
 assert(healthResponse.headers.get("Cache-Control") === "no-store", "/health must be no-store.");
 assert(healthResponse.headers.get("X-Content-Type-Options") === "nosniff", "/health must set nosniff.");
 assert((healthResponse.headers.get("Content-Security-Policy") ?? "").includes("default-src 'none'"), "/health is missing its defensive CSP.");
-const health = await jsonResponse(healthResponse, "/health");
 assert(health.name === "ABCoda", "/health returned the wrong service name.");
 assert(health.status === "ok", "/health is not healthy.");
 assert(health.runtime === "cloudflare-worker", "/health is not the Cloudflare Worker runtime.");
