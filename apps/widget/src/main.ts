@@ -11,6 +11,7 @@ import { LocalScoreEvaluator } from "./adapters/local/local-score-evaluator";
 import { WidgetSessionCoordinator } from "./application/widget-session-coordinator";
 
 const view = new DomWidgetView();
+const draftTransformer = new CanonicalDraftTransformer();
 const session = new WidgetSessionCoordinator({
   view,
   cursorView: new DomScoreCursor(view.scoreViewport),
@@ -21,7 +22,7 @@ const session = new WidgetSessionCoordinator({
   ),
   hostBridge: createHostBridge(),
   draftEvaluator: new LocalScoreEvaluator(),
-  draftTransformer: new CanonicalDraftTransformer(),
+  draftTransformer,
   getViewportWidth: () => view.scoreViewport.clientWidth,
   presentVoiceRanges: (assessments) => {
     applyVoiceRangePresentation(document, assessments);
@@ -44,7 +45,21 @@ const unbindPlayback = view.bindPlayback({
 });
 const unbindVoiceMix = view.bindVoiceMix({
   setInstrument: (voiceId, instrument) => {
+    // Seed canonical ABC with the pre-change assignments first. This makes the
+    // first GUI instrument change as lossless as later ones: existing printed
+    // labels can be preserved when the instrument did not change and replaced
+    // only for the voice that actually changed.
+    const beforeChange = draftTransformer.synchronizeInstruments(
+      view.currentDraft(),
+      view.instrumentAssignments(),
+    );
     session.setInstrument(voiceId, instrument);
+    session.editDraft(
+      draftTransformer.synchronizeInstruments(
+        beforeChange,
+        view.instrumentAssignments(),
+      ),
+    );
   },
   setMuted: (voiceId, muted) => session.setMuted(voiceId, muted),
   transposeVoice: (voiceId, semitones) => {
