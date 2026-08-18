@@ -81,13 +81,7 @@ export class DomWidgetView {
   }
 
   instrumentAssignments(): Readonly<Record<string, InstrumentId>> {
-    const assignments: Record<string, InstrumentId> = {};
-    for (const element of this.documentObject.querySelectorAll("select.voice-instrument[data-voice-id]")) {
-      if (!(element instanceof HTMLSelectElement)) continue;
-      const voiceId = element.getAttribute("data-voice-id");
-      if (voiceId) assignments[voiceId] = element.value as InstrumentId;
-    }
-    return assignments;
+    return this.mixer.instrumentAssignments();
   }
 
   bindPlayback(actions: PlaybackActions): () => void {
