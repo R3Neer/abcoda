@@ -1,4 +1,7 @@
-import { CanonicalAbcCodec } from "@abcoda/abc-codec";
+import {
+  CanonicalAbcCodec,
+  normalizeEngravingLayoutAbc,
+} from "@abcoda/abc-codec";
 import { EvaluateScore } from "@abcoda/application";
 import { evaluateScoreResultSchema } from "@abcoda/contracts";
 import type { DraftEvaluator } from "../../application/draft-session";
@@ -12,7 +15,10 @@ export class LocalScoreEvaluator implements DraftEvaluator {
     await Promise.resolve();
     signal.throwIfAborted();
     return evaluateScoreResultSchema.parse(
-      localEvaluateResultDto(this.useCase.execute({ abc, revision })),
+      localEvaluateResultDto(this.useCase.execute({
+        abc: normalizeEngravingLayoutAbc(abc),
+        revision,
+      })),
     );
   }
 }
