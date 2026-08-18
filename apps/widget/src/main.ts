@@ -1,4 +1,5 @@
 import "./styles/index.css";
+import "./styles/score-clearance.css";
 import "./styles/ranges.css";
 import "./styles/openai-theme.css";
 import { AbcjsEngraver } from "./adapters/abcjs/abcjs-engraver";
@@ -45,19 +46,19 @@ const unbindPlayback = view.bindPlayback({
 });
 const unbindVoiceMix = view.bindVoiceMix({
   setInstrument: (voiceId, instrument) => {
-    // Seed canonical ABC with the pre-change assignments first. This makes the
-    // first GUI instrument change as lossless as later ones: existing printed
-    // labels can be preserved when the instrument did not change and replaced
-    // only for the voice that actually changed.
+    // The select has already changed by the time its change event fires, so the
+    // DOM cannot provide the pre-change assignment map. Read that canonical
+    // state from the session controller before mutating the mix instead.
+    const previousAssignments = session.instrumentAssignments();
     const beforeChange = draftTransformer.synchronizeInstruments(
       view.currentDraft(),
-      view.instrumentAssignments(),
+      previousAssignments,
     );
     session.setInstrument(voiceId, instrument);
     session.editDraft(
       draftTransformer.synchronizeInstruments(
         beforeChange,
-        view.instrumentAssignments(),
+        { ...previousAssignments, [voiceId]: instrument },
       ),
     );
   },

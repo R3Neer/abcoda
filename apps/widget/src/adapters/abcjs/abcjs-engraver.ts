@@ -18,8 +18,13 @@ import {
   analyzeVoicePitches,
   type VoicePitchTarget,
 } from "./abcjs-voice-pitches";
+import {
+  scoreVisualClearance,
+} from "../../application/score-clearance";
 import { scoreStaffWidth } from "../../application/score-layout";
 import type { VoiceMixSnapshot } from "../../application/voice-mix";
+
+const scoreOverflowProperty = "--score-visual-overflow-bottom";
 
 interface SelectionRange {
   readonly start: number;
@@ -31,6 +36,23 @@ type HighlightableTune = {
     rangeHighlight?: (start: number, end: number) => void;
   };
 };
+
+function syncScoreVisualClearance(target: HTMLElement): void {
+  const scoreShell = target.parentElement;
+  const svg = target.querySelector("svg");
+  if (!scoreShell || !(svg instanceof SVGSVGElement)) return;
+
+  scoreShell.style.setProperty(scoreOverflowProperty, "0px");
+  const svgRect = svg.getBoundingClientRect();
+  let visualBottom = svgRect.bottom;
+  for (const child of svg.children) {
+    const rect = child.getBoundingClientRect();
+    if (Number.isFinite(rect.bottom)) visualBottom = Math.max(visualBottom, rect.bottom);
+  }
+
+  const clearance = scoreVisualClearance(svgRect.bottom, visualBottom);
+  scoreShell.style.setProperty(scoreOverflowProperty, `${clearance}px`);
+}
 
 export class AbcjsEngraver implements Engraver {
   private selectedRange: SelectionRange | undefined;
@@ -104,6 +126,8 @@ export class AbcjsEngraver implements Engraver {
       throw new Error("Expected exactly one engraved tune.");
     }
 
+    syncScoreVisualClearance(this.target);
+
     if (preserveSelection && this.selectedRange) {
       const tune = tunes[0] as unknown as HighlightableTune;
       tune.engraver?.rangeHighlight?.(
@@ -164,6 +188,7 @@ export class AbcjsEngraver implements Engraver {
 
   clear(): void {
     this.rangeTargets = {};
+    this.target.parentElement?.style.setProperty(scoreOverflowProperty, "0px");
     this.target.replaceChildren();
   }
 

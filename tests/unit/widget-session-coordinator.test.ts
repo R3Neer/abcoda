@@ -190,13 +190,16 @@ describe("WidgetSessionCoordinator", () => {
     h.host.result(scoreResult(1));
     await waitForReady(h.showScore);
 
+    expect(h.session.instrumentAssignments()).toEqual({ RH: "acoustic_grand_piano" });
     h.session.setInstrument("RH", "cello");
+    expect(h.session.instrumentAssignments()).toEqual({ RH: "cello" });
     expect(h.mixes.at(-1)?.voices[0]?.instrument).toBe("cello");
 
     h.host.result(scoreResult(2));
     await vi.waitFor(() => {
       expect(h.mixes.at(-1)?.revision).toBe(2);
     });
+    expect(h.session.instrumentAssignments()).toEqual({ RH: "acoustic_grand_piano" });
     expect(h.mixes.at(-1)?.voices[0]?.instrument).toBe("acoustic_grand_piano");
 
     h.session.dispose();

@@ -1,0 +1,3 @@
+.score {
+  padding-block-end: var(--score-visual-overflow-bottom, 0px);
+}

@@ -256,6 +256,14 @@ export class WidgetSessionCoordinator {
     void this.playback.setTempo(tempo);
   }
 
+  instrumentAssignments(): Readonly<Record<string, InstrumentId>> {
+    const assignments: Record<string, InstrumentId> = {};
+    for (const voice of this.mix.snapshot().voices) {
+      assignments[voice.id] = voice.instrument;
+    }
+    return assignments;
+  }
+
   setInstrument(voiceId: string, instrument: InstrumentId): void {
     this.mix.setInstrument(voiceId, instrument);
   }
