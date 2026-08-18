@@ -11,6 +11,7 @@ import { LocalScoreEvaluator } from "./adapters/local/local-score-evaluator";
 import { WidgetSessionCoordinator } from "./application/widget-session-coordinator";
 
 const view = new DomWidgetView();
+const draftTransformer = new CanonicalDraftTransformer();
 const session = new WidgetSessionCoordinator({
   view,
   cursorView: new DomScoreCursor(view.scoreViewport),
@@ -21,7 +22,7 @@ const session = new WidgetSessionCoordinator({
   ),
   hostBridge: createHostBridge(),
   draftEvaluator: new LocalScoreEvaluator(),
-  draftTransformer: new CanonicalDraftTransformer(),
+  draftTransformer,
   getViewportWidth: () => view.scoreViewport.clientWidth,
   presentVoiceRanges: (assessments) => {
     applyVoiceRangePresentation(document, assessments);
@@ -45,6 +46,12 @@ const unbindPlayback = view.bindPlayback({
 const unbindVoiceMix = view.bindVoiceMix({
   setInstrument: (voiceId, instrument) => {
     session.setInstrument(voiceId, instrument);
+    session.editDraft(
+      draftTransformer.synchronizeInstruments(
+        view.currentDraft(),
+        view.instrumentAssignments(),
+      ),
+    );
   },
   setMuted: (voiceId, muted) => session.setMuted(voiceId, muted),
   transposeVoice: (voiceId, semitones) => {
