@@ -4,9 +4,17 @@ export interface HostBridgeHandlers {
   readonly onTeardown: () => void;
 }
 
+export interface HostContainerDimensions {
+  readonly height?: number;
+  readonly maxHeight?: number;
+  readonly width?: number;
+  readonly maxWidth?: number;
+}
+
 export interface HostPresentationContext {
   readonly theme?: "light" | "dark";
   readonly displayMode?: "inline" | "fullscreen" | "pip";
+  readonly containerDimensions?: HostContainerDimensions;
   readonly safeAreaInsets?: {
     readonly top: number;
     readonly right: number;

@@ -6,6 +6,7 @@ import {
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import {
   CanonicalAbcCodec,
+  normalizeEngravingLayoutAbc,
   synchronizeInstrumentationAbc,
 } from "@abcoda/abc-codec";
 import {
@@ -162,12 +163,13 @@ export function createMcpServer(
         const observation = startMcpToolObservation(observability, "render_score");
         try {
           const input = renderScoreToolInputSchema.parse(rawInput);
-          const source = input.presentation === undefined
+          const instrumentedSource = input.presentation === undefined
             ? input.snapshot.document.source.text
             : synchronizeInstrumentationAbc(
                 input.snapshot.document.source.text,
                 input.presentation.instruments,
               );
+          const source = normalizeEngravingLayoutAbc(instrumentedSource);
           const result = toEvaluateScoreResultDto(evaluateScore.execute({
             abc: source,
             revision: input.snapshot.revision,

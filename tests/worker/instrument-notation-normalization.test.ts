@@ -28,7 +28,7 @@ function structuredContent(envelope: unknown): unknown {
   return result.structuredContent;
 }
 
-describe("render_score instrument notation normalization", () => {
+describe("render_score notation normalization", () => {
   it("repairs stale labels and completes a one-staff piano before publishing the widget result", async () => {
     const abc = `X:1
 T:Clarinet and piano
@@ -94,5 +94,56 @@ K:C
     expect(source).toContain("V:P_lower clef=bass");
     expect(source).toContain("[V:P_lower] z4|]");
     expect(source).not.toContain("Clarinet in B♭");
+  });
+
+  it("keeps an inline clef with the following music even without presentation metadata", async () => {
+    const abc = `X:1
+T:Clef wrap
+M:4/4
+L:1/4
+V:V1 clef=treble
+K:C
+[V:V1] C D E F|[K:C clef=bass]
+[V:V1] C, D, E, F,|]`;
+
+    const validationEnvelope = await rpc({
+      jsonrpc: "2.0",
+      id: 3,
+      method: "tools/call",
+      params: {
+        name: "validate_score",
+        arguments: { schemaVersion: 2, revision: 22, abc },
+      },
+    });
+    const validation = evaluateScoreResultSchema.parse(
+      structuredContent(validationEnvelope),
+    );
+    expect(validation.status).toBe("success");
+    expect(validation.snapshot).toBeDefined();
+    if (!validation.snapshot) throw new Error("Validation omitted the clef-wrap snapshot.");
+
+    const renderingEnvelope = await rpc({
+      jsonrpc: "2.0",
+      id: 4,
+      method: "tools/call",
+      params: {
+        name: "render_score",
+        arguments: {
+          schemaVersion: 2,
+          snapshot: validation.snapshot,
+        },
+      },
+    });
+    const rendering = evaluateScoreResultSchema.parse(
+      structuredContent(renderingEnvelope),
+    );
+
+    expect(rendering.status).toBe("success");
+    const source = rendering.snapshot?.document.source.text;
+    expect(source).toBeDefined();
+    if (!source) throw new Error("Rendering omitted the clef-wrap source.");
+    expect(source).toContain("[K:C clef=bass] [V:V1] C, D, E, F,|]");
+    expect(source).not.toContain("[K:C clef=bass]\n[V:V1]");
+    expect(source).toHaveLength(validation.snapshot.document.source.text.length);
   });
 });
