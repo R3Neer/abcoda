@@ -18,10 +18,18 @@ function containerDimensions(
     width?: number;
     maxWidth?: number;
   } = {};
-  if (typeof dimensions.height === "number") result.height = dimensions.height;
-  if (typeof dimensions.maxHeight === "number") result.maxHeight = dimensions.maxHeight;
-  if (typeof dimensions.width === "number") result.width = dimensions.width;
-  if (typeof dimensions.maxWidth === "number") result.maxWidth = dimensions.maxWidth;
+  if ("height" in dimensions && typeof dimensions.height === "number") {
+    result.height = dimensions.height;
+  }
+  if ("maxHeight" in dimensions && typeof dimensions.maxHeight === "number") {
+    result.maxHeight = dimensions.maxHeight;
+  }
+  if ("width" in dimensions && typeof dimensions.width === "number") {
+    result.width = dimensions.width;
+  }
+  if ("maxWidth" in dimensions && typeof dimensions.maxWidth === "number") {
+    result.maxWidth = dimensions.maxWidth;
+  }
   return Object.keys(result).length === 0 ? undefined : result;
 }
 
