@@ -1,4 +1,5 @@
 import type { ScorePresentationDto, ScoreSnapshotDto } from "@abcoda/contracts";
+import type { InstrumentId } from "@abcoda/domain";
 import type { HostPresentationContext } from "../../application/host-bridge";
 import type { PlaybackSessionState } from "../../application/playback-session";
 import type { ScoreSessionState } from "../../application/score-session";
@@ -32,17 +33,17 @@ export class DomWidgetView {
   private readonly mixer: MixerView;
   private readonly editor: EditorView;
 
-  constructor(documentObject: Document = document) {
-    this.scoreViewport = requiredElement(documentObject, "score-shell");
-    this.scoreTarget = requiredElement(documentObject, "score");
-    this.audioTarget = requiredElement(documentObject, "abcjs-audio");
-    this.shell = new WidgetShellView(documentObject);
+  constructor(private readonly documentObject: Document = document) {
+    this.scoreViewport = requiredElement(this.documentObject, "score-shell");
+    this.scoreTarget = requiredElement(this.documentObject, "score");
+    this.audioTarget = requiredElement(this.documentObject, "abcjs-audio");
+    this.shell = new WidgetShellView(this.documentObject);
     this.transport = new TransportView(
-      documentObject,
+      this.documentObject,
       (message) => this.shell.showError(message),
     );
-    this.mixer = new MixerView(documentObject);
-    this.editor = new EditorView(documentObject);
+    this.mixer = new MixerView(this.documentObject);
+    this.editor = new EditorView(this.documentObject);
   }
 
   showPresentation(
@@ -73,6 +74,19 @@ export class DomWidgetView {
 
   applyHostContext(context: HostPresentationContext): void {
     this.shell.applyHostContext(context);
+  }
+
+  currentDraft(): string {
+    return requiredElement<HTMLTextAreaElement>(this.documentObject, "abc-draft").value;
+  }
+
+  instrumentAssignments(): Readonly<Record<string, InstrumentId>> {
+    const assignments: Record<string, InstrumentId> = {};
+    for (const select of this.documentObject.querySelectorAll<HTMLSelectElement>("select.voice-instrument[data-voice-id]")) {
+      const voiceId = select.dataset.voiceId;
+      if (voiceId) assignments[voiceId] = select.value as InstrumentId;
+    }
+    return assignments;
   }
 
   bindPlayback(actions: PlaybackActions): () => void {
