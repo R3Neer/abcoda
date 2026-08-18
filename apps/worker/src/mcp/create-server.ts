@@ -4,7 +4,10 @@ import {
   registerAppTool,
 } from "@modelcontextprotocol/ext-apps/server";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { CanonicalAbcCodec } from "@abcoda/abc-codec";
+import {
+  CanonicalAbcCodec,
+  synchronizeInstrumentationAbc,
+} from "@abcoda/abc-codec";
 import {
   abcodaComposerInstructions,
   buildCompositionPlan,
@@ -14,7 +17,6 @@ import {
 import {
   EvaluateScore,
   PrepareComposition,
-  PresentScore,
 } from "@abcoda/application";
 import {
   evaluateScoreRequestSchema,
@@ -28,10 +30,7 @@ import {
   startMcpToolObservation,
   type McpRequestObservability,
 } from "./request-observability";
-import {
-  fromScoreSnapshotDto,
-  toEvaluateScoreResultDto,
-} from "./score-contract-mapper";
+import { toEvaluateScoreResultDto } from "./score-contract-mapper";
 
 export type WidgetLoader = () => Promise<WidgetArtifact>;
 
@@ -54,7 +53,6 @@ export function createMcpServer(
     { instructions: abcodaComposerInstructions },
   );
   const evaluateScore = new EvaluateScore(new CanonicalAbcCodec());
-  const presentScore = new PresentScore(evaluateScore);
   const prepareComposition = new PrepareComposition({ prepare: buildCompositionPlan });
 
   registerAppTool(
@@ -164,8 +162,16 @@ export function createMcpServer(
         const observation = startMcpToolObservation(observability, "render_score");
         try {
           const input = renderScoreToolInputSchema.parse(rawInput);
-          const internalResult = presentScore.execute({ score: fromScoreSnapshotDto(input.snapshot) });
-          const result = toEvaluateScoreResultDto(internalResult);
+          const source = input.presentation === undefined
+            ? input.snapshot.document.source.text
+            : synchronizeInstrumentationAbc(
+                input.snapshot.document.source.text,
+                input.presentation.instruments,
+              );
+          const result = toEvaluateScoreResultDto(evaluateScore.execute({
+            abc: source,
+            revision: input.snapshot.revision,
+          }));
           const adapted = input.presentation !== undefined
             ? { ...result, presentation: input.presentation }
             : result;
