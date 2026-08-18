@@ -101,6 +101,16 @@ export class MixerView {
     restoredFocus?.focus();
   }
 
+  instrumentAssignments(): Readonly<Record<string, InstrumentId>> {
+    const assignments: Record<string, InstrumentId> = {};
+    for (const element of this.voiceMix.querySelectorAll("select.voice-instrument[data-voice-id]")) {
+      if (!(element instanceof HTMLSelectElement)) continue;
+      const voiceId = element.getAttribute("data-voice-id");
+      if (voiceId) assignments[voiceId] = element.value as InstrumentId;
+    }
+    return assignments;
+  }
+
   bind(actions: VoiceMixActions): () => void {
     this.actions = actions;
 
@@ -137,7 +147,7 @@ function muteIcon(documentObject: Document, muted: boolean): SVGElement {
   const path = documentObject.createElementNS("http://www.w3.org/2000/svg", "path");
   path.setAttribute("d", muted
     ? "M4 9v6h4l5 4V5L8 9H4zm12.5.5L15 11l1.5 1.5L15 14l1.5 1.5L18 14l1.5 1.5L21 14l-1.5-1.5L21 11l-1.5-1.5L18 11l-1.5-1.5z"
-    : "M4 9v6h4l5 4V5L8 9H4zm11.5 3a3.5 3.5 0 0 0-2-3.16v6.32a3.5 3.5 0 0 0 2-3.16zm-2-7.18v2.06a6 6 0 0 1 0 10.24v2.06a8 8 0 0 0 0-14.36z");
+    : "M4 9v6h4l5 4V5L8 9H4zm11.5 3a3.5 3.5 0 0 0-2-3.16v6.32a3.5 3.5 0 0 1 0 10.24v2.06a8 8 0 0 0 0-14.36z");
   svg.appendChild(path);
   return svg;
 }
