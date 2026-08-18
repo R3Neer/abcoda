@@ -69,6 +69,34 @@ function roman(value: number): string {
   return result || String(value);
 }
 
+function materializeImplicitGrandStaff(
+  source: string,
+  instruments: InstrumentAssignments,
+): string {
+  const instrument = instruments.default;
+  if (!instrument) return source;
+  const staves = instrumentNotation(instrument).staves;
+  if (
+    staves.kind !== "fixed"
+    || staves.count !== 2
+    || staves.connection !== "brace"
+  ) {
+    return source;
+  }
+
+  const lines = source.replace(/\r\n?/g, "\n").split("\n");
+  const keyIndex = lines.findIndex((line) => /^\s*K\s*:/i.test(line));
+  if (keyIndex < 0 || lines.slice(0, keyIndex).some((line) => voiceDeclaration.test(line))) {
+    return source;
+  }
+
+  const keyLine = lines[keyIndex] ?? "";
+  const declaredClef = /\bclef\s*=\s*(treble|bass)\b/i.exec(keyLine)?.[1]?.toLowerCase();
+  const clef = declaredClef === "bass" ? "bass" : "treble";
+  lines.splice(keyIndex, 0, `V:default clef=${clef}`);
+  return lines.join("\n");
+}
+
 /**
  * Applies deterministic editorial labels after structural instrument
  * normalization. Printed names are derived exclusively from the finite domain
@@ -78,7 +106,8 @@ export function synchronizeInstrumentationAbc(
   source: string,
   instruments: InstrumentAssignments,
 ): string {
-  const structured = synchronizeInstrumentStructure(source, instruments);
+  const explicitSource = materializeImplicitGrandStaff(source, instruments);
+  const structured = synchronizeInstrumentStructure(explicitSource, instruments);
   const hadFinalNewline = structured.endsWith("\n");
   const lines = structured.replace(/\r\n?/g, "\n").split("\n");
   const keyIndex = lines.findIndex((line) => /^\s*K\s*:/i.test(line));
