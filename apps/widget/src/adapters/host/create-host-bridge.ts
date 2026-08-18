@@ -33,9 +33,11 @@ export function createHostBridge(windowObject: Window = window): HostBridge {
     bottom: nonNegativeNumber(windowObject, "safeBottom"),
     left: nonNegativeNumber(windowObject, "safeLeft"),
   };
+  const maxHeight = positiveNumber(windowObject, "maxHeight");
   return new StandaloneHostBridge(scenario, {
     theme,
     displayMode: "inline",
+    ...(maxHeight === undefined ? {} : { containerDimensions: { maxHeight } }),
     safeAreaInsets,
   });
 }
@@ -43,4 +45,11 @@ export function createHostBridge(windowObject: Window = window): HostBridge {
 function nonNegativeNumber(windowObject: Window, name: string): number {
   const value = Number(new URLSearchParams(windowObject.location.search).get(name) ?? 0);
   return Number.isFinite(value) && value >= 0 ? value : 0;
+}
+
+function positiveNumber(windowObject: Window, name: string): number | undefined {
+  const raw = new URLSearchParams(windowObject.location.search).get(name);
+  if (raw === null) return undefined;
+  const value = Number(raw);
+  return Number.isFinite(value) && value > 0 ? value : undefined;
 }
