@@ -1,8 +1,9 @@
 import { SELF } from "cloudflare:test";
+import { evaluateScoreResultSchema } from "@abcoda/contracts";
 import { LATEST_PROTOCOL_VERSION } from "@modelcontextprotocol/sdk/types.js";
 import { describe, expect, it } from "vitest";
 
-async function rpc(body: object): Promise<Record<string, any>> {
+async function rpc(body: object): Promise<unknown> {
   const response = await SELF.fetch("https://abcoda.test/mcp", {
     method: "POST",
     headers: {
@@ -13,7 +14,18 @@ async function rpc(body: object): Promise<Record<string, any>> {
     body: JSON.stringify(body),
   });
   expect(response.status).toBe(200);
-  return await response.json() as Record<string, any>;
+  return response.json();
+}
+
+function structuredContent(envelope: unknown): unknown {
+  if (typeof envelope !== "object" || envelope === null || !("result" in envelope)) {
+    return undefined;
+  }
+  const result = envelope.result;
+  if (typeof result !== "object" || result === null || !("structuredContent" in result)) {
+    return undefined;
+  }
+  return result.structuredContent;
 }
 
 describe("render_score instrument notation normalization", () => {
@@ -29,7 +41,7 @@ K:C
 [V:Cl name="Clarinet in B♭"] C D E F|]
 [V:P name="Piano RH"] G A B c|]`;
 
-    const validation = await rpc({
+    const validationEnvelope = await rpc({
       jsonrpc: "2.0",
       id: 1,
       method: "tools/call",
@@ -38,10 +50,14 @@ K:C
         arguments: { schemaVersion: 2, revision: 21, abc },
       },
     });
-    const snapshot = validation.result?.structuredContent?.snapshot;
-    expect(snapshot).toBeDefined();
+    const validation = evaluateScoreResultSchema.parse(
+      structuredContent(validationEnvelope),
+    );
+    expect(validation.status).toBe("success");
+    expect(validation.snapshot).toBeDefined();
+    if (!validation.snapshot) throw new Error("Validation omitted the score snapshot.");
 
-    const rendering = await rpc({
+    const renderingEnvelope = await rpc({
       jsonrpc: "2.0",
       id: 2,
       method: "tools/call",
@@ -49,7 +65,7 @@ K:C
         name: "render_score",
         arguments: {
           schemaVersion: 2,
-          snapshot,
+          snapshot: validation.snapshot,
           presentation: {
             instruments: {
               Cl: "flute",
@@ -59,15 +75,19 @@ K:C
         },
       },
     });
+    const rendering = evaluateScoreResultSchema.parse(
+      structuredContent(renderingEnvelope),
+    );
 
-    const result = rendering.result?.structuredContent;
-    expect(result?.status).toBe("success");
-    expect(result?.snapshot?.document?.voices).toEqual([
+    expect(rendering.status).toBe("success");
+    expect(rendering.snapshot?.document.voices).toEqual([
       { id: "Cl", kind: "pitched" },
       { id: "P", kind: "pitched" },
       { id: "P_lower", kind: "pitched" },
     ]);
-    const source = result?.snapshot?.document?.source?.text as string;
+    const source = rendering.snapshot?.document.source.text;
+    expect(source).toBeDefined();
+    if (!source) throw new Error("Rendering omitted canonical ABC source.");
     expect(source).toContain("%%score Cl { P | P_lower }");
     expect(source).toContain('V:Cl clef=treble name="Flute" subname="Fl."');
     expect(source).toContain('V:P clef=treble name="Piano" subname="Pno."');
