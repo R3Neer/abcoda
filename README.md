@@ -2,7 +2,7 @@
 
 ABCoda is a TypeScript MCP App for interactive ABC music notation inside AI conversations. It validates and presents structured score data through MCP, serves a sandboxed single-file widget, and delegates engraving/audio to abcjs in the browser.
 
-The architecture previously developed on `architecture-v2` is now the canonical implementation on `main`. The legacy schema-v1 runtime has been removed from the working tree; its history remains available through Git rather than as dormant production code.
+The current architecture is canonical on `main`. The legacy schema-v1 runtime has been removed from the working tree; its history remains available through Git rather than as dormant production code.
 
 ## Current capabilities
 
@@ -14,11 +14,7 @@ The architecture previously developed on `architecture-v2` is now the canonical 
 - revisioned local ABC editing, copy, apply/restore and history;
 - global and per-voice semitone transposition of canonical ABC;
 - General MIDI instrument selection and mute per voice;
-- musicological instrument-range policy:
-  - normal `usual` notes;
-  - orange `extended` notes that remain audible;
-  - red `unplayable` notes that remain in notation/timeline but are silent;
-  - `unbounded` presets where ABCoda deliberately does not invent a physical hard range;
+- musicological instrument-range policy;
 - technical SoundFont capability kept separate from musical range policy;
 - pitched/percussion compatibility and percussion immunity to tonal transposition;
 - synchronized playback cursor and responsive reflow;
@@ -36,23 +32,10 @@ flowchart LR
     App --> Domain["@abcoda/domain"]
     Codec["@abcoda/abc-codec"] --> App
     Codec --> Domain
-
     Worker --> Widget["single-file widget"]
     Widget --> Session["WidgetSessionCoordinator"]
-    Session --> Controllers["specialized controllers"]
-    Session --> DOM["passive DOM views"]
     Session --> ABCJS["abcjs adapters"]
 ```
-
-The important boundaries are enforced by tests, not merely by directory names:
-
-- workspaces consume public `@abcoda/*` APIs instead of another package's `src` internals;
-- domain/application do not depend on MCP, Cloudflare, DOM or abcjs;
-- internal revisioned score state is separate from versioned transport DTOs;
-- `main.ts` is a composition root while `WidgetSessionCoordinator` owns cross-controller coordination;
-- editor, mixer, transport and shell are separate DOM views;
-- abcjs is browser-side only;
-- musical range, synth sample capability and visual severity are independent policies.
 
 ## Source layout
 
@@ -81,12 +64,6 @@ ABCoda exposes exactly three MCP tools:
 
 The public schemas live in [`packages/contracts`](packages/contracts). `render_score` does not accept the retired schema-v1 `abc/composition/playback/notation/display` request shape.
 
-## Instrument ranges and audio
-
-Instrument policy operates in sounding MIDI pitch. For concrete pitched instruments, the domain distinguishes `usualRange` and `playableRange`; percussion has its own policy; generic presets such as choir/organ/ensemble are not assigned invented organological hard limits.
-
-That is separate from what the current synth backend can technically load. A pitch outside technical sample coverage is neutralized before sample loading without altering the ABC or deleting its timing event. Backend assumptions are characterized by regression tests so dependency updates cannot silently change them.
-
 ## Local development
 
 Requirements: Node.js 20 or newer.
@@ -97,16 +74,14 @@ npm run check
 npm run test:browser
 ```
 
-Useful implementation-specific commands retained from the v2 migration naming:
+Useful commands:
 
 ```bash
-npm run dev:v2-widget
-npm run build:v2-worker
-npm run test:v2-worker
-npm run verify:v2-artifacts
+npm run dev:widget
+npm run build:worker
+npm run test:worker
+npm run verify:artifacts
 ```
-
-The `v2` labels in these command names are historical naming only. They all address the canonical implementation on `main`.
 
 ## Deployment
 
@@ -117,10 +92,10 @@ Build and verify locally before an explicit deploy:
 ```bash
 npm run check
 npm run deploy:worker
-npm run verify:v2-preview -- https://abcoda.mud-repo-patcher-mcp-probe.workers.dev
+npm run verify:deployment -- https://abcoda.mud-repo-patcher-mcp-probe.workers.dev
 ```
 
-The verification script retains its historical `v2-preview` name, but it probes the deployed Worker over HTTPS and verifies health, MCP initialization, a stable tool list, schema-v2 `render_score`, tool calls, UI resource, CORS/CSP and request correlation.
+The deployment verifier probes the Worker over HTTPS and verifies health, MCP initialization, a stable tool list, schema-v2 `render_score`, tool calls, widget publication metadata, CORS/CSP and request correlation.
 
 The manual GitHub Action **Deploy ABCoda** performs the same build, artifact verification, Cloudflare deployment and public verification using repository secrets. The production MCP contract must remain stable as:
 
@@ -143,28 +118,9 @@ render_score
 
 ## Quality gates
 
-A normal CI run includes:
+A normal CI run includes typed ESLint, TypeScript checks, unit/property/regression tests, widget + Worker builds, workerd integration tests, artifact/bundle checks, Playwright smoke and full browser suites, and visual-review artifact upload.
 
-- typed ESLint;
-- TypeScript checks;
-- unit/property/regression tests;
-- widget + Worker builds;
-- workerd integration tests;
-- artifact/bundle checks;
-- Playwright smoke and full browser suites;
-- visual-review artifact upload.
-
-The test corpus that remains under `tests/fixtures` belongs to the canonical parser/evaluator and is not a compatibility layer for schema v1.
-
-## Migration status
-
-The architecture migration is complete:
-
-1. the former v2 implementation is canonical on `main`;
-2. production uses the canonical Cloudflare Worker and schema-v2 MCP surface;
-3. the `architecture-v2` branch has been retired;
-4. the schema-v1 runtime, deploy path, contracts and implementation-specific tests have been removed from the working tree;
-5. rollback/history remains available through Git commits rather than dormant source code.
+The test corpus under `tests/fixtures` belongs to the canonical parser/evaluator and is not a compatibility layer for schema v1.
 
 Historical design and migration documents remain under `docs/architecture` and `docs/migration` as project records; they should not be read as alternate deployable implementations.
 

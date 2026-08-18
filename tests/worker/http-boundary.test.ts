@@ -31,7 +31,7 @@ describe("ABCoda v2 Worker HTTP boundary", () => {
     const response = await SELF.fetch("https://abcoda.test/");
     expect(response.status).toBe(200);
     expect(response.headers.get("Content-Type")).toContain("text/html");
-    await expect(response.text()).resolves.toContain("ABCoda v2 widget laboratory");
+    await expect(response.text()).resolves.toContain("ABCoda widget laboratory");
   });
 
   it("reports all versions from the shared manifest", async () => {
@@ -406,7 +406,7 @@ describe("ABCoda v2 Worker HTTP boundary", () => {
     expect(resource.status).toBe(200);
     const resourceBody = await resource.text();
     expect(resourceBody).toContain("ui://abcoda/score-schema-2.html");
-    expect(resourceBody).toContain("ABCoda v2 widget laboratory");
+    expect(resourceBody).toContain("ABCoda widget laboratory");
     expect(resourceBody).toContain("abcoda/artifactHash");
   });
 });

@@ -14,7 +14,7 @@
     "packages/**/*.ts",
     "apps/worker/**/*.ts",
     "apps/widget/**/*.ts",
-    "tests/v2/**/*.ts",
+    "tests/unit/**/*.ts",
     "tests/worker/**/*.ts",
     "tests/browser/**/*.ts",
     "playwright.config.ts"

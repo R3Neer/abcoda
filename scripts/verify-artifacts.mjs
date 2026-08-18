@@ -11,8 +11,8 @@ const budgets = {
 };
 
 const [widget, worker] = await Promise.all([
-  readFile(new URL("../dist/v2-widget/index.html", import.meta.url)),
-  readFile(new URL("../dist/v2-worker/index.js", import.meta.url)),
+  readFile(new URL("../dist/widget/index.html", import.meta.url)),
+  readFile(new URL("../dist/worker/index.js", import.meta.url)),
 ]);
 const widgetText = widget.toString("utf8");
 const workerText = worker.toString("utf8");

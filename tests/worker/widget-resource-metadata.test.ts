@@ -2,6 +2,9 @@ import { SELF } from "cloudflare:test";
 import { LATEST_PROTOCOL_VERSION } from "@modelcontextprotocol/sdk/types.js";
 import { describe, expect, it } from "vitest";
 
+const widgetDomain = "https://abcoda.mud-repo-patcher-mcp-probe.workers.dev";
+const widgetResourceUri = "ui://abcoda/score-schema-2.html";
+
 async function rpcRequest(body: object): Promise<Response> {
   return SELF.fetch("https://abcoda.test/mcp", {
     method: "POST",
@@ -14,13 +17,13 @@ async function rpcRequest(body: object): Promise<Response> {
   });
 }
 
-describe("ABCoda widget resource CSP", () => {
-  it("allows only the abcjs soundfont origin for network requests", async () => {
+describe("ABCoda widget resource metadata", () => {
+  it("declares the dedicated widget domain and narrow SoundFont CSP", async () => {
     const response = await rpcRequest({
       jsonrpc: "2.0",
       id: 1,
       method: "resources/read",
-      params: { uri: "ui://abcoda/score-schema-2.html" },
+      params: { uri: widgetResourceUri },
     });
 
     expect(response.status).toBe(200);
@@ -29,14 +32,16 @@ describe("ABCoda widget resource CSP", () => {
       id: 1,
       result: {
         contents: [{
-          uri: "ui://abcoda/score-schema-2.html",
+          uri: widgetResourceUri,
           _meta: {
             ui: {
+              domain: widgetDomain,
               csp: {
                 connectDomains: ["https://paulrosen.github.io"],
                 resourceDomains: [],
               },
             },
+            "openai/widgetDomain": widgetDomain,
           },
         }],
       },

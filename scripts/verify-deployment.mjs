@@ -5,12 +5,12 @@ import { LATEST_PROTOCOL_VERSION } from "@modelcontextprotocol/sdk/types.js";
 
 const inputUrl = process.argv[2];
 if (!inputUrl) {
-  throw new Error("Usage: npm run verify:v2-preview -- https://<worker>.<subdomain>.workers.dev");
+  throw new Error("Usage: npm run verify:deployment -- https://<worker>.<subdomain>.workers.dev");
 }
 
 const baseUrl = new URL(inputUrl);
 if (baseUrl.protocol !== "https:") {
-  throw new Error("The preview URL must use HTTPS.");
+  throw new Error("The deployment URL must use HTTPS.");
 }
 baseUrl.pathname = "/";
 baseUrl.search = "";
@@ -18,7 +18,7 @@ baseUrl.hash = "";
 
 const allowedOrigin = "https://chatgpt.com";
 const rejectedOrigin = "https://preview-probe.invalid";
-const localWidget = await readFile(new URL("../dist/v2-widget/index.html", import.meta.url));
+const localWidget = await readFile(new URL("../dist/widget/index.html", import.meta.url));
 const localArtifactHash = createHash("sha256").update(localWidget).digest("hex");
 const gitSha = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
 const checks = {};
@@ -30,10 +30,7 @@ function assert(condition, message) {
 
 function requestId(response) {
   const value = response.headers.get("X-Request-Id");
-  assert(
-    value && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value),
-    "Response omitted a valid X-Request-Id.",
-  );
+  assert(value && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value), "Response omitted a valid X-Request-Id.");
   return value;
 }
 
@@ -56,12 +53,7 @@ async function rpc(method, params = undefined) {
       "MCP-Protocol-Version": LATEST_PROTOCOL_VERSION,
       Origin: allowedOrigin,
     },
-    body: JSON.stringify({
-      jsonrpc: "2.0",
-      id: rpcId,
-      method,
-      ...(params === undefined ? {} : { params }),
-    }),
+    body: JSON.stringify({ jsonrpc: "2.0", id: rpcId, method, ...(params === undefined ? {} : { params }) }),
   });
   assert(response.status === 200, `${method} returned HTTP ${response.status}.`);
   assert(response.headers.get("Access-Control-Allow-Origin") === allowedOrigin, `${method} lost allowed-origin CORS.`);
@@ -72,9 +64,7 @@ async function rpc(method, params = undefined) {
   return { response, body, requestId: id };
 }
 
-const healthResponse = await fetch(new URL("/health", baseUrl), {
-  headers: { Origin: allowedOrigin },
-});
+const healthResponse = await fetch(new URL("/health", baseUrl), { headers: { Origin: allowedOrigin } });
 assert(healthResponse.status === 200, `/health returned HTTP ${healthResponse.status}.`);
 const healthRequestId = requestId(healthResponse);
 assert(healthResponse.headers.get("Access-Control-Allow-Origin") === allowedOrigin, "/health did not reflect the allowed ChatGPT origin.");
@@ -92,9 +82,7 @@ assert(health.artifactHash === localArtifactHash, `Remote widget hash ${health.a
 checks.health = "ok";
 checks.securityHeaders = "ok";
 
-const rejectedResponse = await fetch(new URL("/health", baseUrl), {
-  headers: { Origin: rejectedOrigin },
-});
+const rejectedResponse = await fetch(new URL("/health", baseUrl), { headers: { Origin: rejectedOrigin } });
 assert(rejectedResponse.status === 403, `Untrusted Origin returned HTTP ${rejectedResponse.status} instead of 403.`);
 assert(rejectedResponse.headers.get("Access-Control-Allow-Origin") !== rejectedOrigin, "Untrusted Origin was reflected by CORS.");
 const rejectedBody = await jsonResponse(rejectedResponse, "untrusted Origin");
@@ -104,7 +92,7 @@ checks.originPolicy = "ok";
 const initialized = await rpc("initialize", {
   protocolVersion: LATEST_PROTOCOL_VERSION,
   capabilities: {},
-  clientInfo: { name: "abcoda-preview-probe", version: "1.0.0" },
+  clientInfo: { name: "abcoda-deployment-probe", version: "1.0.0" },
 });
 assert(initialized.body.result?.serverInfo?.name === "ABCoda", "MCP initialize returned the wrong server.");
 assert(typeof initialized.body.result?.protocolVersion === "string", "MCP initialize omitted protocolVersion.");
@@ -115,27 +103,21 @@ const toolList = tools.body.result?.tools;
 assert(Array.isArray(toolList), "tools/list omitted tools.");
 const expectedToolNames = ["prepare_composition", "render_score", "validate_score"];
 const actualToolNames = toolList.map((tool) => tool.name).sort();
-assert(
-  JSON.stringify(actualToolNames) === JSON.stringify(expectedToolNames),
-  `tools/list returned unexpected tools ${JSON.stringify(actualToolNames)}.`,
-);
+assert(JSON.stringify(actualToolNames) === JSON.stringify(expectedToolNames), `tools/list returned unexpected tools ${JSON.stringify(actualToolNames)}.`);
 const toolsAgain = await rpc("tools/list");
-assert(
-  JSON.stringify(toolsAgain.body.result?.tools) === JSON.stringify(toolList),
-  "Two consecutive tools/list calls returned different tool definitions.",
-);
+assert(JSON.stringify(toolsAgain.body.result?.tools) === JSON.stringify(toolList), "Two consecutive tools/list calls returned different tool definitions.");
 const resourceUri = `ui://abcoda/score-schema-${health.schemaVersion}.html`;
 const renderTool = toolList.find((tool) => tool.name === "render_score");
 assert(renderTool?._meta?.ui?.resourceUri === resourceUri, "render_score points at the wrong UI resource.");
 assert(renderTool?.inputSchema?.type === "object", "render_score must expose one object schema, not a union.");
 const renderProperties = renderTool.inputSchema?.properties ?? {};
-assert("snapshot" in renderProperties, "render_score input omitted the v2 snapshot.");
+assert("snapshot" in renderProperties, "render_score input omitted the score snapshot.");
 for (const legacyProperty of ["abc", "composition", "playback", "notation", "display"]) {
   assert(!(legacyProperty in renderProperties), `render_score still exposes legacy property ${legacyProperty}.`);
 }
 checks.toolsList = "ok";
 
-const privateMarker = "ABCODA_PREVIEW_PRIVATE_MARKER";
+const privateMarker = "ABCODA_DEPLOYMENT_PRIVATE_MARKER";
 const validation = await rpc("tools/call", {
   name: "validate_score",
   arguments: {
@@ -152,10 +134,7 @@ checks.validateWithoutUi = "ok";
 
 const rendering = await rpc("tools/call", {
   name: "render_score",
-  arguments: {
-    schemaVersion: health.schemaVersion,
-    snapshot: validationResult.snapshot,
-  },
+  arguments: { schemaVersion: health.schemaVersion, snapshot: validationResult.snapshot },
 });
 assert(rendering.body.result?._meta?.["abcoda/requestId"] === rendering.requestId, "render_score requestId does not match the HTTP request.");
 assert(rendering.body.result?.structuredContent?.status === "success", "render_score did not return a successful structured result.");
@@ -170,11 +149,15 @@ assert(widget.mimeType === "text/html;profile=mcp-app", `Unexpected widget MIME 
 assert(typeof widget.text === "string" && widget.text.length > 100, "Widget resource HTML is missing.");
 assert(widget._meta?.["abcoda/artifactHash"] === health.artifactHash, "Widget resource hash differs from /health.");
 assert(!widget.text.includes(privateMarker), "Widget HTML leaked score input into the resource template.");
+const expectedWidgetDomain = baseUrl.origin;
+assert(widget._meta?.ui?.domain === expectedWidgetDomain, `Widget resource domain ${widget._meta?.ui?.domain} does not match ${expectedWidgetDomain}.`);
+assert(widget._meta?.["openai/widgetDomain"] === expectedWidgetDomain, "Widget resource omitted the ChatGPT widgetDomain compatibility alias.");
 const csp = widget._meta?.ui?.csp;
 assert(Array.isArray(csp?.connectDomains), "Widget resource omitted connectDomains.");
 assert(csp.connectDomains.length === 1 && csp.connectDomains[0] === "https://paulrosen.github.io", "Widget resource has an unexpected network allowlist.");
 assert(Array.isArray(csp.resourceDomains) && csp.resourceDomains.length === 0, "Widget resource unexpectedly allows external static resources.");
 checks.widgetResource = "ok";
+checks.widgetDomain = "ok";
 
 const report = {
   gitSha,
@@ -189,6 +172,6 @@ const report = {
   checks,
 };
 
-const reportUrl = new URL("../dist/v2-preview-validation.json", import.meta.url);
+const reportUrl = new URL("../dist/deployment-validation.json", import.meta.url);
 await writeFile(reportUrl, `${JSON.stringify(report, null, 2)}\n`);
 process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);

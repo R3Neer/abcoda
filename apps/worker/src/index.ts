@@ -6,7 +6,7 @@ import {
   validateRequestBoundary,
   withCors,
 } from "./http/security";
-import { createV2McpServer } from "./mcp/create-server";
+import { createMcpServer } from "./mcp/create-server";
 import type {
   McpRequestObservability,
   McpToolObservation,
@@ -43,19 +43,13 @@ function versionedLogFields() {
 }
 
 function logMcpObservation(observation: McpToolObservation): void {
-  const event = {
-    ...versionedLogFields(),
-    ...observation,
-  };
+  const event = { ...versionedLogFields(), ...observation };
   if (observation.event === "mcp.tool.failed") console.error(event);
   else console.log(event);
 }
 
 function mcpObservability(context: RequestContext): McpRequestObservability {
-  return {
-    requestId: context.id,
-    emit: logMcpObservation,
-  };
+  return { requestId: context.id, emit: logMcpObservation };
 }
 
 function finalizeResponse(response: Response, context: RequestContext): Response {
@@ -82,11 +76,7 @@ function methodNotAllowed(methods: ReadonlySet<string>): Response {
   );
 }
 
-async function handleRequest(
-  request: Request,
-  env: Env,
-  context: RequestContext,
-): Promise<Response> {
+async function handleRequest(request: Request, env: Env, context: RequestContext): Promise<Response> {
   const boundary = validateRequestBoundary(request, env);
   if (boundary.rejection) return withCors(boundary.rejection, boundary.origin);
 
@@ -128,13 +118,11 @@ async function handleRequest(
   const bounded = await boundRequestBody(request);
   if (bounded instanceof Response) return withCors(bounded, boundary.origin);
 
-  const server = createV2McpServer(
+  const server = createMcpServer(
     () => loadWidgetArtifact(env, request.url),
     mcpObservability(context),
   );
-  const transport = new WebStandardStreamableHTTPServerTransport({
-    enableJsonResponse: true,
-  });
+  const transport = new WebStandardStreamableHTTPServerTransport({ enableJsonResponse: true });
   await server.connect(transport);
   const response = await transport.handleRequest(bounded);
   return withCors(response, boundary.origin);

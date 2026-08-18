@@ -1,9 +1,9 @@
 import tseslint from "typescript-eslint";
 
-const v2Files = [
+const sourceFiles = [
   "packages/**/*.ts",
   "apps/**/*.ts",
-  "tests/v2/**/*.ts",
+  "tests/unit/**/*.ts",
   "tests/worker/**/*.ts",
   "tests/browser/**/*.ts",
   "playwright.config.ts",
@@ -15,13 +15,13 @@ export default tseslint.config(
   },
   ...tseslint.configs.recommendedTypeChecked.map((config) => ({
     ...config,
-    files: v2Files,
+    files: sourceFiles,
   })),
   {
-    files: v2Files,
+    files: sourceFiles,
     languageOptions: {
       parserOptions: {
-        project: "./tsconfig.v2.json",
+        project: "./tsconfig.app.json",
         tsconfigRootDir: import.meta.dirname,
       },
     },

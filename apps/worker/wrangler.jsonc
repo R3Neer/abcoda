@@ -5,7 +5,7 @@
   "compatibility_date": "2026-08-15",
   "compatibility_flags": ["nodejs_compat"],
   "assets": {
-    "directory": "../../dist/v2-widget",
+    "directory": "../../dist/widget",
     "binding": "ASSETS",
     "run_worker_first": true
   },
