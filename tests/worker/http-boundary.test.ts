@@ -92,12 +92,7 @@ describe("ABCoda v2 Worker HTTP boundary", () => {
             arguments: {
               schemaVersion: 2,
               revision,
-              abc: `X:${id}\
-T:${title}\
-M:4/4\
-L:1/4\
-K:C\
-C D E F|]`,
+              abc: `X:${id}\nT:${title}\nM:4/4\nL:1/4\nK:C\nC D E F|]`,
             },
           },
         }),
@@ -314,12 +309,7 @@ C D E F|]`,
         arguments: {
           schemaVersion: 2,
           revision: 12,
-          abc: "X:1\
-T:Worker integration\
-M:4/4\
-L:1/4\
-K:C\
-C D E F|]",
+          abc: "X:1\nT:Worker integration\nM:4/4\nL:1/4\nK:C\nC D E F|]",
         },
       },
     });
@@ -361,12 +351,7 @@ C D E F|]",
               voices: [{ id: "forged-voice-id", kind: "unpitched_percussion" }],
               source: {
                 format: "abc",
-                text: "X:7\
-T:Canonical source\
-M:4/4\
-L:1/4\
-K:C\
-G A B c|]",
+                text: "X:7\nT:Canonical source\nM:4/4\nL:1/4\nK:C\nG A B c|]",
               },
             },
             diagnostics: [],
@@ -401,12 +386,7 @@ G A B c|]",
         name: "render_score",
         arguments: {
           schemaVersion: 1,
-          abc: "X:8\
-T:Legacy input\
-M:4/4\
-L:1/4\
-K:C\
-C D E F|]",
+          abc: "X:8\nT:Legacy input\nM:4/4\nL:1/4\nK:C\nC D E F|]",
         },
       },
     });
