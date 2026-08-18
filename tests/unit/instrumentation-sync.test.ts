@@ -118,6 +118,33 @@ K:C
     }
   });
 
+  it("completes an implicit default piano voice instead of requiring ChatGPT to declare V", () => {
+    const source = `X:1
+T:Implicit piano
+M:4/4
+L:1/4
+K:C
+C D E F|G A B c|]`;
+
+    const result = synchronizeInstrumentationAbc(source, {
+      default: "acoustic_grand_piano",
+    });
+
+    expect(result).toContain("%%score { default | default_lower }");
+    expect(result).toContain('V:default clef=treble name="Piano"');
+    expect(result).toContain("V:default_lower clef=bass");
+    expect(result).toContain("[V:default_lower] z4| z4|]");
+
+    const parsed = parseAbc(result);
+    expect(parsed.ok).toBe(true);
+    if (parsed.ok) {
+      expect(parsed.document.voices.map((voice) => String(voice.id))).toEqual([
+        "default",
+        "default_lower",
+      ]);
+    }
+  });
+
   it("puts a one-staff bass piano on the lower staff and creates the silent upper staff", () => {
     const source = `X:1
 T:Bass piano line
