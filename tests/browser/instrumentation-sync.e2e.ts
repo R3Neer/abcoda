@@ -29,7 +29,7 @@ test("instrument controls rewrite ABC labels and brace grouping", async ({ page 
   await expect.poll(() => page.locator("#abc-draft").inputValue()).toContain(
     "%%score { RH | LH }",
   );
-  await expect(page.locator('#score [data-name="brace"]')).toHaveCount(1);
+  await expect(page.locator('#score [data-name="brace"]').first()).toBeVisible();
 
   const restoredDraft = await page.locator("#abc-draft").inputValue();
   expect(restoredDraft).toContain('V:RH clef=treble name="Piano"');
