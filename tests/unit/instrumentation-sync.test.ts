@@ -12,12 +12,14 @@ K:C
 [V:RH name="Right hand"] C D E F|]
 [V:LH name="Left hand"] C, D, E, F,|]`;
 
+const seedPiano = () => synchronizeInstrumentationAbc(piano, {
+  RH: "acoustic_grand_piano",
+  LH: "acoustic_grand_piano",
+});
+
 describe("instrumentation synchronization", () => {
   it("prints one piano name for a single braced instrument and no repeated subname", () => {
-    const result = synchronizeInstrumentationAbc(piano, {
-      RH: "acoustic_grand_piano",
-      LH: "acoustic_grand_piano",
-    });
+    const result = seedPiano();
 
     expect(result).toContain("%%score { RH | LH }");
     expect(result).toContain('V:RH clef=treble name="Piano"');
@@ -31,7 +33,7 @@ describe("instrumentation synchronization", () => {
   });
 
   it("removes a brace when its voices become different instruments", () => {
-    const result = synchronizeInstrumentationAbc(piano, {
+    const result = synchronizeInstrumentationAbc(seedPiano(), {
       RH: "cello",
       LH: "acoustic_grand_piano",
     });
@@ -46,7 +48,7 @@ describe("instrumentation synchronization", () => {
   });
 
   it("restores the remembered brace when the voices share an instrument again", () => {
-    const split = synchronizeInstrumentationAbc(piano, {
+    const split = synchronizeInstrumentationAbc(seedPiano(), {
       RH: "cello",
       LH: "acoustic_grand_piano",
     });
